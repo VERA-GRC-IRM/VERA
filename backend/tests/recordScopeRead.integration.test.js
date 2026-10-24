@@ -95,7 +95,8 @@ test("scope read projections use direct grants and hide denied records from list
     entityTitle: firstRisk.title, author: admin });
   const deniedEvidence = evidenceRepository.create({ title: `Evidencia B ${stamp}`,
     description: "Referencia sintética", entityType: "RISK", entityId: deniedRisk.id,
-    entityTitle: deniedRisk.title, author: admin });
+    entityTitle: deniedRisk.title, author: admin,
+    file: { bucket: "synthetic", path: `private/${stamp}`, mime: "application/pdf" } });
   const rejected = (operation) => operation().then(() => null, (error) =>
     ({ status: error.status, message: error.message }));
   const riskInput = { title: `Riesgo vínculo ${stamp}`, description: "Descripción sintética de vínculo",
@@ -191,6 +192,16 @@ test("scope read projections use direct grants and hide denied records from list
   const getItems = async (path) => (await (await fetch(`${base}${path}`, { headers: {
     Authorization: `Bearer ${token(3)}`
   } })).json());
+  const statusFor = async (path) => (await fetch(`${base}${path}`, { headers: {
+    Authorization: `Bearer ${token(3)}`
+  } })).status;
+  assert.equal(await statusFor(`/api/planning/${audit.id}/history`), 200);
+  assert.equal(await statusFor(`/api/planning/${deniedAudit.id}/history`), 404);
+  assert.equal(await statusFor(`/api/planning/${deniedAudit.id}/context`), 404);
+  assert.equal(await statusFor(`/api/actions/${deniedAction.id}`), 404);
+  assert.equal(await statusFor(`/api/actions/for-audit/${deniedAudit.id}`), 404);
+  assert.equal(await statusFor(`/api/actions?sourceType=RISK&sourceId=${deniedRisk.id}`), 404);
+  assert.equal(await statusFor(`/api/evidence/${deniedEvidence.id}/download`), 404);
   const listedControls = (await getItems("/api/controls")).controls;
   assert.ok(listedControls.some((item) => item.id === allowedControl.id));
   assert.ok(!listedControls.some((item) => [deniedControl.id, mixedControl.id].includes(item.id)));
