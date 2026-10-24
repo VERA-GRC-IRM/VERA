@@ -34,6 +34,8 @@ Las [autorizaciones directas por ámbito](org-grants.md) registran concesiones y
 
 La [línea base de metodología](risk-methods.md) identifica la matriz histórica y evita llamar “residual” a una evaluación que no lo especifica.
 
+La [biblioteca de riesgos](risk-library.md) introduce categorías y plantillas publicadas con historial inmutable. Aún no reclasifica los riesgos registrados.
+
 | Tramo | Primer resultado verificable | Dependencia |
 | --- | --- | --- |
 | 0. Contrato | Glosario, invariantes, decisiones pendientes y casos sintéticos | Ninguna |
