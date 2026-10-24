@@ -1,16 +1,22 @@
 const riskRepository = require("../repositories/riskRepository");
+const planningRepository = require("../repositories/planningRepository");
 const { evaluateRiskForUser } = require("../services/riskEvaluationService");
 const { activeUsers, createRiskForUser } = require("../services/riskCreationService");
 const { updateCoreForUser } = require("../services/recordEditService");
 const { normalizeArea } = require("../utils/normalizeArea");
-const { filterByVisibleScope } = require("../services/recordScopeVisibility");
+const { filterByVisibleScope, projectVisibleAuditLinks } = require("../services/recordScopeVisibility");
 
 const text = (value) => String(value ?? "").trim();
 const listRisks = async (req, res) => {
   const { level, search, area } = req.query;
   const needle = text(search).toLowerCase();
-  let risks = await filterByVisibleScope(req.user, await riskRepository.getAll());
+  const [allRisks, allAudits] = await Promise.all([riskRepository.getAll(), planningRepository.getAll()]);
+  let risks = await filterByVisibleScope(req.user, allRisks);
   if (req.user.role === "AUDITOR") risks = risks.filter((risk) => risk.ownerId === req.user.id);
+  let visibleAudits = await filterByVisibleScope(req.user, allAudits);
+  if (req.user.role === "AUDITOR") visibleAudits = visibleAudits.filter((audit) =>
+    audit.responsibleId === req.user.id);
+  risks = projectVisibleAuditLinks(risks, visibleAudits);
   if (["Bajo", "Medio", "Alto"].includes(level)) risks = risks.filter((risk) => risk.level === level);
   if (area) risks = risks.filter((risk) => normalizeArea(risk.area) === normalizeArea(area));
   if (needle) risks = risks.filter((risk) => `${risk.title} ${risk.description} ${risk.area} ${risk.ownerName}`.toLowerCase().includes(needle));

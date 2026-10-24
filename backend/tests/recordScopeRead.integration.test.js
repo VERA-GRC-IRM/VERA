@@ -29,6 +29,7 @@ const { applyTransition } = require("../services/planningTransitionService");
 const { updateProposalForUser } = require("../services/proposalService");
 const { createCommentForUser } = require("../services/planningCommentService");
 const { visibleNotifications } = require("../services/notificationWorkflowService");
+const { visibleCollectionsForUser } = require("../services/recordReadAccessService");
 const { handleRiskEvaluation } = require("../services/assistantRiskEvaluationService");
 const { handleControlEvaluation } = require("../services/assistantControlEvaluationService");
 const { handleFindingClose } = require("../services/assistantFindingCloseService");
@@ -65,6 +66,7 @@ test("scope read projections use direct grants and hide denied records from list
     area: "Área de prueba", type: "Interna", year: 2026, quarter: "Q1",
     responsibleId: 3, responsible: "Gerente", risk: "Alto", orgUnitId: second.id });
   const firstRisk = risk(`Riesgo A ${stamp}`, first.id, audit.id);
+  const crossLinkedRisk = risk(`Riesgo A enlace externo ${stamp}`, first.id, deniedAudit.id);
   const deniedRisk = risk(`Riesgo B ${stamp}`, second.id, audit.id);
   const childRisk = risk(`Riesgo hijo ${stamp}`, child.id, audit.id);
   const legacyRisk = risk(`Riesgo legado ${stamp}`, null, audit.id);
@@ -99,6 +101,9 @@ test("scope read projections use direct grants and hide denied records from list
   } })).json()).risks;
   const managerList = await list(3);
   assert.ok(managerList.some((item) => item.id === firstRisk.id));
+  assert.equal(managerList.find((item) => item.id === crossLinkedRisk.id).linkedAuditId, null);
+  assert.equal((await visibleCollectionsForUser(manager)).RISK
+    .find((item) => item.id === crossLinkedRisk.id).linkedAuditId, null);
   assert.ok(managerList.some((item) => item.id === legacyRisk.id));
   assert.ok(!managerList.some((item) => item.id === deniedRisk.id || item.id === childRisk.id));
   assert.ok((await list(1)).some((item) => item.id === deniedRisk.id));
@@ -106,6 +111,8 @@ test("scope read projections use direct grants and hide denied records from list
 
   const assistant = await buildAssistantContext(manager, `riesgos ${stamp}`);
   assert.ok(assistant.sourceCatalog.some((item) => item.id === firstRisk.id));
+  assert.equal(assistant.visibleRecords.risks
+    .find((item) => item.id === crossLinkedRisk.id).linkedAuditId, null);
   assert.ok(!assistant.sourceCatalog.some((item) => item.id === deniedRisk.id || item.id === childRisk.id));
   assert.ok(assistant.sourceCatalog.some((item) => item.id === allowedControl.id));
   assert.ok(!assistant.sourceCatalog.some((item) =>
@@ -223,6 +230,8 @@ test("scope read projections use direct grants and hide denied records from list
     { rating: 2, note: "Evaluación sintética documentada." })).effectiveness, 2);
   await assert.rejects(() => createAction(manager,
     { sourceType: "RISK", sourceId: firstRisk.id }), { status: 409 });
+  await assert.rejects(() => createAction(manager,
+    { sourceType: "RISK", sourceId: crossLinkedRisk.id }), { status: 404 });
   await assert.rejects(() => createEvidenceForUser(manager, evidenceInput), { status: 409 });
   await assert.rejects(() => createFindingForUser(manager, findingInput), { status: 409 });
   await assert.rejects(() => createCommentForUser(manager, audit.id,

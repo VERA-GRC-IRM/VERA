@@ -3,7 +3,8 @@ const riskRepository = require("../repositories/riskRepository");
 const controlRepository = require("../repositories/controlRepository");
 const findingRepository = require("../repositories/findingRepository");
 const { ROLES } = require("../config/roles");
-const { filterByVisibleScope, canViewRecordScope, projectVisibleRiskRelations } = require("./recordScopeVisibility");
+const { filterByVisibleScope, canViewRecordScope, projectVisibleRiskRelations,
+  projectVisibleAuditLinks } = require("./recordScopeVisibility");
 
 const empty = () => ({ AUDIT: [], RISK: [], CONTROL: [], FINDING: [] });
 
@@ -16,10 +17,11 @@ const visibleCollectionsForUser = async (user) => {
   ]);
   const scopedAudits = await filterByVisibleScope(user, allAudits);
   const related = await projectVisibleRiskRelations(user, allRisks, allControls, allFindings);
+  const audits = user.role === ROLES.AUDITOR
+    ? scopedAudits.filter((item) => item.responsibleId === user.id) : scopedAudits;
   return {
-    AUDIT: user.role === ROLES.AUDITOR
-      ? scopedAudits.filter((item) => item.responsibleId === user.id) : scopedAudits,
-    RISK: related.risks,
+    AUDIT: audits,
+    RISK: projectVisibleAuditLinks(related.risks, audits),
     CONTROL: related.controls,
     FINDING: related.findings
   };

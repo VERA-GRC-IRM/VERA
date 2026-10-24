@@ -5,7 +5,8 @@ const findingRepository = require("../repositories/findingRepository");
 const { ROLES } = require("../config/roles");
 const { buildNotifications } = require("./notificationService");
 const { listActions } = require("./actionService");
-const { filterByVisibleScope, projectVisibleRiskRelations } = require("./recordScopeVisibility");
+const { filterByVisibleScope, projectVisibleRiskRelations,
+  projectVisibleAuditLinks } = require("./recordScopeVisibility");
 
 const LIMIT_PER_TYPE = 20;
 const clean = (value, limit = 160) => String(value ?? "").slice(0, limit);
@@ -87,8 +88,9 @@ const buildAssistantContext = async (user, question, focus = null) => {
   const auditor = user.role === "AUDITOR";
   const scopedAudits = await filterByVisibleScope(user, allAudits);
   const audits = auditor ? scopedAudits.filter((item) => item.responsibleId === user.id) : scopedAudits;
-  const { risks, controls, findings } = await projectVisibleRiskRelations(
+  const { risks: scopedRisks, controls, findings } = await projectVisibleRiskRelations(
     user, allRisks, allControls, allFindings);
+  const risks = projectVisibleAuditLinks(scopedRisks, audits);
   const riskIds = new Set(risks.map((item) => item.id));
   let actions = [];
   let pendingActionsAvailable = true;
