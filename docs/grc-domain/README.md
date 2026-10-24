@@ -30,6 +30,8 @@ Este programa amplía el alcance de negocio de VERA sin atribuirle una certifica
 
 El [directorio de ámbitos empresariales](org-directory.md) es el primer incremento del tramo 1. Todavía no aplica ámbitos a expedientes ni representa una estructura corporativa aprobada.
 
+Las [autorizaciones directas por ámbito](org-grants.md) registran concesiones y revocaciones con motivo. Aún no filtran expedientes: la comprobación de cada ruta de lectura y escritura es un incremento posterior.
+
 La [línea base de metodología](risk-methods.md) identifica la matriz histórica y evita llamar “residual” a una evaluación que no lo especifica.
 
 | Tramo | Primer resultado verificable | Dependencia |
