@@ -4,7 +4,8 @@ const controlRepository = require("../repositories/controlRepository");
 const planningRepository = require("../repositories/planningRepository");
 const userRepository = require("../repositories/userRepository");
 const { logActivity } = require("./auditLogger");
-const { RECORD_CREATE_ROLES, ROLES } = require("../config/roles");
+const { RECORD_CREATE_ROLES } = require("../config/roles");
+const { visibleRecordForUser } = require("./recordReadAccessService");
 const evidenceStorage = require("./evidenceStorage");
 const { indexFile } = require("./evidenceContentService");
 const { SEARCHABLE_MIME } = require("./evidenceTextExtraction");
@@ -23,18 +24,8 @@ const findEntity = async (type, id) => {
   return null;
 };
 
-const canAccessEntity = async (type, id, user) => {
-  if (user.role !== ROLES.AUDITOR) return Boolean(await findEntity(type, id));
-  if (type === "RISK") return (await riskRepository.findById(id))?.ownerId === user.id;
-  if (type === "AUDIT") return (await planningRepository.findById(id))?.responsibleId === user.id;
-  if (type === "CONTROL") {
-    const control = await controlRepository.findById(id);
-    if (!control) return false;
-    const risks = await Promise.all(control.riskIds.map((riskId) => riskRepository.findById(riskId)));
-    return risks.some((risk) => risk?.ownerId === user.id);
-  }
-  return false;
-};
+const canAccessEntity = async (type, id, user) =>
+  Boolean(await visibleRecordForUser(user, type, id));
 
 const parseEvidence = async (user, body) => {
   const title = text(body.title);
