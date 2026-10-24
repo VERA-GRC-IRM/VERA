@@ -4,6 +4,7 @@ const controlRepository = require("../repositories/controlRepository");
 const findingRepository = require("../repositories/findingRepository");
 const evidenceRepository = require("../repositories/evidenceRepository");
 const { ROLES } = require("../config/roles");
+const { filterByVisibleScope, canViewRecordScope } = require("./recordScopeVisibility");
 
 // Una sola definición de las relaciones del expediente, también usada por el dossier de IA.
 const relateAudit = (auditId, { risks = [], controls = [], findings = [], evidence = [] }) => {
@@ -33,7 +34,8 @@ const buildAuditContext = async (user, auditId) => {
   }
 
   const audit = await planningRepository.findById(auditId);
-  if (!audit || (user.role === ROLES.AUDITOR && audit.responsibleId !== user.id)) {
+  if (!audit || !await canViewRecordScope(user, audit) ||
+      (user.role === ROLES.AUDITOR && audit.responsibleId !== user.id)) {
     const error = new Error("La auditoría no existe o no está disponible para tu cuenta.");
     error.status = 404;
     throw error;
@@ -43,7 +45,8 @@ const buildAuditContext = async (user, auditId) => {
     riskRepository.getAll(), controlRepository.getAll(), findingRepository.getAll(), evidenceRepository.getAll()
   ]);
   const auditor = user.role === ROLES.AUDITOR;
-  const risks = auditor ? allRisks.filter((item) => item.ownerId === user.id) : allRisks;
+  const scopedRisks = await filterByVisibleScope(user, allRisks);
+  const risks = auditor ? scopedRisks.filter((item) => item.ownerId === user.id) : scopedRisks;
   const visibleRiskIds = new Set(risks.map((item) => item.id));
   const controls = auditor
     ? allControls.filter((item) => item.riskIds?.some((id) => visibleRiskIds.has(id))) : allControls;

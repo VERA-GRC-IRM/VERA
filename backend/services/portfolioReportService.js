@@ -6,6 +6,7 @@ const evidenceRepository = require("../repositories/evidenceRepository");
 const { ROLES } = require("../config/roles");
 const { relateAudit } = require("./auditContextService");
 const { searchAudits } = require("./auditSearch");
+const { filterByVisibleScope } = require("./recordScopeVisibility");
 
 const buildPortfolioReport = async (user, filters) => {
   if (!Object.values(ROLES).includes(user.role)) {
@@ -18,9 +19,11 @@ const buildPortfolioReport = async (user, filters) => {
     findingRepository.getAll(), evidenceRepository.getAll()
   ]);
   const auditor = user.role === ROLES.AUDITOR;
+  const scopedAudits = await filterByVisibleScope(user, allAudits);
+  const scopedRisks = await filterByVisibleScope(user, allRisks);
   const audits = searchAudits(auditor
-    ? allAudits.filter((audit) => audit.responsibleId === user.id) : allAudits, filters);
-  const risks = auditor ? allRisks.filter((risk) => risk.ownerId === user.id) : allRisks;
+    ? scopedAudits.filter((audit) => audit.responsibleId === user.id) : scopedAudits, filters);
+  const risks = auditor ? scopedRisks.filter((risk) => risk.ownerId === user.id) : scopedRisks;
   const riskIds = new Set(risks.map((risk) => risk.id));
   const controls = auditor ? allControls.filter((control) =>
     control.riskIds?.some((riskId) => riskIds.has(riskId))) : allControls;
