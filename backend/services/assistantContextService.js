@@ -5,6 +5,7 @@ const findingRepository = require("../repositories/findingRepository");
 const { ROLES } = require("../config/roles");
 const { buildNotifications } = require("./notificationService");
 const { listActions } = require("./actionService");
+const { filterByVisibleScope } = require("./recordScopeVisibility");
 
 const LIMIT_PER_TYPE = 20;
 const clean = (value, limit = 160) => String(value ?? "").slice(0, limit);
@@ -84,18 +85,29 @@ const buildAssistantContext = async (user, question, focus = null) => {
     planningRepository.getAll(), riskRepository.getAll(), controlRepository.getAll(), findingRepository.getAll()
   ]);
   const auditor = user.role === "AUDITOR";
-  const audits = auditor ? allAudits.filter((item) => item.responsibleId === user.id) : allAudits;
-  const risks = auditor ? allRisks.filter((item) => item.ownerId === user.id) : allRisks;
+  const scopedAudits = await filterByVisibleScope(user, allAudits);
+  const scopedRisks = await filterByVisibleScope(user, allRisks);
+  const audits = auditor ? scopedAudits.filter((item) => item.responsibleId === user.id) : scopedAudits;
+  const risks = auditor ? scopedRisks.filter((item) => item.ownerId === user.id) : scopedRisks;
   const riskIds = new Set(risks.map((item) => item.id));
-  const controls = auditor
+  const hasScopedRisks = allRisks.some((item) => item.orgUnitId);
+  const controls = auditor || hasScopedRisks
     ? allControls.filter((item) => item.riskIds.some((id) => riskIds.has(id)))
     : allControls;
-  const findings = auditor ? allFindings.filter((item) => riskIds.has(item.riskId)) : allFindings;
+  const findings = auditor || hasScopedRisks
+    ? allFindings.filter((item) => riskIds.has(item.riskId)) : allFindings;
   let actions = [];
   let pendingActionsAvailable = true;
   try { actions = await listActions(user); }
   catch { pendingActionsAvailable = false; }
-  const notifications = buildNotifications({ proposals: allAudits, actions, user });
+  const allowedActionSources = {
+    AUDIT: new Set(audits.map((item) => item.id)),
+    RISK: riskIds,
+    CONTROL: new Set(controls.map((item) => item.id)),
+    FINDING: new Set(findings.map((item) => item.id))
+  };
+  actions = actions.filter((item) => allowedActionSources[item.sourceType]?.has(item.sourceId));
+  const notifications = buildNotifications({ proposals: audits, actions, user });
   // Este alcance coincide con los endpoints de lectura de cada módulo. El
   // expediente se resuelve después de filtrar, para no revelar su existencia.
   const visibleByType = { audit: audits, risk: risks, control: controls, finding: findings };

@@ -3,12 +3,13 @@ const { evaluateRiskForUser } = require("../services/riskEvaluationService");
 const { activeUsers, createRiskForUser } = require("../services/riskCreationService");
 const { updateCoreForUser } = require("../services/recordEditService");
 const { normalizeArea } = require("../utils/normalizeArea");
+const { filterByVisibleScope } = require("../services/recordScopeVisibility");
 
 const text = (value) => String(value ?? "").trim();
 const listRisks = async (req, res) => {
   const { level, search, area } = req.query;
   const needle = text(search).toLowerCase();
-  let risks = await riskRepository.getAll();
+  let risks = await filterByVisibleScope(req.user, await riskRepository.getAll());
   if (req.user.role === "AUDITOR") risks = risks.filter((risk) => risk.ownerId === req.user.id);
   if (["Bajo", "Medio", "Alto"].includes(level)) risks = risks.filter((risk) => risk.level === level);
   if (area) risks = risks.filter((risk) => normalizeArea(risk.area) === normalizeArea(area));
