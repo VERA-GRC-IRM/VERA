@@ -3,12 +3,16 @@ const commentRepository = require("../repositories/commentRepository");
 const userRepository = require("../repositories/userRepository");
 const { logActivity } = require("./auditLogger");
 const { RECORD_CREATE_ROLES, ROLES } = require("../config/roles");
+const { canViewRecordScope, assertWritableRecordScope } = require("./recordScopeVisibility");
+const { assertNewRelationUnscoped } = require("./recordWriteScopeService");
 
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
 const canView = (proposal, user) => user.role !== ROLES.AUDITOR || proposal.responsibleId === user.id;
 const findVisibleProposal = async (user, id) => {
   const proposal = await planningRepository.findById(id);
-  if (!proposal || !canView(proposal, user)) throw errorFor("Propuesta de auditoría no encontrada.", 404);
+  if (!proposal || !canView(proposal, user) || !await canViewRecordScope(user, proposal)) {
+    throw errorFor("Propuesta de auditoría no encontrada.", 404);
+  }
   return proposal;
 };
 const parseComment = async (user, proposalId, body) => {
@@ -30,6 +34,8 @@ const createCommentForUser = async (user, proposalId, body, operationId = null) 
     throw errorFor("La operación no es válida.", 400);
   }
   const { proposal, text } = await parseComment(user, proposalId, body);
+  await assertWritableRecordScope(user, proposal);
+  assertNewRelationUnscoped(proposal);
   if (operationId) {
     const existing = (await commentRepository.listByProposal(proposal.id))
       .find((item) => item.aiOperationId === operationId);

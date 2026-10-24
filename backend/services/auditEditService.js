@@ -4,6 +4,7 @@ const { PLANNING_APPROVE_ROLES } = require("../config/roles");
 const { EDITABLE_FIELDS_BY_STATUS, FIELD_LABELS, STATUS_LABELS } = require("../config/auditEditRules");
 const { parseProposal } = require("./proposalService");
 const { logActivity } = require("./auditLogger");
+const { assertWritableRecordScope } = require("./recordScopeVisibility");
 
 const fail = (message, status = 400) => Object.assign(new Error(message), { status });
 const activeEditor = async (user) => {
@@ -18,6 +19,7 @@ const prepareAuditEdit = async (user, id, body, expected = {}) => {
   await activeEditor(user);
   const current = await planningRepository.findById(id);
   if (!current) throw fail("Auditoría no encontrada.", 404);
+  await assertWritableRecordScope(user, current);
   const allowed = EDITABLE_FIELDS_BY_STATUS[current.status];
   if (!allowed) throw fail(`Una auditoría ${STATUS_LABELS[current.status] || current.status} no se puede editar desde aquí.`, 409);
   const sent = Object.keys(body || {});
@@ -57,6 +59,7 @@ const editAuditForUser = async (user, id, body, options = {}) => {
   await activeEditor(user);
   const existing = await planningRepository.findById(id);
   if (options.operationId && existing?.aiEditOperationId === options.operationId) {
+    await assertWritableRecordScope(user, existing);
     return { audit: existing, changes: {} };
   }
   const prepared = await prepareAuditEdit(user, id, body, options.expected || {});
@@ -66,6 +69,7 @@ const editAuditForUser = async (user, id, body, options = {}) => {
       latest.storageVersion !== prepared.current.storageVersion) {
     throw fail("La auditoría cambió mientras se guardaba. Revísala otra vez.", 409);
   }
+  await assertWritableRecordScope(user, latest);
   const audit = await planningRepository.update(id, {
     ...prepared.update,
     ...(options.operationId ? { aiEditOperationId: options.operationId } : {})

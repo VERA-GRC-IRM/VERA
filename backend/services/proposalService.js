@@ -4,6 +4,7 @@ const { logActivity } = require("./auditLogger");
 const { ROLES, AUDIT_PROPOSAL_CREATE_ROLES } = require("../config/roles");
 const { USER_STATUS } = require("../config/accountRules");
 const { classifyRisk } = require("../config/riskRules");
+const { assertWritableRecordScope } = require("./recordScopeVisibility");
 
 const TYPES = ["Interna", "Externa"];
 const RISKS = ["Bajo", "Medio", "Alto"];
@@ -83,7 +84,10 @@ const createProposalForUser = async (user, input, operationId = null) => {
   }
   if (operationId) {
     const existing = (await planningRepository.getAll()).find((item) => item.aiOperationId === operationId);
-    if (existing) return existing;
+    if (existing) {
+      await assertWritableRecordScope(user, existing);
+      return existing;
+    }
   }
   const { data, error } = await parseProposal(input);
   if (error) throw errorFor(error, 400);
@@ -104,6 +108,7 @@ const prepareProposalEdit = async (user, id, changes, expectedVersion, expectedV
   if (!AUDIT_PROPOSAL_CREATE_ROLES.includes(user.role)) throw errorFor("Tu rol no puede editar propuestas.", 403);
   const current = await planningRepository.findById(id);
   if (!current) throw errorFor("Propuesta no encontrada.", 404);
+  await assertWritableRecordScope(user, current);
   if (user.role === ROLES.JEFATURA && current.createdBy?.id !== user.id) {
     throw errorFor("Solo puedes editar las propuestas que creaste.", 403);
   }
@@ -128,6 +133,7 @@ const prepareProposalEdit = async (user, id, changes, expectedVersion, expectedV
 
 const updateProposalForUser = async (user, id, changes, expectedVersion, reason = null, expectedValues = null) => {
   const { current, data } = await prepareProposalEdit(user, id, changes, expectedVersion, expectedValues);
+  await assertWritableRecordScope(user, current);
   const proposal = await planningRepository.update(current.id, data, current.storageVersion);
   await logActivity({ actor: user, action: "AUDIT_PROPOSAL_UPDATED",
     details: { proposalId: proposal.id, title: proposal.title, ...(reason ? { reason } : {}) } });

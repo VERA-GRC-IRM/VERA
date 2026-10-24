@@ -1,6 +1,7 @@
 const { query } = require("../services/auditLogger");
 const planningRepository = require("../repositories/planningRepository");
 const { ROLES } = require("../config/roles");
+const { filterByVisibleScope } = require("../services/recordScopeVisibility");
 
 // GET /api/audit?action=&actor=&from=&to=&limit=   (solo Super Admin)
 const listAudit = async (req, res) => {
@@ -9,7 +10,7 @@ const listAudit = async (req, res) => {
 };
 
 const listRecentAuditActivity = async (req, res) => {
-  const audits = await planningRepository.getAll();
+  const audits = await filterByVisibleScope(req.user, await planningRepository.getAll());
   const visibleAudits = new Map(
     audits
       .filter((audit) => req.user.role !== ROLES.AUDITOR || audit.responsibleId === req.user.id)

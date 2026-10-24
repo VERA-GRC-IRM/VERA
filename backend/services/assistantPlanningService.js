@@ -2,6 +2,7 @@ const planningRepository = require("../repositories/planningRepository");
 const userRepository = require("../repositories/userRepository");
 const { PLANNING_APPROVE_ROLES } = require("../config/roles");
 const { applyTransition } = require("./planningTransitionService");
+const { filterByVisibleScope, assertWritableRecordScope } = require("./recordScopeVisibility");
 
 const normalize = (value) => String(value || "").normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
@@ -61,7 +62,7 @@ const handlePlanningTransition = async (user, question, thread) => {
   if (command.target.length > 140 || command.note.length < 10 || command.note.length > 1000) {
     return response("Indica un título o ID exacto y un motivo de 10 a 1,000 caracteres.");
   }
-  const matches = (await planningRepository.getAll()).filter((item) =>
+  const matches = (await filterByVisibleScope(user, await planningRepository.getAll())).filter((item) =>
     normalize(item.title) === normalize(command.target) || normalize(item.id) === normalize(command.target));
   if (matches.length !== 1) {
     return response(matches.length > 1
@@ -69,6 +70,7 @@ const handlePlanningTransition = async (user, question, thread) => {
       : "No encontré esa propuesta o auditoría en tu alcance. Comprueba el título o identificador exacto.");
   }
   const record = matches[0];
+  await assertWritableRecordScope(user, record);
   const valid = ["approve", "reject"].includes(command.operation) ? record.status === "OPEN"
     : command.operation === "start" ? record.status === "APPROVED" : record.status === "ACTIVE";
   if (!valid) return response("El estado actual no permite esa operación. Consulta el expediente y solicita la transición correspondiente.");
