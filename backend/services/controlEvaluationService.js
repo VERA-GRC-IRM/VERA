@@ -1,6 +1,7 @@
 const controlRepository = require("../repositories/controlRepository");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { logActivity } = require("./auditLogger");
+const { assertWritableControlScope } = require("./recordWriteScopeService");
 
 const resultFor = (rating) => Number(rating) >= 4 ? "EFFECTIVE" : "INEFFECTIVE";
 const withResult = (control) => ({ ...control,
@@ -23,11 +24,13 @@ const evaluateControlForUser = async (user, id, body, expectedVersion) => {
   if (typeof id !== "string" || !id.trim() || id.length > 80) throw errorFor("Selecciona un control válido.", 400);
   const current = await controlRepository.findById(id);
   if (!current) throw errorFor("Control no encontrado.", 404);
+  await assertWritableControlScope(user, current);
   const evaluation = parseEvaluation(body);
   if (evaluation.error) throw errorFor(evaluation.error, 400);
   if (expectedVersion !== undefined && current.storageVersion !== expectedVersion) {
     throw errorFor("El control cambió desde la vista previa. Revísalo de nuevo.", 409);
   }
+  await assertWritableControlScope(user, current);
   const control = await controlRepository.evaluate(current.id, {
     ...evaluation.data, assessedBy: { id: user.id, username: user.username, role: user.role }
   }, current.storageVersion);

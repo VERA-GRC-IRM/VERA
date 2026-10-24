@@ -5,6 +5,8 @@ const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { parseCore: parseRiskCore } = require("./riskCreationService");
 const { parseCore: parseControlCore } = require("./controlCreationService");
 const { logActivity } = require("./auditLogger");
+const { assertWritableRecordScope, assertWritableRiskAuditLink,
+  assertWritableControlScope } = require("./recordWriteScopeService");
 
 const fields = {
   RISK: new Set(["title", "description", "area", "responsePlan"]),
@@ -13,6 +15,12 @@ const fields = {
 const fail = (message, status = 400) => Object.assign(new Error(message), { status });
 const repositoryFor = (type) => type === "RISK" ? riskRepository : type === "CONTROL" ? controlRepository : null;
 const parseFor = (type) => type === "RISK" ? parseRiskCore : type === "CONTROL" ? parseControlCore : null;
+const assertWritable = async (user, type, record) => {
+  if (type === "RISK") {
+    await assertWritableRecordScope(user, record);
+    await assertWritableRiskAuditLink(user, record);
+  } else if (type === "CONTROL") await assertWritableControlScope(user, record);
+};
 const activeEditor = async (user) => {
   const current = await userRepository.findById(user.id);
   if (current?.status !== "ACTIVE" || current.role !== user.role) throw fail("Cambió tu acceso. Inicia sesión de nuevo.", 409);
@@ -25,6 +33,7 @@ const prepareRecordEdit = async (user, type, id, field, value) => {
   const repository = repositoryFor(type);
   const current = await repository.findById(id);
   if (!current) throw fail("El registro no existe o dejó de estar disponible.", 404);
+  await assertWritable(user, type, current);
   if (typeof value !== "string" || !value.trim() || current[field] === value.trim()) {
     throw fail("Indica un valor nuevo para el campo.");
   }
@@ -42,6 +51,7 @@ const updateCoreForUser = async (user, type, id, input, options = {}) => {
   if (!repository) throw fail("Tipo de registro no permitido.");
   const current = await repository.findById(id);
   if (!current) throw fail("El registro no existe o dejó de estar disponible.", 404);
+  await assertWritable(user, type, current);
   if (options.operationId && current.aiEditOperationId === options.operationId) return current;
   if (options.expectedUpdatedAt !== undefined && current.updatedAt !== options.expectedUpdatedAt) {
     throw fail("El registro cambió desde la vista previa. Vuelve a revisarlo.", 409);
@@ -51,6 +61,7 @@ const updateCoreForUser = async (user, type, id, input, options = {}) => {
   }
   const parsed = await parseFor(type)(input);
   if (parsed.error) throw fail(parsed.error);
+  await assertWritable(user, type, { ...current, ...parsed.data });
   if (type === "RISK" && await riskRepository.findDuplicate(parsed.data, id)) {
     throw fail("Ya existe un riesgo con el mismo nombre y área.", 409);
   }
@@ -59,6 +70,7 @@ const updateCoreForUser = async (user, type, id, input, options = {}) => {
   if (!latest || latest.updatedAt !== current.updatedAt || latest.storageVersion !== current.storageVersion) {
     throw fail("El registro cambió mientras se guardaba. Vuelve a revisarlo.", 409);
   }
+  await assertWritable(user, type, latest);
   const updated = await repository.update(id, { ...parsed.data,
     ...(options.operationId ? { aiEditOperationId: options.operationId } : {}) }, latest.storageVersion);
   if (!updated) throw fail("El registro dejó de estar disponible.", 409);
@@ -78,7 +90,10 @@ const updateSingleFieldForUser = async (user, type, id, field, value, reason, ex
   }
   await activeEditor(user);
   const existing = await repositoryFor(type)?.findById(id);
-  if (existing?.aiEditOperationId === operationId) return existing;
+  if (existing?.aiEditOperationId === operationId) {
+    await assertWritable(user, type, existing);
+    return existing;
+  }
   const prepared = await prepareRecordEdit(user, type, id, field, value);
   if (prepared.current.updatedAt !== expected?.updatedAt ||
       prepared.current[field] !== expected?.value) {

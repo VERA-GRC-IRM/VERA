@@ -1,4 +1,4 @@
-const { availableScopesFor } = require("./scopeAccessService");
+const { availableScopesFor, canManageScope } = require("./scopeAccessService");
 
 // A legacy record without an organisational assignment keeps its current visibility.
 // This is an additional restriction: callers must still apply their module role rules.
@@ -11,6 +11,16 @@ const filterByVisibleScope = async (user, records) => {
 const canViewRecordScope = async (user, record) => {
   if (!record) return false;
   return (await filterByVisibleScope(user, [record])).length === 1;
+};
+
+const assertWritableRecordScope = async (user, record) => {
+  if (!record?.orgUnitId) return;
+  if (!await canViewRecordScope(user, record)) {
+    throw Object.assign(new Error("El registro no existe o no está disponible para tu cuenta."), { status: 404 });
+  }
+  if (!await canManageScope(user, record.orgUnitId)) {
+    throw Object.assign(new Error("Tu autorización para este ámbito permite consultar, no modificar."), { status: 403 });
+  }
 };
 
 // Keep the existing role view for legacy records. Once any relation has an
@@ -33,4 +43,5 @@ const projectVisibleRiskRelations = async (user, allRisks, allControls, allFindi
   return { risks, controls, findings };
 };
 
-module.exports = { filterByVisibleScope, canViewRecordScope, projectVisibleRiskRelations };
+module.exports = { filterByVisibleScope, canViewRecordScope, assertWritableRecordScope,
+  projectVisibleRiskRelations };

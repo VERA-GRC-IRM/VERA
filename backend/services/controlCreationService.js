@@ -5,6 +5,7 @@ const { logActivity } = require("./auditLogger");
 const { USER_STATUS } = require("../config/accountRules");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { withResult, parseEvaluation } = require("./controlEvaluationService");
+const { assertWritableControlScope } = require("./recordWriteScopeService");
 
 const TYPES = ["PREVENTIVE", "DETECTIVE", "CORRECTIVE"];
 const FREQUENCIES = ["Daily", "Weekly", "Monthly", "Quarterly", "Annually"];
@@ -47,10 +48,14 @@ const createControlForUser = async (user, input, operationId = null) => {
   }
   if (operationId) {
     const existing = (await controlRepository.getAll()).find((item) => item.aiOperationId === operationId);
-    if (existing) return withResult(existing);
+    if (existing) {
+      await assertWritableControlScope(user, existing);
+      return withResult(existing);
+    }
   }
   const core = await parseCore(input);
   if (core.error) throw errorFor(core.error, 400);
+  await assertWritableControlScope(user, core.data);
   const evaluation = parseEvaluation(input);
   if (evaluation.error) throw errorFor(evaluation.error, 400);
   const control = await controlRepository.create({ ...core.data,

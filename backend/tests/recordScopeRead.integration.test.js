@@ -18,6 +18,11 @@ const { buildPortfolioReport, reportToCsv } = require("../services/portfolioRepo
 const { buildAuditContext } = require("../services/auditContextService");
 const { listActions, getAction, createAction } = require("../services/actionService");
 const { canAccessEntity } = require("../services/evidenceCreationService");
+const { evaluateRiskForUser } = require("../services/riskEvaluationService");
+const { evaluateControlForUser } = require("../services/controlEvaluationService");
+const { updateCoreForUser } = require("../services/recordEditService");
+const { createRiskForUser } = require("../services/riskCreationService");
+const { createControlForUser } = require("../services/controlCreationService");
 
 const admin = { id: 1, username: "admin", role: "SUPER_ADMIN" };
 const manager = { id: 3, username: "gerente", role: "GERENTE" };
@@ -53,11 +58,11 @@ test("scope read projections use direct grants and hide denied records from list
   const deniedRisk = risk(`Riesgo B ${stamp}`, second.id, audit.id);
   const childRisk = risk(`Riesgo hijo ${stamp}`, child.id, audit.id);
   const legacyRisk = risk(`Riesgo legado ${stamp}`, null, audit.id);
-  const control = (title, riskIds) => controlRepository.create({ title, description: "Control sintético",
-    riskIds, effectiveness: 3, note: "Evaluación de prueba", createdBy: admin });
-  const allowedControl = control(`Control A ${stamp}`, [firstRisk.id]);
-  const deniedControl = control(`Control B ${stamp}`, [deniedRisk.id]);
-  const mixedControl = control(`Control compartido ${stamp}`, [firstRisk.id, deniedRisk.id]);
+  const control = (title, riskIds, orgUnitId) => controlRepository.create({ title, description: "Control sintético",
+    riskIds, orgUnitId, effectiveness: 3, note: "Evaluación de prueba", createdBy: admin });
+  const allowedControl = control(`Control A ${stamp}`, [firstRisk.id], first.id);
+  const deniedControl = control(`Control B ${stamp}`, [deniedRisk.id], second.id);
+  const mixedControl = control(`Control compartido ${stamp}`, [firstRisk.id, deniedRisk.id], first.id);
   const allowedFinding = findingRepository.create({ title: `Hallazgo A ${stamp}`, riskId: firstRisk.id,
     controlId: allowedControl.id, auditId: audit.id, createdBy: admin });
   const deniedFinding = findingRepository.create({ title: `Hallazgo B ${stamp}`, riskId: deniedRisk.id,
@@ -133,10 +138,32 @@ test("scope read projections use direct grants and hide denied records from list
   await assert.rejects(() => getAction(manager, deniedAction.id), { status: 404 });
   await assert.rejects(() => createAction(manager,
     { sourceType: "RISK", sourceId: deniedRisk.id }), { status: 404 });
+  const assessment = { likelihood: 2, impact: 3, note: "Evaluación sintética documentada." };
+  await assert.rejects(() => evaluateRiskForUser(manager, firstRisk.id, assessment), { status: 403 });
+  await assert.rejects(() => evaluateRiskForUser(manager, deniedRisk.id, assessment), { status: 404 });
+  await assert.rejects(() => evaluateControlForUser(manager, allowedControl.id,
+    { rating: 2, note: "Evaluación sintética documentada." }), { status: 403 });
+  await assert.rejects(() => updateCoreForUser(manager, "RISK", firstRisk.id, firstRisk), { status: 403 });
+  await assert.rejects(() => createRiskForUser(admin, {
+    title: `Riesgo sin ámbito ${stamp}`, description: "Descripción sintética válida.",
+    area: "Área de prueba", ownerId: 5, linkedAuditId: audit.id,
+    ...assessment
+  }), { status: 409 });
+  await assert.rejects(() => createControlForUser(admin, {
+    title: `Control sin ámbito ${stamp}`, description: "Descripción sintética válida.",
+    type: "PREVENTIVE", frequency: "Monthly", ownerId: 5, riskIds: [firstRisk.id],
+    rating: 3, note: "Evaluación sintética documentada."
+  }), { status: 409 });
 
   await revokeGrantForUser(admin, grant.id, { reason: "Terminó el acceso sintético" });
   assert.ok(!(await list(3)).some((item) => item.id === firstRisk.id));
   assert.ok((await list(3)).some((item) => item.id === legacyRisk.id));
   assert.equal(await canAccessEntity("RISK", firstRisk.id, manager), false);
   assert.ok(!(await listActions(manager)).some((item) => item.id === allowedAction.id));
+  const manage = await createGrantForUser(admin, first.id, { userId: 3, accessLevel: "MANAGE",
+    reason: "Gestión sintética de la empresa A" });
+  assert.equal((await evaluateRiskForUser(manager, firstRisk.id, assessment)).score, 6);
+  assert.equal((await evaluateControlForUser(manager, allowedControl.id,
+    { rating: 2, note: "Evaluación sintética documentada." })).effectiveness, 2);
+  await revokeGrantForUser(admin, manage.id, { reason: "Terminó la gestión sintética" });
 });
