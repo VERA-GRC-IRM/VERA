@@ -8,6 +8,7 @@ const riskRepository = require("../repositories/riskRepository");
 const controlRepository = require("../repositories/controlRepository");
 const findingRepository = require("../repositories/findingRepository");
 const { parseFields } = require("../services/assistantFindingCreateService");
+const { createFindingForUser } = require("../services/findingCreationService");
 
 const options = (id, body) => ({ method: "POST", headers: {
   Authorization: `Bearer ${jwt.sign({ id }, process.env.JWT_SECRET)}`,
@@ -39,6 +40,18 @@ test("El hallazgo exige cuatro campos explícitos sin repetirlos", () => {
   assert.match(parseFields("Título: Hallazgo A").error, /Faltan campos/);
   assert.match(parseFields(`${fields("Hallazgo A", "CTL-001", "RSK-001")}\nTítulo: Otro`).error,
     /sin repetirlos/);
+});
+
+test("un idempotente de hallazgo vuelve a comprobar el permiso del rol vigente", async () => {
+  const { risk, control } = fixture(3);
+  const operationId = "c726ae9f-1732-4f5d-bdbb-d0cc81fc4394";
+  const input = { title: `Hallazgo permiso ${Date.now()}`, description: "Control insuficiente para el riesgo.",
+    controlId: control.id, riskId: risk.id };
+  const created = await createFindingForUser({ id: 3, username: "gerente", role: "GERENTE" },
+    input, operationId);
+  assert.equal(created.riskId, risk.id);
+  await assert.rejects(() => createFindingForUser({ id: 5, username: "auditor", role: "AUDITOR" },
+    input, operationId), { status: 403 });
 });
 
 test("Auditor dueño crea un hallazgo para control ineficaz tras confirmarlo", async (t) => {

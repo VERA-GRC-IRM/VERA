@@ -13,6 +13,7 @@ const { handleControlEvaluation, isControlCommand } = require("../services/assis
 const { handleCapabilityQuestion } = require("../services/assistantCapabilityService");
 const { handleProposalCreate, isProposalCreateCommand } = require("../services/assistantProposalCreateService");
 const { createProposalForUser } = require("../services/proposalService");
+const { recoverCommittedCreation } = require("../services/assistantCreationRecovery");
 const planningRepository = require("../repositories/planningRepository");
 const { handleRiskCreate, isRiskCreateCommand } = require("../services/assistantRiskCreateService");
 const { createRiskForUser } = require("../services/riskCreationService");
@@ -721,7 +722,8 @@ router.post("/conversations/:id/ask", conversationEnabled,
         try {
           proposal = await createProposalForUser(req.user, draft.data, draft.operationId);
         } catch (error) {
-          proposal = (await planningRepository.getAll()).find((item) => item.aiOperationId === draft.operationId);
+          proposal = await recoverCommittedCreation(error, planningRepository, draft.operationId,
+            () => createProposalForUser(req.user, draft.data, draft.operationId));
           if (!proposal) executionError = error;
         }
         const finalMessage = { ...assistantMessage,
@@ -757,7 +759,8 @@ router.post("/conversations/:id/ask", conversationEnabled,
         try {
           risk = await createRiskForUser(req.user, draft.data, draft.operationId);
         } catch (error) {
-          risk = (await riskRepository.getAll()).find((item) => item.aiOperationId === draft.operationId);
+          risk = await recoverCommittedCreation(error, riskRepository, draft.operationId,
+            () => createRiskForUser(req.user, draft.data, draft.operationId));
           if (!risk) executionError = error;
         }
         const finalMessage = { ...assistantMessage,
@@ -793,7 +796,8 @@ router.post("/conversations/:id/ask", conversationEnabled,
         try {
           control = await createControlForUser(req.user, draft.data, draft.operationId);
         } catch (error) {
-          control = (await controlRepository.getAll()).find((item) => item.aiOperationId === draft.operationId);
+          control = await recoverCommittedCreation(error, controlRepository, draft.operationId,
+            () => createControlForUser(req.user, draft.data, draft.operationId));
           if (!control) executionError = error;
         }
         const finalMessage = { ...assistantMessage,
@@ -830,7 +834,9 @@ router.post("/conversations/:id/ask", conversationEnabled,
           finding = await createFindingForUser(req.user, draft.data, draft.operationId,
             draft.controlEvaluationVersion);
         } catch (error) {
-          finding = (await findingRepository.getAll()).find((item) => item.aiOperationId === draft.operationId);
+          finding = await recoverCommittedCreation(error, findingRepository, draft.operationId,
+            () => createFindingForUser(req.user, draft.data, draft.operationId,
+              draft.controlEvaluationVersion));
           if (!finding) executionError = error;
         }
         const finalMessage = { ...assistantMessage,
