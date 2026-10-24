@@ -140,6 +140,8 @@ La [guía de identidad y registro abierto](docs/identity-rollout.md) documenta a
 
 La [guía de experiencia y accesibilidad](docs/ui-experience.md) explica el recorrido público, los estados de los formularios y los temas Claro/Oscuro/Sistema para toda la interfaz, además de sus criterios y límites de revisión.
 
+El [programa de dominio GRC/IRM](docs/grc-domain/README.md) ordena la evolución de entidades, biblioteca de riesgos, metodología, controles, obligaciones y auditoría. Su [registro de decisiones](docs/grc-domain/decisions.md) distingue propuestas técnicas de políticas de negocio aún no aprobadas.
+
 Para colaborar, parte de `main`, consulta [AGENTS.md](AGENTS.md) y la [guía para asistentes de código](docs/ai-development/README.md), mantén el PR enfocado y explica las verificaciones que **realmente** ejecutaste. Los resultados de CI y la revisión humana forman parte de la entrega.
 
 <p align="center"><sub>VERA · Verificación, evidencia, riesgo y auditoría · Producto en evolución</sub></p>
