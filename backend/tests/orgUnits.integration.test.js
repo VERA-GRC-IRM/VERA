@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 process.env.JWT_SECRET ||= "org-units-integration-test-secret-32-characters";
 const app = require("../server");
 const { startTestServer } = require("./helpers/testServer");
+const { canViewScope, canManageScope } = require("../services/scopeAccessService");
 
 const token = (id) => jwt.sign({ id }, process.env.JWT_SECRET);
 const request = (base, { method = "GET", id = 1, body, auth = true } = {}) => fetch(`${base}/api/org-units`, {
@@ -66,11 +67,14 @@ test("only Super Admin manages direct grants, revocation keeps an audit trail", 
   assert.equal(unitResponse.status, 201);
   const unit = (await unitResponse.json()).unit;
   const url = `${base}/api/org-units/${unit.id}/grants`;
+  const availableUrl = `${base}/api/org-units/available`;
   const auth = (id, method = "GET", body) => ({ method,
     headers: { Authorization: `Bearer ${token(id)}`, ...(body ? { "Content-Type": "application/json" } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {}) });
   assert.equal((await fetch(url)).status, 401);
   assert.equal((await fetch(url, auth(2))).status, 403);
+  assert.equal((await fetch(availableUrl)).status, 401);
+  assert.deepEqual((await (await fetch(availableUrl, auth(3))).json()).units, []);
   const body = { userId: 3, accessLevel: "VIEW", reason: "Revisión del ámbito de prueba" };
   assert.equal((await fetch(url, auth(2, "POST", body))).status, 403);
   assert.equal((await fetch(url, auth(1, "POST", { ...body, userId: 6 }))).status, 400);
@@ -80,6 +84,20 @@ test("only Super Admin manages direct grants, revocation keeps an audit trail", 
   const grant = (await response.json()).grant;
   assert.equal(grant.status, "ACTIVE");
   assert.equal(grant.storageVersion, 1);
+  const visible = (await (await fetch(availableUrl, auth(3))).json()).units;
+  assert.equal(visible.find((item) => item.id === unit.id).accessLevel, "VIEW");
+  assert.equal(visible.find((item) => item.id === unit.id).accessSource, "DIRECT");
+  assert.equal("createdBy" in visible[0], false);
+  assert.deepEqual((await (await fetch(availableUrl, auth(4))).json()).units, []);
+  assert.equal(await canViewScope({ id: 3, role: "GERENTE" }, unit.id), true);
+  assert.equal(await canManageScope({ id: 3, role: "GERENTE" }, unit.id), false);
+  assert.equal(await canManageScope({ id: 1, role: "SUPER_ADMIN" }, unit.id), true);
+  const childResponse = await request(base, { method: "POST",
+    body: { code: `LE_${stamp}`, name: "Empresa sin herencia", kind: "LEGAL_ENTITY", parentId: unit.id } });
+  assert.equal(childResponse.status, 201);
+  const child = (await childResponse.json()).unit;
+  assert.equal(await canViewScope({ id: 3, role: "GERENTE" }, child.id), false);
+  assert.equal((await (await fetch(availableUrl, auth(3))).json()).units.some((item) => item.id === child.id), false);
   assert.equal((await fetch(url, auth(1, "POST", body))).status, 409);
   const listed = await fetch(url, auth(1));
   assert.equal((await listed.json()).grants.find((item) => item.id === grant.id).accessLevel, "VIEW");
@@ -91,6 +109,8 @@ test("only Super Admin manages direct grants, revocation keeps an audit trail", 
   assert.equal(revoked.status, "REVOKED");
   assert.equal(revoked.storageVersion, 2);
   assert.equal(revoked.revokedBy.id, 1);
+  assert.deepEqual((await (await fetch(availableUrl, auth(3))).json()).units, []);
+  assert.equal(await canViewScope({ id: 3, role: "GERENTE" }, unit.id), false);
   assert.equal((await fetch(revokeUrl, auth(1, "POST", { reason: "Terminó la revisión del ámbito" }))).status, 409);
   assert.equal((await fetch(url, auth(1, "POST", body))).status, 201);
 });

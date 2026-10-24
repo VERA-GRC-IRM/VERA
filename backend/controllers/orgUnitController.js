@@ -1,7 +1,9 @@
 const repository = require("../repositories/orgUnitRepository");
 const { createOrgUnitForUser } = require("../services/orgUnitService");
+const { availableScopesFor } = require("../services/scopeAccessService");
 
 const listOrgUnits = async (_req, res) => res.json({ units: await repository.getAll() });
+const listAvailableOrgUnits = async (req, res) => res.json({ units: await availableScopesFor(req.user) });
 const createOrgUnit = async (req, res) => {
   try { res.status(201).json({ unit: await createOrgUnitForUser(req.user, req.body) }); }
   catch (error) {
@@ -10,4 +12,4 @@ const createOrgUnit = async (req, res) => {
   }
 };
 
-module.exports = { listOrgUnits, createOrgUnit };
+module.exports = { listOrgUnits, listAvailableOrgUnits, createOrgUnit };

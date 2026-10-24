@@ -52,7 +52,9 @@ test("Supabase grant adapter filters by unit and preserves revocation", async (c
   assert.equal((await repository.create(grant)).storageVersion, 1);
   assert.equal((await repository.findActive(grant.unitId, grant.userId)).id, grant.id);
   assert.equal((await repository.listByUnit(grant.unitId)).length, 1);
+  assert.equal((await repository.listActiveByUser(grant.userId)).length, 1);
   const revoked = await repository.revoke(grant.id, { revokeReason: "Fin de prueba" }, 1);
   assert.equal(revoked.status, "REVOKED");
   assert.equal(await repository.findActive(grant.unitId, grant.userId), null);
+  assert.equal((await repository.listActiveByUser(grant.userId)).length, 0);
 });

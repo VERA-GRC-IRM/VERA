@@ -3,6 +3,8 @@ const copy = (grant) => ({ ...grant, grantedBy: { ...grant.grantedBy },
   revokedBy: grant.revokedBy ? { ...grant.revokedBy } : null });
 const getAll = () => grants.map(copy);
 const listByUnit = (unitId) => grants.filter((grant) => grant.unitId === unitId).map(copy);
+const listActiveByUser = (userId) => grants.filter((grant) =>
+  grant.userId === userId && grant.status === "ACTIVE").map(copy);
 const findById = (id) => {
   const grant = grants.find((item) => item.id === id);
   return grant ? copy(grant) : null;
@@ -29,4 +31,4 @@ const revoke = (id, changes, expectedVersion) => {
 
 module.exports = process.env.VERA_ORG_STORE === "supabase"
   ? require("./supabaseOrgGrantRepository")
-  : { getAll, listByUnit, findById, findActive, create, revoke };
+  : { getAll, listByUnit, listActiveByUser, findById, findActive, create, revoke };
