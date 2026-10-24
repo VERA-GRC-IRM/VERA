@@ -17,12 +17,14 @@ const { buildAssistantContext } = require("../services/assistantContextService")
 const { buildPortfolioReport, reportToCsv } = require("../services/portfolioReportService");
 const { buildAuditContext } = require("../services/auditContextService");
 const { listActions, getAction, createAction } = require("../services/actionService");
-const { canAccessEntity } = require("../services/evidenceCreationService");
+const { canAccessEntity, createEvidenceForUser } = require("../services/evidenceCreationService");
 const { evaluateRiskForUser } = require("../services/riskEvaluationService");
 const { evaluateControlForUser } = require("../services/controlEvaluationService");
 const { updateCoreForUser } = require("../services/recordEditService");
 const { createRiskForUser } = require("../services/riskCreationService");
 const { createControlForUser } = require("../services/controlCreationService");
+const { createFindingForUser } = require("../services/findingCreationService");
+const { closeFindingForUser } = require("../services/findingClosureService");
 
 const admin = { id: 1, username: "admin", role: "SUPER_ADMIN" };
 const manager = { id: 3, username: "gerente", role: "GERENTE" };
@@ -138,6 +140,17 @@ test("scope read projections use direct grants and hide denied records from list
   await assert.rejects(() => getAction(manager, deniedAction.id), { status: 404 });
   await assert.rejects(() => createAction(manager,
     { sourceType: "RISK", sourceId: deniedRisk.id }), { status: 404 });
+  await assert.rejects(() => createAction(manager,
+    { sourceType: "RISK", sourceId: firstRisk.id }), { status: 403 });
+  const evidenceInput = { title: `Nueva evidencia ${stamp}`, description: "Referencia sintética válida.",
+    evidenceType: "DOCUMENT", reference: "https://example.test/evidence",
+    entityType: "RISK", entityId: firstRisk.id };
+  await assert.rejects(() => createEvidenceForUser(manager, evidenceInput), { status: 403 });
+  const findingInput = { title: `Nuevo hallazgo ${stamp}`, description: "Descripción sintética válida.",
+    riskId: firstRisk.id, controlId: allowedControl.id };
+  await assert.rejects(() => createFindingForUser(manager, findingInput), { status: 403 });
+  await assert.rejects(() => closeFindingForUser(manager, allowedFinding.id,
+    "Motivo de cierre sintético", allowedFinding.storageVersion), { status: 403 });
   const assessment = { likelihood: 2, impact: 3, note: "Evaluación sintética documentada." };
   await assert.rejects(() => evaluateRiskForUser(manager, firstRisk.id, assessment), { status: 403 });
   await assert.rejects(() => evaluateRiskForUser(manager, deniedRisk.id, assessment), { status: 404 });
@@ -165,5 +178,9 @@ test("scope read projections use direct grants and hide denied records from list
   assert.equal((await evaluateRiskForUser(manager, firstRisk.id, assessment)).score, 6);
   assert.equal((await evaluateControlForUser(manager, allowedControl.id,
     { rating: 2, note: "Evaluación sintética documentada." })).effectiveness, 2);
+  await assert.rejects(() => createAction(manager,
+    { sourceType: "RISK", sourceId: firstRisk.id }), { status: 409 });
+  await assert.rejects(() => createEvidenceForUser(manager, evidenceInput), { status: 409 });
+  await assert.rejects(() => createFindingForUser(manager, findingInput), { status: 409 });
   await revokeGrantForUser(admin, manage.id, { reason: "Terminó la gestión sintética" });
 });

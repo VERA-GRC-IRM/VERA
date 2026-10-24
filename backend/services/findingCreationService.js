@@ -4,6 +4,7 @@ const riskRepository = require("../repositories/riskRepository");
 const userRepository = require("../repositories/userRepository");
 const { ROLES, RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { logActivity } = require("./auditLogger");
+const { assertWritableSourceScope, assertNewRelationUnscoped } = require("./recordWriteScopeService");
 
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
 const text = (value) => String(value ?? "").trim();
@@ -28,6 +29,10 @@ const prepareFinding = async (user, input, expectedControlVersion) => {
       !(user.role === ROLES.AUDITOR && risk.ownerId === user.id)) {
     throw errorFor("No puedes registrar hallazgos para este riesgo.", 403);
   }
+  await assertWritableSourceScope(user, "RISK", risk);
+  await assertWritableSourceScope(user, "CONTROL", control);
+  assertNewRelationUnscoped(risk);
+  assertNewRelationUnscoped(control);
   if (control.effectiveness >= 4) {
     throw errorFor("Solo se puede abrir un hallazgo desde un control con efectividad insuficiente (1–3).", 409);
   }
@@ -51,7 +56,10 @@ const createFindingForUser = async (user, input, operationId = null, expectedCon
   }
   if (operationId) {
     const existing = (await findingRepository.getAll()).find((item) => item.aiOperationId === operationId);
-    if (existing) return existing;
+    if (existing) {
+      await assertWritableSourceScope(user, "FINDING", existing);
+      return existing;
+    }
   }
   const { title, description, control, risk } = await prepareFinding(user, input, expectedControlVersion);
   const finding = await findingRepository.create({ title, description,

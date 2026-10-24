@@ -4,6 +4,7 @@ const actionRepository = require("../repositories/actionRepository");
 const userRepository = require("../repositories/userRepository");
 const { ROLES, RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { logActivity } = require("./auditLogger");
+const { assertWritableSourceScope } = require("./recordWriteScopeService");
 
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
 
@@ -17,6 +18,7 @@ const prepareFindingClosure = async (user, id, note, expectedVersion) => {
   if (!finding || (user.role === ROLES.AUDITOR && risk?.ownerId !== user.id)) {
     throw errorFor("El hallazgo no existe o no está disponible para tu cuenta.", 404);
   }
+  await assertWritableSourceScope(user, "FINDING", finding);
   if (!RISK_CONTROL_MANAGE_ROLES.includes(user.role) &&
       !(user.role === ROLES.AUDITOR && risk?.ownerId === user.id)) {
     throw errorFor("No puedes cerrar este hallazgo.", 403);

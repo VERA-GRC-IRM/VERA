@@ -4,6 +4,7 @@ const userRepository = require("../repositories/userRepository");
 const { logActivity } = require("./auditLogger");
 const { buildAuditContext } = require("./auditContextService");
 const { visibleCollectionsForUser, visibleRecordForUser } = require("./recordReadAccessService");
+const { assertWritableSourceScope, assertNewRelationUnscoped } = require("./recordWriteScopeService");
 const { USER_STATUS } = require("../config/accountRules");
 const { PLANNING_APPROVE_ROLES, RECORD_CREATE_ROLES } = require("../config/roles");
 
@@ -122,6 +123,8 @@ const createAction = async (user, body, { operationId } = {}) => {
   const sourceType = text(body.sourceType);
   const sourceId = text(body.sourceId);
   const source = await requiredSource(user, sourceType, sourceId);
+  await assertWritableSourceScope(user, sourceType, source);
+  assertNewRelationUnscoped(source);
   if (sourceType === "FINDING" && source.status === "CLOSED") {
     throw new ActionError("El hallazgo está cerrado; no se pueden añadir acciones.", 409);
   }
@@ -165,6 +168,8 @@ const assertVersion = (value) => {
 
 const changeStatus = async (user, id, body) => {
   const action = await getAction(user, id);
+  await assertWritableSourceScope(user, action.sourceType,
+    await requiredSource(user, action.sourceType, action.sourceId));
   if (action.assigneeId !== user.id && !PLANNING_APPROVE_ROLES.includes(user.role)) {
     throw new ActionError("Solo el responsable o quien dirige la planeación puede cambiar el estado.", 403);
   }
@@ -194,6 +199,8 @@ const changeStatus = async (user, id, body) => {
 
 const reassign = async (user, id, body) => {
   const action = await getAction(user, id);
+  await assertWritableSourceScope(user, action.sourceType,
+    await requiredSource(user, action.sourceType, action.sourceId));
   const assigneeId = Number(body.assigneeId);
   const note = text(body.note);
   if (!Number.isSafeInteger(assigneeId) || assigneeId < 1) throw new ActionError("Selecciona una persona responsable.", 400);
