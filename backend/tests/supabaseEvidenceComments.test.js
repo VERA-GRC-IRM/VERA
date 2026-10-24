@@ -51,21 +51,23 @@ test("Supabase evidence and comments keep their entity links and exclude server 
   };
 
   const item = await evidence.create({
-    title: "Documento", entityType: "RISK", entityId: "RSK-1",
+    title: "Documento", entityType: "RISK", entityId: "RSK-1", orgUnitId: "ORG-A",
     aiOperationId: "11111111-1111-4111-8111-111111111111",
     author: { id: 1001, username: "auditor" }
   });
   assert.match(item.id, /^EVD-[0-9a-f-]{36}$/);
   assert.equal((await evidence.getAll())[0].entityId, "RSK-1");
+  assert.equal((await evidence.getAll())[0].orgUnitId, "ORG-A");
   assert.equal((await evidence.getAll())[0].aiOperationId, "11111111-1111-4111-8111-111111111111");
 
   const comment = await comments.create({
-    proposalId: "AUD-1", text: "Revisión completa.",
+    proposalId: "AUD-1", text: "Revisión completa.", orgUnitId: "ORG-A",
     aiOperationId: "22222222-2222-4222-8222-222222222222",
     author: { id: 1001, username: "auditor" }
   });
   assert.match(comment.id, /^CMT-[0-9a-f-]{36}$/);
   assert.equal((await comments.listByProposal("AUD-1"))[0].text, "Revisión completa.");
+  assert.equal((await comments.listByProposal("AUD-1"))[0].orgUnitId, "ORG-A");
   assert.equal((await comments.listByProposal("AUD-1"))[0].aiOperationId,
     "22222222-2222-4222-8222-222222222222");
   assert.equal((await comments.listByProposal("AUD-2")).length, 0);

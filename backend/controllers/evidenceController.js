@@ -3,7 +3,7 @@ const userRepository = require("../repositories/userRepository");
 const { logActivity } = require("../services/auditLogger");
 const { ENTITY_TYPES, EVIDENCE_TYPES, findEntity, canAccessEntity,
   createEvidenceForUser } = require("../services/evidenceCreationService");
-const { assertWritableSourceScope, assertNewRelationUnscoped } = require("../services/recordWriteScopeService");
+const { assertWritableSourceScope } = require("../services/recordWriteScopeService");
 const evidenceStorage = require("../services/evidenceStorage");
 const { indexFile, askEvidenceContent } = require("../services/evidenceContentService");
 const { SEARCHABLE_MIME, makeChunks } = require("../services/evidenceTextExtraction");
@@ -68,7 +68,6 @@ const uploadEvidence = async (req, res) => {
   }
   try {
     await assertWritableSourceScope(req.user, entityType, entity);
-    assertNewRelationUnscoped(entity);
   } catch (error) {
     if (error.status) return res.status(error.status).json({ message: error.message });
     throw error;
@@ -80,6 +79,7 @@ const uploadEvidence = async (req, res) => {
     evidence = await evidenceRepository.create({
       title, description, evidenceType,
       reference: "Archivo privado almacenado en VERA", entityType, entityId, entityTitle: entity.title,
+      orgUnitId: entity.orgUnitId || null,
       file, author: { id: req.user.id, username: req.user.username, name: author?.name || req.user.username, role: req.user.role }
     });
   } catch (error) {

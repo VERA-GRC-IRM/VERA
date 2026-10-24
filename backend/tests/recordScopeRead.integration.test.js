@@ -271,15 +271,30 @@ test("scope read projections use direct grants and hide denied records from list
   assert.equal((await evaluateRiskForUser(manager, firstRisk.id, assessment)).score, 6);
   assert.equal((await evaluateControlForUser(manager, allowedControl.id,
     { rating: 2, note: "Evaluación sintética documentada." })).effectiveness, 2);
-  await assert.rejects(() => createAction(manager,
-    { sourceType: "RISK", sourceId: firstRisk.id }), { status: 409 });
+  const scopedAction = await createAction(manager,
+    { sourceType: "RISK", sourceId: firstRisk.id, title: `Compromiso A ${stamp}`,
+      rationale: "Seguimiento sintético del riesgo de la empresa A.", dueDate: "2026-12-01",
+      assigneeId: manager.id });
+  assert.equal(scopedAction.orgUnitId, first.id);
   await assert.rejects(() => createAction(manager,
     { sourceType: "RISK", sourceId: crossLinkedRisk.id }), { status: 404 });
-  await assert.rejects(() => createEvidenceForUser(manager, evidenceInput), { status: 409 });
-  await assert.rejects(() => createFindingForUser(manager, findingInput), { status: 409 });
-  await assert.rejects(() => createCommentForUser(manager, audit.id,
-    { text: "Comentario sintético" }), { status: 409 });
+  const scopedEvidence = await createEvidenceForUser(manager, evidenceInput);
+  const scopedFinding = await createFindingForUser(manager, findingInput);
+  const scopedComment = await createCommentForUser(manager, audit.id,
+    { text: "Comentario sintético" });
+  assert.equal(scopedEvidence.orgUnitId, first.id);
+  assert.equal(scopedFinding.orgUnitId, first.id);
+  assert.equal(scopedComment.orgUnitId, first.id);
+  const mismatchedControl = control(`Control mixto inválido ${stamp}`, [firstRisk.id], second.id);
+  await assert.rejects(() => createFindingForUser(admin, { ...findingInput,
+    controlId: mismatchedControl.id }), { status: 409 });
+  await assert.rejects(() => createAction(admin, { sourceType: "CONTROL",
+    sourceId: mismatchedControl.id }), { status: 409 });
   assert.equal((await applyTransition(manager, audit.id, "approve", { quarter: "Q1" })).record.status,
     "APPROVED");
   await revokeGrantForUser(admin, manage.id, { reason: "Terminó la gestión sintética" });
+  await assert.rejects(() => getAction(manager, scopedAction.id), { status: 404 });
+  assert.equal(await canAccessEntity("RISK", scopedEvidence.entityId, manager), false);
+  assert.ok(!(await getItems(`/api/findings`)).findings.some((item) => item.id === scopedFinding.id));
+  assert.equal(await statusFor(`/api/planning/${audit.id}/history`), 404);
 });

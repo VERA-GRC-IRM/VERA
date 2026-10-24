@@ -6,7 +6,7 @@ const userRepository = require("../repositories/userRepository");
 const { logActivity } = require("./auditLogger");
 const { RECORD_CREATE_ROLES } = require("../config/roles");
 const { visibleRecordForUser } = require("./recordReadAccessService");
-const { assertWritableSourceScope, assertNewRelationUnscoped } = require("./recordWriteScopeService");
+const { assertWritableSourceScope } = require("./recordWriteScopeService");
 const evidenceStorage = require("./evidenceStorage");
 const { indexFile } = require("./evidenceContentService");
 const { SEARCHABLE_MIME } = require("./evidenceTextExtraction");
@@ -52,8 +52,8 @@ const parseEvidence = async (user, body) => {
     throw errorFor("El elemento relacionado no existe.", 404);
   }
   await assertWritableSourceScope(user, entityType, entity);
-  assertNewRelationUnscoped(entity);
-  return { title, description, evidenceType, reference, entityType, entityId, entityTitle: entity.title };
+  return { title, description, evidenceType, reference, entityType, entityId,
+    entityTitle: entity.title, orgUnitId: entity.orgUnitId || null };
 };
 
 const createEvidenceForUser = async (user, body, operationId = null) => {

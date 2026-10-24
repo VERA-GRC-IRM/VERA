@@ -4,10 +4,14 @@ const sameFields = (record, fields) => Object.entries(fields)
   .every(([key, value]) => record[key] === value);
 
 const canReplayAction = (record, user, fields) =>
-  record?.createdBy?.id === user.id && sameFields(record, fields);
+  record?.createdBy?.id === user.id &&
+  (record.orgUnitId || null) === (fields.orgUnitId || null) &&
+  sameFields(record, Object.fromEntries(Object.entries(fields)
+    .filter(([key]) => key !== "orgUnitId")));
 
 const canReplayEvidence = (record, user, fields) =>
-  record?.author?.id === user.id && sameFields(record, Object.fromEntries(
+  record?.author?.id === user.id &&
+  (record.orgUnitId || null) === (fields.orgUnitId || null) && sameFields(record, Object.fromEntries(
     ["title", "description", "evidenceType", "reference", "entityType", "entityId"]
       .map((key) => [key, fields[key]])));
 

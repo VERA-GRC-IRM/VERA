@@ -4,7 +4,6 @@ const userRepository = require("../repositories/userRepository");
 const { logActivity } = require("./auditLogger");
 const { RECORD_CREATE_ROLES, ROLES } = require("../config/roles");
 const { canViewRecordScope, assertWritableRecordScope } = require("./recordScopeVisibility");
-const { assertNewRelationUnscoped } = require("./recordWriteScopeService");
 
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
 const canView = (proposal, user) => user.role !== ROLES.AUDITOR || proposal.responsibleId === user.id;
@@ -35,18 +34,19 @@ const createCommentForUser = async (user, proposalId, body, operationId = null) 
   }
   const { proposal, text } = await parseComment(user, proposalId, body);
   await assertWritableRecordScope(user, proposal);
-  assertNewRelationUnscoped(proposal);
   if (operationId) {
     const existing = (await commentRepository.listByProposal(proposal.id))
       .find((item) => item.aiOperationId === operationId);
     if (existing) {
-      if (existing.author?.id !== user.id || existing.text !== text) {
+      if (existing.author?.id !== user.id || existing.text !== text ||
+          (existing.orgUnitId || null) !== (proposal.orgUnitId || null)) {
         throw errorFor("La operación no está disponible para este comentario.", 409);
       }
       return existing;
     }
   }
   const comment = await commentRepository.create({ proposalId: proposal.id, text,
+    orgUnitId: proposal.orgUnitId || null,
     ...(operationId ? { aiOperationId: operationId } : {}),
     author: { id: user.id, username: user.username, role: user.role } });
   await logActivity({ actor: user, action: "AUDIT_COMMENT_ADDED",
