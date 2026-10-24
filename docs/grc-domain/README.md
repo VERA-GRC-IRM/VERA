@@ -28,6 +28,8 @@ Este programa amplía el alcance de negocio de VERA sin atribuirle una certifica
 
 ## Orden de entrega
 
+El [directorio de ámbitos empresariales](org-directory.md) es el primer incremento del tramo 1. Todavía no aplica ámbitos a expedientes ni representa una estructura corporativa aprobada.
+
 | Tramo | Primer resultado verificable | Dependencia |
 | --- | --- | --- |
 | 0. Contrato | Glosario, invariantes, decisiones pendientes y casos sintéticos | Ninguna |

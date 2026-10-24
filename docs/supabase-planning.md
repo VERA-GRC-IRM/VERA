@@ -20,6 +20,8 @@ Si las tablas `vera_audit_proposals` o `logins` ya se crearon manualmente, prime
 
 ## Acciones de seguimiento
 
+El directorio organizativo opcional tiene una [guía y migración independientes](grc-domain/org-directory.md). Su tabla vacía no reasigna los registros históricos y no activa por sí sola una vista multiempresa.
+
 Las acciones de seguimiento usan la [migración y reglas propias](action-register.md). Cuando el almacén de evidencias y comentarios está en Supabase, también se consultan allí; aplica esa migración antes de publicar rutas o pantallas que dependan de acciones. La lectura, el responsable y los cambios de estado se autorizan en la API sobre cada registro de origen.
 
 ## Cuentas persistentes
