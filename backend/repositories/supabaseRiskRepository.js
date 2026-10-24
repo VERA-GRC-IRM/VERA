@@ -5,8 +5,9 @@ const { LEGACY_RISK_METHOD_ID, UNSPECIFIED_STAGE, presentRiskMethod } = require(
 const store = createStore("vera_risks");
 const normalize = (value) => String(value ?? "").trim().toLowerCase();
 
-const findDuplicate = async ({ title, area }, excludeId = null) =>
+const findDuplicate = async ({ title, area, orgUnitId }, excludeId = null) =>
   (await store.getAll()).find((risk) => risk.id !== excludeId &&
+    (risk.orgUnitId || null) === (orgUnitId || null) &&
     normalize(risk.title) === normalize(title) && normalize(risk.area) === normalize(area)) || null;
 
 const create = async (data) => {
