@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, ChevronRight, History, Search } from "lucide-react";
 import Sidebar from "../components/Sidebar";
+import RiskLibraryAdmin from "../components/RiskLibraryAdmin";
 import { getRiskLibrary, getTemplateRevisions } from "../services/riskLibraryService";
 import "./BibliotecaRiesgos.css";
 
@@ -26,6 +27,8 @@ const orderedCategories = (categories) => {
 };
 
 function BibliotecaRiesgos() {
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const canPublish = user?.role === "SUPER_ADMIN";
   const [library, setLibrary] = useState({ categories: [], templates: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -35,6 +38,9 @@ function BibliotecaRiesgos() {
   const [revisions, setRevisions] = useState([]);
   const [revisionsLoading, setRevisionsLoading] = useState(false);
   const [revisionsError, setRevisionsError] = useState("");
+  const [adminOpen, setAdminOpen] = useState(false);
+
+  const refreshLibrary = async () => setLibrary(await getRiskLibrary());
 
   useEffect(() => {
     getRiskLibrary().then(setLibrary).catch((cause) => setError(cause.message)).finally(() => setLoading(false));
@@ -81,10 +87,13 @@ function BibliotecaRiesgos() {
         <header className="dashboard-header">
           <div><span className="eyebrow">REFERENCIA DE ESCENARIOS</span><h1>Biblioteca de riesgos</h1>
             <p>Consulta categorías y plantillas. Una plantilla orienta la documentación; no es un riesgo registrado ni una política aprobada.</p></div>
+          {canPublish && <button type="button" className="risk-library-admin-toggle" aria-expanded={adminOpen}
+            onClick={() => setAdminOpen((value) => !value)}>{adminOpen ? "Cerrar administración" : "Administrar biblioteca"}</button>}
         </header>
         {loading && <p role="status" className="risk-library-status">Cargando biblioteca…</p>}
         {error && <p role="alert" className="risk-library-status risk-library-error">{error}</p>}
         {!loading && !error && <>
+          {canPublish && adminOpen && <RiskLibraryAdmin categories={library.categories} templates={library.templates} onChanged={refreshLibrary} />}
           <div className="risk-library-overview" aria-label="Resumen de biblioteca">
             <span><strong>{library.categories.length}</strong> categorías</span>
             <span><strong>{library.templates.length}</strong> plantillas publicadas</span>

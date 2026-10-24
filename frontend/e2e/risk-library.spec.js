@@ -25,6 +25,7 @@ test("biblioteca: consulta, filtra y muestra versiones sin confundir plantilla c
   ] } }));
   await page.goto("/biblioteca-riesgos");
   await expect(page.getByRole("heading", { name: "Biblioteca de riesgos" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Administrar biblioteca" })).toHaveCount(0);
   await expect(page.getByText("no es un riesgo registrado")).toBeVisible();
   await page.getByLabel("Familia de riesgos").selectOption("cat-b");
   await expect(page.getByRole("button", { name: /Interrupción del servicio/ })).toBeVisible();
@@ -43,4 +44,57 @@ test("biblioteca: informa cuando todavía no existe un catálogo publicado", asy
   await page.route("**/api/risk-library/", (route) => route.fulfill({ json: { categories: [], templates: [] } }));
   await page.goto("/biblioteca-riesgos");
   await expect(page.getByRole("heading", { name: "La biblioteca aún no tiene plantillas" })).toBeVisible();
+});
+
+test("biblioteca: solo Super Admin publica categoría y revisión confirmada", async ({ page }) => {
+  await useSession(page, "SUPER_ADMIN", 1);
+  const categories = [{ id: "cat-a", code: "OPS", name: "Operación", description: "Ejemplo sintético", parentId: null }];
+  const templates = [{ id: "tpl-a:1", templateId: "tpl-a", categoryId: "cat-a", title: "Interrupción del servicio",
+    scenario: "El servicio de demostración podría quedar indisponible.", causes: ["Fallo de energía"],
+    consequences: ["Demora en la operación"], sourceNote: "Ejemplo sintético", revision: 1,
+    createdAt: "2026-10-24T00:00:00.000Z" }];
+  await page.route("**/api/risk-library/", (route) => route.fulfill({ json: { categories, templates } }));
+  await page.route("**/api/risk-library/categories", async (route) => {
+    const body = route.request().postDataJSON();
+    categories.push({ id: "cat-b", ...body });
+    await route.fulfill({ status: 201, json: { category: categories.at(-1) } });
+  });
+  await page.route("**/api/risk-library/templates", async (route) => {
+    const body = route.request().postDataJSON();
+    const published = { id: "tpl-b:1", templateId: "tpl-b", ...body, revision: 1,
+      createdAt: "2026-10-24T00:00:00.000Z" };
+    templates.push(published);
+    await route.fulfill({ status: 201, json: { template: published } });
+  });
+  await page.route("**/api/risk-library/templates/tpl-a/revisions", async (route) => {
+    const body = route.request().postDataJSON();
+    templates[0] = { ...templates[0], ...body, id: "tpl-a:2", revision: 2 };
+    await route.fulfill({ status: 201, json: { template: templates[0] } });
+  });
+  await page.goto("/biblioteca-riesgos");
+  await page.getByRole("button", { name: "Administrar biblioteca" }).click();
+  await page.getByLabel("Código único").fill("FIN");
+  await page.getByLabel("Nombre", { exact: true }).fill("Finanzas");
+  await page.getByLabel("Descripción").fill("Categoría sintética para pruebas.");
+  await page.getByRole("button", { name: "Crear categoría" }).click();
+  await expect(page.getByText("Categoría creada. Ya aparece en la biblioteca.")).toBeVisible();
+  await expect(page.getByText("2 categorías")).toBeVisible();
+  await page.getByRole("button", { name: "Nueva plantilla" }).click();
+  await page.locator(".risk-library-admin-form select").first().selectOption("cat-b");
+  await page.getByLabel("Título").fill("Evento de ejemplo");
+  await page.getByLabel("Escenario").fill("Una situación sintética podría interrumpir la operación.");
+  await page.getByLabel("Causas (una por línea, máximo 8)").fill("Dependencia externa");
+  await page.getByLabel("Consecuencias (una por línea, máximo 8)").fill("Demora temporal");
+  await page.getByRole("button", { name: "Publicar plantilla" }).click();
+  await expect(page.getByText("Plantilla publicada como versión 1.")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Evento de ejemplo/ })).toBeVisible();
+  await page.getByRole("button", { name: "Nueva versión" }).click();
+  await page.getByLabel("Plantilla a revisar").selectOption("tpl-a");
+  await expect(page.getByRole("heading", { name: "Comparar con versión 1" })).toBeVisible();
+  await page.getByLabel("Escenario").fill("El servicio de demostración podría quedar indisponible durante un turno completo.");
+  await page.getByLabel("Motivo de revisión").fill("Se detalló la duración estimada del ejemplo.");
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Publicar nueva versión" }).click();
+  await expect(page.getByText("Nueva versión publicada. La versión anterior permanece en el historial.")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Interrupción del servicio/ })).toContainText("VERSIÓN 2");
 });
