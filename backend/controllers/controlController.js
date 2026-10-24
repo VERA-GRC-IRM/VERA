@@ -1,15 +1,13 @@
 const controlRepository = require("../repositories/controlRepository");
 const riskRepository = require("../repositories/riskRepository");
-const { ROLES } = require("../config/roles");
+const { projectVisibleRiskRelations } = require("../services/recordScopeVisibility");
 const { withResult, evaluateControlForUser } = require("../services/controlEvaluationService");
 const { createControlForUser } = require("../services/controlCreationService");
 const { updateCoreForUser } = require("../services/recordEditService");
 
 const visibleControls = async (req) => {
-  const controls = await controlRepository.getAll();
-  if (req.user.role !== ROLES.AUDITOR) return controls;
-  const assignedRiskIds = new Set((await riskRepository.getAll()).filter((risk) => risk.ownerId === req.user.id).map((risk) => risk.id));
-  return controls.filter((control) => control.riskIds.some((id) => assignedRiskIds.has(id)));
+  const [risks, controls] = await Promise.all([riskRepository.getAll(), controlRepository.getAll()]);
+  return (await projectVisibleRiskRelations(req.user, risks, controls)).controls;
 };
 
 const listControls = async (req, res) => res.json({ controls: (await visibleControls(req)).map(withResult) });

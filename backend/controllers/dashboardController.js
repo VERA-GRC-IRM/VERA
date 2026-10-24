@@ -1,7 +1,9 @@
 const planningRepository = require("../repositories/planningRepository");
 const findingRepository = require("../repositories/findingRepository");
 const riskRepository = require("../repositories/riskRepository");
+const controlRepository = require("../repositories/controlRepository");
 const { getDashboardForUser } = require("../services/dashboardService");
+const { filterByVisibleScope, projectVisibleRiskRelations } = require("../services/recordScopeVisibility");
 
 const parsePeriod = (query) => {
   const period = query.period || "all";
@@ -22,13 +24,11 @@ const parsePeriod = (query) => {
 const getDashboard = async (req, res) => {
   const selectedPeriod = parsePeriod(req.query);
   if (!selectedPeriod) return res.status(400).json({ message: "Periodo inválido. Selecciona año, semestre o trimestre válido." });
-  const [proposals, findings] = await Promise.all([planningRepository.getAll(), findingRepository.getAll()]);
-  let visibleFindings = findings;
-  if (req.user.role === "AUDITOR") {
-    const ownedRiskIds = new Set((await riskRepository.getAll())
-      .filter((risk) => risk.ownerId === req.user.id).map((risk) => risk.id));
-    visibleFindings = findings.filter((finding) => ownedRiskIds.has(finding.riskId));
-  }
+  const [allProposals, risks, controls, findings] = await Promise.all([
+    planningRepository.getAll(), riskRepository.getAll(), controlRepository.getAll(), findingRepository.getAll()
+  ]);
+  const proposals = await filterByVisibleScope(req.user, allProposals);
+  const visibleFindings = (await projectVisibleRiskRelations(req.user, risks, controls, findings)).findings;
   res.json(getDashboardForUser(req.user, proposals, visibleFindings, selectedPeriod));
 };
 

@@ -6,7 +6,7 @@ const evidenceRepository = require("../repositories/evidenceRepository");
 const { ROLES } = require("../config/roles");
 const { relateAudit } = require("./auditContextService");
 const { searchAudits } = require("./auditSearch");
-const { filterByVisibleScope } = require("./recordScopeVisibility");
+const { filterByVisibleScope, projectVisibleRiskRelations } = require("./recordScopeVisibility");
 
 const buildPortfolioReport = async (user, filters) => {
   if (!Object.values(ROLES).includes(user.role)) {
@@ -20,15 +20,12 @@ const buildPortfolioReport = async (user, filters) => {
   ]);
   const auditor = user.role === ROLES.AUDITOR;
   const scopedAudits = await filterByVisibleScope(user, allAudits);
-  const scopedRisks = await filterByVisibleScope(user, allRisks);
   const audits = searchAudits(auditor
     ? scopedAudits.filter((audit) => audit.responsibleId === user.id) : scopedAudits, filters);
-  const risks = auditor ? scopedRisks.filter((risk) => risk.ownerId === user.id) : scopedRisks;
+  const { risks, controls, findings } = await projectVisibleRiskRelations(
+    user, allRisks, allControls, allFindings);
   const riskIds = new Set(risks.map((risk) => risk.id));
-  const controls = auditor ? allControls.filter((control) =>
-    control.riskIds?.some((riskId) => riskIds.has(riskId))) : allControls;
   const controlIds = new Set(controls.map((control) => control.id));
-  const findings = auditor ? allFindings.filter((finding) => riskIds.has(finding.riskId)) : allFindings;
   const evidence = auditor ? allEvidence.filter((item) =>
     (item.entityType === "AUDIT" && audits.some((audit) => audit.id === item.entityId)) ||
     (item.entityType === "RISK" && riskIds.has(item.entityId)) ||

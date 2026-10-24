@@ -1,22 +1,17 @@
 const findingRepository = require("../repositories/findingRepository");
 const riskRepository = require("../repositories/riskRepository");
-const { ROLES } = require("../config/roles");
+const controlRepository = require("../repositories/controlRepository");
+const { projectVisibleRiskRelations } = require("../services/recordScopeVisibility");
 const { createFindingForUser } = require("../services/findingCreationService");
 const { closeFindingForUser } = require("../services/findingClosureService");
 
-const visibleTo = async (finding, user) => {
-  if (user.role !== ROLES.AUDITOR) return true;
-  const risk = await riskRepository.findById(finding.riskId);
-  return risk?.ownerId === user.id;
-};
-
 const listFindings = async (req, res) => {
   const controlId = String(req.query.controlId ?? "").trim();
-  const visible = [];
-  for (const finding of await findingRepository.getAll()) {
-    if (controlId && finding.controlId !== controlId) continue;
-    if (await visibleTo(finding, req.user)) visible.push(finding);
-  }
+  const [risks, controls, findings] = await Promise.all([
+    riskRepository.getAll(), controlRepository.getAll(), findingRepository.getAll()
+  ]);
+  const visible = (await projectVisibleRiskRelations(req.user, risks, controls, findings)).findings
+    .filter((finding) => !controlId || finding.controlId === controlId);
   res.json({ findings: visible });
 };
 

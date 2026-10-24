@@ -4,7 +4,7 @@ const controlRepository = require("../repositories/controlRepository");
 const findingRepository = require("../repositories/findingRepository");
 const evidenceRepository = require("../repositories/evidenceRepository");
 const { ROLES } = require("../config/roles");
-const { filterByVisibleScope, canViewRecordScope } = require("./recordScopeVisibility");
+const { canViewRecordScope, projectVisibleRiskRelations } = require("./recordScopeVisibility");
 
 // Una sola definición de las relaciones del expediente, también usada por el dossier de IA.
 const relateAudit = (auditId, { risks = [], controls = [], findings = [], evidence = [] }) => {
@@ -45,13 +45,10 @@ const buildAuditContext = async (user, auditId) => {
     riskRepository.getAll(), controlRepository.getAll(), findingRepository.getAll(), evidenceRepository.getAll()
   ]);
   const auditor = user.role === ROLES.AUDITOR;
-  const scopedRisks = await filterByVisibleScope(user, allRisks);
-  const risks = auditor ? scopedRisks.filter((item) => item.ownerId === user.id) : scopedRisks;
+  const { risks, controls, findings } = await projectVisibleRiskRelations(
+    user, allRisks, allControls, allFindings);
   const visibleRiskIds = new Set(risks.map((item) => item.id));
-  const controls = auditor
-    ? allControls.filter((item) => item.riskIds?.some((id) => visibleRiskIds.has(id))) : allControls;
   const visibleControlIds = new Set(controls.map((item) => item.id));
-  const findings = auditor ? allFindings.filter((item) => visibleRiskIds.has(item.riskId)) : allFindings;
   const evidence = auditor ? allEvidence.filter((item) =>
     (item.entityType === "AUDIT" && item.entityId === auditId) ||
     (item.entityType === "RISK" && visibleRiskIds.has(item.entityId)) ||
