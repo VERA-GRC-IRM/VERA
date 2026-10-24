@@ -5,6 +5,7 @@ const { listActions } = require("./actionService");
 const { buildNotifications } = require("./notificationService");
 const { logActivity } = require("./auditLogger");
 const { RECORD_CREATE_ROLES } = require("../config/roles");
+const { filterByVisibleScope } = require("./recordScopeVisibility");
 
 const fail = (message, status = 400) => Object.assign(new Error(message), { status });
 const activeUser = async (user) => {
@@ -16,7 +17,7 @@ const activeUser = async (user) => {
 
 const visibleNotifications = async (user, offsetMinutes = 0) => {
   await activeUser(user);
-  const proposals = await planningRepository.getAll();
+  const proposals = await filterByVisibleScope(user, await planningRepository.getAll());
   let actions = [];
   let actionAlertsAvailable = true;
   try { actions = await listActions(user); }

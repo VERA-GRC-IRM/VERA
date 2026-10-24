@@ -5,12 +5,13 @@ const { parseAuditFilters, searchAudits } = require("../services/auditSearch");
 const { applyTransition } = require("../services/planningTransitionService");
 const { parseProposal, activeAuditors, createProposalForUser, updateProposalForUser } = require("../services/proposalService");
 const { editAuditForUser } = require("../services/auditEditService");
+const { filterByVisibleScope, assertWritableRecordScope } = require("../services/recordScopeVisibility");
 
 const isTerminal = (proposal) => ["APPROVED", "ACTIVE", "CLOSED", "REJECTED"].includes(proposal.status);
 
 // GET /api/planning
 const listProposals = async (req, res) => {
-  const proposals = await planningRepository.getAll();
+  const proposals = await filterByVisibleScope(req.user, await planningRepository.getAll());
   const visible = req.user.role === ROLES.AUDITOR
     ? proposals.filter((proposal) => proposal.responsibleId === req.user.id)
     : proposals;
@@ -21,7 +22,7 @@ const listProposals = async (req, res) => {
 const searchPlanningAudits = async (req, res) => {
   const { filters, error } = parseAuditFilters(req.query);
   if (error) return res.status(400).json({ message: error });
-  const proposals = await planningRepository.getAll();
+  const proposals = await filterByVisibleScope(req.user, await planningRepository.getAll());
   const visible = req.user.role === ROLES.AUDITOR
     ? proposals.filter((proposal) => proposal.responsibleId === req.user.id)
     : proposals;
@@ -30,7 +31,7 @@ const searchPlanningAudits = async (req, res) => {
 
 // GET /api/planning/active
 const listActiveAudits = async (req, res) => {
-  const audits = (await planningRepository.getAll()).filter((item) =>
+  const audits = (await filterByVisibleScope(req.user, await planningRepository.getAll())).filter((item) =>
     item.status === "ACTIVE" && (req.user.role !== ROLES.AUDITOR || item.responsibleId === req.user.id)
   );
   res.json({ audits });
@@ -78,6 +79,11 @@ const closeAudit = (req, res) => respondToTransition(req, res, "close");
 const deleteProposal = async (req, res) => {
   const current = await planningRepository.findById(req.params.id);
   if (!current) return res.status(404).json({ message: "Propuesta no encontrada." });
+  try { await assertWritableRecordScope(req.user, current); }
+  catch (error) {
+    if (error.status) return res.status(error.status).json({ message: error.message });
+    throw error;
+  }
   if (isTerminal(current)) {
     return res.status(409).json({ message: "Una propuesta resuelta ya no se puede eliminar." });
   }

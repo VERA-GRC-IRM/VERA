@@ -1,6 +1,7 @@
 const planningRepository = require("../repositories/planningRepository");
 const { PLANNING_APPROVE_ROLES } = require("../config/roles");
 const { logActivity } = require("./auditLogger");
+const { assertWritableRecordScope } = require("./recordScopeVisibility");
 
 const text = (value) => String(value ?? "").trim();
 const terminal = (status) => ["APPROVED", "ACTIVE", "CLOSED", "REJECTED"].includes(status);
@@ -13,6 +14,7 @@ const applyTransition = async (user, id, operation, options = {}) => {
   if (note.length > 1000) throw errorFor("El motivo no puede superar 1,000 caracteres.", 400);
   const current = await planningRepository.findById(id);
   if (!current) throw errorFor(["approve", "reject"].includes(operation) ? "Propuesta no encontrada." : "Auditoría no encontrada.", 404);
+  await assertWritableRecordScope(user, current);
   if (options.version !== undefined && current.storageVersion !== options.version) {
     throw errorFor("La auditoría cambió desde la vista previa. Revísala de nuevo.", 409);
   }

@@ -25,6 +25,10 @@ const { createRiskForUser } = require("../services/riskCreationService");
 const { createControlForUser } = require("../services/controlCreationService");
 const { createFindingForUser } = require("../services/findingCreationService");
 const { closeFindingForUser } = require("../services/findingClosureService");
+const { applyTransition } = require("../services/planningTransitionService");
+const { updateProposalForUser } = require("../services/proposalService");
+const { createCommentForUser } = require("../services/planningCommentService");
+const { visibleNotifications } = require("../services/notificationWorkflowService");
 
 const admin = { id: 1, username: "admin", role: "SUPER_ADMIN" };
 const manager = { id: 3, username: "gerente", role: "GERENTE" };
@@ -131,6 +135,13 @@ test("scope read projections use direct grants and hide denied records from list
   const dashboard = await getItems("/api/dashboard");
   assert.ok(dashboard.pendingItems.some((item) => item.id === audit.id));
   assert.ok(!dashboard.pendingItems.some((item) => item.id === deniedAudit.id));
+  const proposals = (await getItems("/api/planning")).proposals;
+  assert.ok(proposals.some((item) => item.id === audit.id));
+  assert.ok(!proposals.some((item) => item.id === deniedAudit.id));
+  const search = (await getItems("/api/planning/search?q=Auditoría")).audits;
+  assert.ok(!search.some((item) => item.id === deniedAudit.id));
+  const notices = (await visibleNotifications(manager)).notifications;
+  assert.ok(!notices.some((item) => item.entityId === deniedAudit.id));
   const listedEvidence = (await getItems("/api/evidence")).evidence;
   assert.ok(listedEvidence.some((item) => item.id === allowedEvidence.id));
   assert.ok(!listedEvidence.some((item) => item.id === deniedEvidence.id));
@@ -151,6 +162,12 @@ test("scope read projections use direct grants and hide denied records from list
   await assert.rejects(() => createFindingForUser(manager, findingInput), { status: 403 });
   await assert.rejects(() => closeFindingForUser(manager, allowedFinding.id,
     "Motivo de cierre sintético", allowedFinding.storageVersion), { status: 403 });
+  await assert.rejects(() => applyTransition(manager, audit.id, "approve", { quarter: "Q1" }), { status: 403 });
+  await assert.rejects(() => applyTransition(manager, deniedAudit.id, "approve", { quarter: "Q1" }), { status: 404 });
+  await assert.rejects(() => updateProposalForUser(manager, audit.id, { title: "Título editado" }),
+    { status: 403 });
+  await assert.rejects(() => createCommentForUser(manager, audit.id,
+    { text: "Comentario sintético" }), { status: 403 });
   const assessment = { likelihood: 2, impact: 3, note: "Evaluación sintética documentada." };
   await assert.rejects(() => evaluateRiskForUser(manager, firstRisk.id, assessment), { status: 403 });
   await assert.rejects(() => evaluateRiskForUser(manager, deniedRisk.id, assessment), { status: 404 });
@@ -182,5 +199,9 @@ test("scope read projections use direct grants and hide denied records from list
     { sourceType: "RISK", sourceId: firstRisk.id }), { status: 409 });
   await assert.rejects(() => createEvidenceForUser(manager, evidenceInput), { status: 409 });
   await assert.rejects(() => createFindingForUser(manager, findingInput), { status: 409 });
+  await assert.rejects(() => createCommentForUser(manager, audit.id,
+    { text: "Comentario sintético" }), { status: 409 });
+  assert.equal((await applyTransition(manager, audit.id, "approve", { quarter: "Q1" })).record.status,
+    "APPROVED");
   await revokeGrantForUser(admin, manage.id, { reason: "Terminó la gestión sintética" });
 });
