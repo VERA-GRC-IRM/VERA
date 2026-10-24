@@ -8,6 +8,8 @@ const { assertWritableSourceScope, assertNewRelationUnscoped } = require("./reco
 
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
 const text = (value) => String(value ?? "").trim();
+const canCreateFindingForRisk = (user, risk) => RISK_CONTROL_MANAGE_ROLES.includes(user.role) ||
+  (user.role === ROLES.AUDITOR && risk.ownerId === user.id);
 
 const prepareFinding = async (user, input, expectedControlVersion) => {
   const controlId = text(input.controlId);
@@ -25,8 +27,7 @@ const prepareFinding = async (user, input, expectedControlVersion) => {
   }
   const risk = await riskRepository.findById(riskId);
   if (!risk) throw errorFor("Riesgo no encontrado.", 404);
-  if (!RISK_CONTROL_MANAGE_ROLES.includes(user.role) &&
-      !(user.role === ROLES.AUDITOR && risk.ownerId === user.id)) {
+  if (!canCreateFindingForRisk(user, risk)) {
     throw errorFor("No puedes registrar hallazgos para este riesgo.", 403);
   }
   await assertWritableSourceScope(user, "RISK", risk);
@@ -57,6 +58,11 @@ const createFindingForUser = async (user, input, operationId = null, expectedCon
   if (operationId) {
     const existing = (await findingRepository.getAll()).find((item) => item.aiOperationId === operationId);
     if (existing) {
+      const risk = await riskRepository.findById(existing.riskId);
+      if (!risk) throw errorFor("Riesgo no encontrado.", 404);
+      if (!canCreateFindingForRisk(user, risk)) {
+        throw errorFor("No puedes registrar hallazgos para este riesgo.", 403);
+      }
       await assertWritableSourceScope(user, "FINDING", existing);
       return existing;
     }
