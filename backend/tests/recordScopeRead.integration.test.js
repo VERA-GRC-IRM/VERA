@@ -8,6 +8,8 @@ const { startTestServer } = require("./helpers/testServer");
 const { createOrgUnitForUser } = require("../services/orgUnitService");
 const { createGrantForUser, revokeGrantForUser } = require("../services/orgGrantService");
 const riskRepository = require("../repositories/riskRepository");
+const controlRepository = require("../repositories/controlRepository");
+const findingRepository = require("../repositories/findingRepository");
 const actionRepository = require("../repositories/actionRepository");
 const planningRepository = require("../repositories/planningRepository");
 const { buildAssistantContext } = require("../services/assistantContextService");
@@ -41,10 +43,22 @@ test("scope read projections use direct grants and hide denied records from list
   const audit = planningRepository.create({ title: `Auditoría A ${stamp}`, objective: "Objetivo de prueba",
     area: "Área de prueba", type: "Interna", year: 2026, quarter: "Q1",
     responsibleId: 3, responsible: "Gerente", risk: "Medio", orgUnitId: first.id });
+  const deniedAudit = planningRepository.create({ title: `Auditoría B ${stamp}`, objective: "Objetivo ajeno",
+    area: "Área de prueba", type: "Interna", year: 2026, quarter: "Q1",
+    responsibleId: 3, responsible: "Gerente", risk: "Alto", orgUnitId: second.id });
   const firstRisk = risk(`Riesgo A ${stamp}`, first.id, audit.id);
   const deniedRisk = risk(`Riesgo B ${stamp}`, second.id, audit.id);
   const childRisk = risk(`Riesgo hijo ${stamp}`, child.id, audit.id);
   const legacyRisk = risk(`Riesgo legado ${stamp}`, null, audit.id);
+  const control = (title, riskIds) => controlRepository.create({ title, description: "Control sintético",
+    riskIds, effectiveness: 3, note: "Evaluación de prueba", createdBy: admin });
+  const allowedControl = control(`Control A ${stamp}`, [firstRisk.id]);
+  const deniedControl = control(`Control B ${stamp}`, [deniedRisk.id]);
+  const mixedControl = control(`Control compartido ${stamp}`, [firstRisk.id, deniedRisk.id]);
+  const allowedFinding = findingRepository.create({ title: `Hallazgo A ${stamp}`, riskId: firstRisk.id,
+    controlId: allowedControl.id, auditId: audit.id, createdBy: admin });
+  const deniedFinding = findingRepository.create({ title: `Hallazgo B ${stamp}`, riskId: deniedRisk.id,
+    controlId: deniedControl.id, auditId: audit.id, createdBy: admin });
   const deniedAction = actionRepository.create({
     sourceType: "RISK", sourceId: deniedRisk.id, sourceTitle: deniedRisk.title,
     title: `Pendiente restringido ${stamp}`, assigneeId: manager.id,
@@ -64,16 +78,38 @@ test("scope read projections use direct grants and hide denied records from list
   const assistant = await buildAssistantContext(manager, `riesgos ${stamp}`);
   assert.ok(assistant.sourceCatalog.some((item) => item.id === firstRisk.id));
   assert.ok(!assistant.sourceCatalog.some((item) => item.id === deniedRisk.id || item.id === childRisk.id));
+  assert.ok(assistant.sourceCatalog.some((item) => item.id === allowedControl.id));
+  assert.ok(!assistant.sourceCatalog.some((item) =>
+    [deniedControl.id, mixedControl.id, deniedFinding.id].includes(item.id)));
   assert.ok(!assistant.visibleRecords.pending.some((item) => item.entityId === deniedAction.id));
   const report = await buildPortfolioReport(manager, {});
   const reportRow = report.rows.find((row) => row.audit.id === audit.id);
   assert.ok(reportRow.risks.some((item) => item.id === firstRisk.id));
   assert.ok(!reportRow.risks.some((item) => item.id === deniedRisk.id || item.id === childRisk.id));
+  assert.ok(reportRow.controls.some((item) => item.id === allowedControl.id));
+  assert.ok(!reportRow.controls.some((item) => [deniedControl.id, mixedControl.id].includes(item.id)));
+  assert.ok(reportRow.findings.some((item) => item.id === allowedFinding.id));
+  assert.ok(!reportRow.findings.some((item) => item.id === deniedFinding.id));
   assert.ok(!reportToCsv(report).includes(deniedRisk.title));
   const dossier = await buildAuditContext(manager, audit.id);
   assert.ok(dossier.groups.risks.some((item) => item.id === firstRisk.id));
   assert.ok(!dossier.groups.risks.some((item) => item.id === deniedRisk.id));
+  assert.ok(!dossier.groups.controls.some((item) => item.id === mixedControl.id));
+  assert.ok(!dossier.groups.findings.some((item) => item.id === deniedFinding.id));
   await assert.rejects(() => buildAuditContext(other, audit.id), { status: 404 });
+
+  const getItems = async (path) => (await (await fetch(`${base}${path}`, { headers: {
+    Authorization: `Bearer ${token(3)}`
+  } })).json());
+  const listedControls = (await getItems("/api/controls")).controls;
+  assert.ok(listedControls.some((item) => item.id === allowedControl.id));
+  assert.ok(!listedControls.some((item) => [deniedControl.id, mixedControl.id].includes(item.id)));
+  const listedFindings = (await getItems("/api/findings")).findings;
+  assert.ok(listedFindings.some((item) => item.id === allowedFinding.id));
+  assert.ok(!listedFindings.some((item) => item.id === deniedFinding.id));
+  const dashboard = await getItems("/api/dashboard");
+  assert.ok(dashboard.pendingItems.some((item) => item.id === audit.id));
+  assert.ok(!dashboard.pendingItems.some((item) => item.id === deniedAudit.id));
 
   await revokeGrantForUser(admin, grant.id, { reason: "Terminó el acceso sintético" });
   assert.ok(!(await list(3)).some((item) => item.id === firstRisk.id));

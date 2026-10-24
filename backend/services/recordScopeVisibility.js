@@ -13,4 +13,24 @@ const canViewRecordScope = async (user, record) => {
   return (await filterByVisibleScope(user, [record])).length === 1;
 };
 
-module.exports = { filterByVisibleScope, canViewRecordScope };
+// Keep the existing role view for legacy records. Once any relation has an
+// explicit scope, a shared control must not expose a risk in a denied scope.
+const projectVisibleRiskRelations = async (user, allRisks, allControls, allFindings = []) => {
+  const auditor = user.role === "AUDITOR";
+  const scopedRisks = await filterByVisibleScope(user, allRisks);
+  const risks = auditor ? scopedRisks.filter((item) => item.ownerId === user.id) : scopedRisks;
+  const riskIds = new Set(risks.map((item) => item.id));
+  const scopedRelations = [...allRisks, ...allControls, ...allFindings].some((item) => item.orgUnitId);
+  const scopedControls = await filterByVisibleScope(user, allControls);
+  const controls = scopedControls.filter((item) =>
+    (!auditor || item.riskIds?.some((id) => riskIds.has(id))) &&
+    (!scopedRelations || (item.riskIds || []).every((id) => riskIds.has(id))));
+  const controlIds = new Set(controls.map((item) => item.id));
+  const scopedFindings = await filterByVisibleScope(user, allFindings);
+  const findings = scopedFindings.filter((item) =>
+    (!auditor || riskIds.has(item.riskId)) &&
+    (!scopedRelations || (riskIds.has(item.riskId) && controlIds.has(item.controlId))));
+  return { risks, controls, findings };
+};
+
+module.exports = { filterByVisibleScope, canViewRecordScope, projectVisibleRiskRelations };
