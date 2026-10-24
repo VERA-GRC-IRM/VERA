@@ -5,6 +5,7 @@ const { logActivity } = require("./auditLogger");
 const { USER_STATUS } = require("../config/accountRules");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { parseAssessment } = require("./riskEvaluationService");
+const { assertWritableRecordScope, assertWritableRiskAuditLink } = require("./recordWriteScopeService");
 
 const text = (value) => String(value ?? "").trim();
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
@@ -44,10 +45,15 @@ const createRiskForUser = async (user, input, operationId = null) => {
   }
   if (operationId) {
     const existing = (await riskRepository.getAll()).find((item) => item.aiOperationId === operationId);
-    if (existing) return existing;
+    if (existing) {
+      await assertWritableRecordScope(user, existing);
+      await assertWritableRiskAuditLink(user, existing);
+      return existing;
+    }
   }
   const core = await parseCore(input);
   if (core.error) throw errorFor(core.error, 400);
+  await assertWritableRiskAuditLink(user, core.data);
   const assessment = parseAssessment(input);
   if (assessment.error) throw errorFor(assessment.error, 400);
   if (await riskRepository.findDuplicate(core.data)) {

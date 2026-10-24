@@ -3,6 +3,7 @@ const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { classifyRisk } = require("../config/riskRules");
 const { LEGACY_RISK_METHOD_ID, UNSPECIFIED_STAGE } = require("../config/riskMethods");
 const { logActivity } = require("./auditLogger");
+const { assertWritableRecordScope } = require("./recordWriteScopeService");
 
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
 const parseAssessment = (body) => {
@@ -34,11 +35,13 @@ const evaluateRiskForUser = async (user, id, body, expectedVersion) => {
   if (typeof id !== "string" || !id.trim() || id.length > 80) throw errorFor("Selecciona un riesgo válido.", 400);
   const current = await riskRepository.findById(id);
   if (!current) throw errorFor("Riesgo no encontrado.", 404);
+  await assertWritableRecordScope(user, current);
   const assessment = parseAssessment(body);
   if (assessment.error) throw errorFor(assessment.error, 400);
   if (expectedVersion !== undefined && current.storageVersion !== expectedVersion) {
     throw errorFor("El riesgo cambió desde la vista previa. Revísalo de nuevo.", 409);
   }
+  await assertWritableRecordScope(user, current);
   const risk = await riskRepository.evaluate(current.id, {
     ...assessment.data, assessedBy: { id: user.id, name: user.username }
   }, current.storageVersion);
