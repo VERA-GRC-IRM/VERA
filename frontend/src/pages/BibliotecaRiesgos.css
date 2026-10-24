@@ -1,5 +1,31 @@
 .risk-library-page { max-width: 1200px; }
 .risk-library-page .dashboard-header p { max-width: 70ch; }
+.risk-library-admin-toggle { min-height: 44px; padding: .65rem 1rem; border: 1px solid var(--vera-border); border-radius: 10px; background: var(--vera-surface); color: var(--vera-text-strong); font: inherit; font-weight: 700; cursor: pointer; }
+.risk-library-admin-toggle:hover { background: var(--vera-surface-soft); }
+.risk-library-admin { margin-bottom: 1.5rem; padding: 1.4rem; border: 1px solid var(--vera-border); border-radius: 16px; background: var(--vera-surface); color: var(--vera-text); }
+.risk-library-admin h2 { margin: 0 0 .4rem; color: var(--vera-text-strong); }
+.risk-library-admin > p { margin: 0 0 1.1rem; color: var(--vera-text-muted); }
+.risk-library-admin-modes { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.2rem; }
+.risk-library-admin-modes button { min-height: 44px; padding: .55rem .8rem; border: 1px solid var(--vera-border); border-radius: 10px; background: var(--vera-surface-soft); color: var(--vera-text); font: inherit; cursor: pointer; }
+.risk-library-admin-modes button[aria-pressed="true"] { background: var(--vera-accent-strong); border-color: var(--vera-accent-strong); color: var(--vera-on-accent); }
+.risk-library-admin-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.risk-library-admin-form label:not(.risk-library-confirm) { display: grid; align-content: start; gap: .4rem; color: var(--vera-text-strong); font-weight: 650; }
+.risk-library-admin-form .wide { grid-column: 1 / -1; }
+.risk-library-admin-form :is(input:not([type="checkbox"]), textarea, select) { box-sizing: border-box; width: 100%; min-height: 44px; padding: .65rem .8rem; border: 1px solid var(--vera-border); border-radius: 10px; background: var(--vera-surface); color: var(--vera-text); font: inherit; }
+.risk-library-admin-form textarea { min-height: 88px; resize: vertical; }
+.risk-library-admin-error, .risk-library-admin-success { padding: .7rem 1rem; border-radius: 10px; }
+.risk-library-admin-error { background: var(--vera-danger-soft); color: var(--vera-danger) !important; }
+.risk-library-admin-success { background: var(--vera-success-soft); color: var(--vera-success) !important; }
+.risk-library-comparison { border: 1px solid var(--vera-border); border-radius: 12px; padding: 1rem; background: var(--vera-surface-soft); }
+.risk-library-comparison h3 { margin: 0 0 .8rem; }
+.risk-library-comparison > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.risk-library-comparison section { overflow-wrap: anywhere; }
+.risk-library-comparison h4 { margin: 0 0 .5rem; }
+.risk-library-comparison p { margin: .4rem 0; }
+.risk-library-confirm { display: flex; align-items: flex-start; gap: .6rem; line-height: 1.5; }
+.risk-library-confirm input { margin-top: .25rem; }
+.risk-library-admin-form > button { justify-self: start; }
+.risk-library-page :is(button, input, textarea, select):focus-visible { outline: 3px solid var(--vera-focus); outline-offset: 2px; }
 .risk-library-status, .risk-library-empty { padding: 2rem; border: 1px solid var(--vera-border); border-radius: 16px; background: var(--vera-surface); color: var(--vera-text-muted); }
 .risk-library-error { color: var(--vera-danger); background: var(--vera-danger-soft); }
 .risk-library-overview { display: flex; flex-wrap: wrap; gap: 1.5rem; padding: 1.1rem 1.4rem; margin-bottom: 1.5rem; background: var(--vera-surface); border: 1px solid var(--vera-border); border-radius: 16px; color: var(--vera-text-muted); }
@@ -37,5 +63,5 @@
 .risk-library-detail ol li span { display: block; color: var(--vera-text-muted); }
 .risk-library-empty { text-align: center; }
 .risk-library-empty h2 { font-size: 1.15rem; color: var(--vera-text-strong); }
-@media (max-width: 700px) { .risk-library-filters, .risk-library-detail { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .risk-library-filters, .risk-library-detail, .risk-library-admin-form, .risk-library-comparison > div { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .risk-library-card button svg { transition: none; } }
