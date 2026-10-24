@@ -2,6 +2,8 @@
 
 La biblioteca separa una **plantilla reutilizable** de un riesgo registrado. Las categorías tienen código estable, nombre, descripción y padre opcional. Una plantilla publicada contiene categoría, título, escenario, causas, consecuencias y referencia opcional. Cada revisión es una fila nueva e inmutable: conserva autor, fecha, motivo y número. La vista principal muestra solo la revisión más reciente; el historial se puede consultar por ID.
 
+La interfaz `/biblioteca-riesgos` permite a cualquier usuario autenticado consultar la estructura de categorías, buscar plantillas, filtrar por categoría y sus descendientes, revisar causas, consecuencias, fuente y versiones. Cuando no hay catálogo aprobado, muestra un estado vacío. La publicación y revisión de plantillas continúa disponible mediante la API para `SUPER_ADMIN`; los formularios de administración y el vínculo con expedientes serán incrementos separados. Esta página no asigna categorías a riesgos ni cambia su metodología.
+
 No se precarga una taxonomía atribuida a FEMSA ni contenido de marcos sujeto a licencia. El responsable de riesgos debe aprobar nombres, niveles, categorías y fuentes antes de poblar la biblioteca real. Los ejemplos de pruebas son sintéticos.
 
 ## API y permisos
