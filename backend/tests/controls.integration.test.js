@@ -33,7 +33,7 @@ test("HU-15: controls link to valid risks, retain effectiveness evaluations and 
     note: "Las últimas muestras revisadas muestran evidencia completa y oportuna."
   };
   const invalidLink = await fetch(`${baseUrl}/api/controls`, json(manager, "POST", { ...body, riskIds: ["RSK-999"] }));
-  assert.equal(invalidLink.status, 400);
+  assert.equal(invalidLink.status, 404);
   const createdResponse = await fetch(`${baseUrl}/api/controls`, json(manager, "POST", body));
   assert.equal(createdResponse.status, 201);
   const control = (await createdResponse.json()).control;

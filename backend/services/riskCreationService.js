@@ -6,6 +6,7 @@ const { USER_STATUS } = require("../config/accountRules");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { parseAssessment } = require("./riskEvaluationService");
 const { assertWritableRecordScope, assertWritableRiskAuditLink } = require("./recordWriteScopeService");
+const { UNAVAILABLE_RECORD } = require("./recordScopeVisibility");
 
 const text = (value) => String(value ?? "").trim();
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
@@ -52,7 +53,8 @@ const createRiskForUser = async (user, input, operationId = null) => {
     }
   }
   const core = await parseCore(input);
-  if (core.error) throw errorFor(core.error, 400);
+  if (core.error) throw core.error === "La auditoría relacionada no existe."
+    ? errorFor(UNAVAILABLE_RECORD, 404) : errorFor(core.error, 400);
   await assertWritableRiskAuditLink(user, core.data);
   const assessment = parseAssessment(input);
   if (assessment.error) throw errorFor(assessment.error, 400);

@@ -1,4 +1,5 @@
 const { availableScopesFor, canManageScope } = require("./scopeAccessService");
+const UNAVAILABLE_RECORD = "El registro no existe o no está disponible para tu cuenta.";
 
 // A legacy record without an organisational assignment keeps its current visibility.
 // This is an additional restriction: callers must still apply their module role rules.
@@ -24,7 +25,7 @@ const projectVisibleAuditLinks = (risks, visibleAudits) => {
 const assertWritableRecordScope = async (user, record) => {
   if (!record?.orgUnitId) return;
   if (!await canViewRecordScope(user, record)) {
-    throw Object.assign(new Error("El registro no existe o no está disponible para tu cuenta."), { status: 404 });
+    throw Object.assign(new Error(UNAVAILABLE_RECORD), { status: 404 });
   }
   if (!await canManageScope(user, record.orgUnitId)) {
     throw Object.assign(new Error("Tu autorización para este ámbito permite consultar, no modificar."), { status: 403 });
@@ -52,4 +53,4 @@ const projectVisibleRiskRelations = async (user, allRisks, allControls, allFindi
 };
 
 module.exports = { filterByVisibleScope, canViewRecordScope, assertWritableRecordScope,
-  projectVisibleRiskRelations, projectVisibleAuditLinks };
+  projectVisibleRiskRelations, projectVisibleAuditLinks, UNAVAILABLE_RECORD };
