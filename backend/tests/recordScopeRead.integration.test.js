@@ -11,10 +11,13 @@ const riskRepository = require("../repositories/riskRepository");
 const controlRepository = require("../repositories/controlRepository");
 const findingRepository = require("../repositories/findingRepository");
 const actionRepository = require("../repositories/actionRepository");
+const evidenceRepository = require("../repositories/evidenceRepository");
 const planningRepository = require("../repositories/planningRepository");
 const { buildAssistantContext } = require("../services/assistantContextService");
 const { buildPortfolioReport, reportToCsv } = require("../services/portfolioReportService");
 const { buildAuditContext } = require("../services/auditContextService");
+const { listActions, getAction, createAction } = require("../services/actionService");
+const { canAccessEntity } = require("../services/evidenceCreationService");
 
 const admin = { id: 1, username: "admin", role: "SUPER_ADMIN" };
 const manager = { id: 3, username: "gerente", role: "GERENTE" };
@@ -64,6 +67,17 @@ test("scope read projections use direct grants and hide denied records from list
     title: `Pendiente restringido ${stamp}`, assigneeId: manager.id,
     dueDate: new Date().toISOString().slice(0, 10), status: "OPEN", history: []
   });
+  const allowedAction = actionRepository.create({
+    sourceType: "RISK", sourceId: firstRisk.id, sourceTitle: firstRisk.title,
+    title: `Pendiente permitido ${stamp}`, assigneeId: manager.id,
+    dueDate: new Date().toISOString().slice(0, 10), status: "OPEN", history: []
+  });
+  const allowedEvidence = evidenceRepository.create({ title: `Evidencia A ${stamp}`,
+    description: "Referencia sintética", entityType: "RISK", entityId: firstRisk.id,
+    entityTitle: firstRisk.title, author: admin });
+  const deniedEvidence = evidenceRepository.create({ title: `Evidencia B ${stamp}`,
+    description: "Referencia sintética", entityType: "RISK", entityId: deniedRisk.id,
+    entityTitle: deniedRisk.title, author: admin });
   const url = `${base}/api/risks/`;
   const list = async (id) => (await (await fetch(url, { headers: {
     Authorization: `Bearer ${token(id)}`
@@ -110,8 +124,19 @@ test("scope read projections use direct grants and hide denied records from list
   const dashboard = await getItems("/api/dashboard");
   assert.ok(dashboard.pendingItems.some((item) => item.id === audit.id));
   assert.ok(!dashboard.pendingItems.some((item) => item.id === deniedAudit.id));
+  const listedEvidence = (await getItems("/api/evidence")).evidence;
+  assert.ok(listedEvidence.some((item) => item.id === allowedEvidence.id));
+  assert.ok(!listedEvidence.some((item) => item.id === deniedEvidence.id));
+  assert.equal(await canAccessEntity("RISK", deniedRisk.id, manager), false);
+  assert.ok((await listActions(manager)).some((item) => item.id === allowedAction.id));
+  assert.ok(!(await listActions(manager)).some((item) => item.id === deniedAction.id));
+  await assert.rejects(() => getAction(manager, deniedAction.id), { status: 404 });
+  await assert.rejects(() => createAction(manager,
+    { sourceType: "RISK", sourceId: deniedRisk.id }), { status: 404 });
 
   await revokeGrantForUser(admin, grant.id, { reason: "Terminó el acceso sintético" });
   assert.ok(!(await list(3)).some((item) => item.id === firstRisk.id));
   assert.ok((await list(3)).some((item) => item.id === legacyRisk.id));
+  assert.equal(await canAccessEntity("RISK", firstRisk.id, manager), false);
+  assert.ok(!(await listActions(manager)).some((item) => item.id === allowedAction.id));
 });

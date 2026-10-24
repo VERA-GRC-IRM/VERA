@@ -17,11 +17,15 @@ const listEvidence = async (req, res) => {
   const { entityType, entityId, search } = req.query;
   const needle = text(search).toLowerCase();
   const items = [];
+  const accessByEntity = new Map();
   for (const item of await evidenceRepository.getAll()) {
     if (entityType && item.entityType !== entityType) continue;
     if (entityId && item.entityId !== entityId) continue;
     if (needle && !`${item.title} ${item.description} ${item.reference} ${item.entityTitle}`.toLowerCase().includes(needle)) continue;
-    if (await canAccessEntity(item.entityType, item.entityId, req.user)) items.push(item);
+    const key = `${item.entityType}:${item.entityId}`;
+    if (!accessByEntity.has(key)) accessByEntity.set(key,
+      await canAccessEntity(item.entityType, item.entityId, req.user));
+    if (accessByEntity.get(key)) items.push(item);
   }
   const fileIds = items.filter((item) => item.file).map((item) => item.id);
   try {

@@ -1,13 +1,11 @@
 const actionRepository = require("../repositories/actionRepository");
-const planningRepository = require("../repositories/planningRepository");
-const riskRepository = require("../repositories/riskRepository");
-const controlRepository = require("../repositories/controlRepository");
 const findingRepository = require("../repositories/findingRepository");
 const userRepository = require("../repositories/userRepository");
 const { logActivity } = require("./auditLogger");
 const { buildAuditContext } = require("./auditContextService");
+const { visibleCollectionsForUser, visibleRecordForUser } = require("./recordReadAccessService");
 const { USER_STATUS } = require("../config/accountRules");
-const { ROLES, PLANNING_APPROVE_ROLES, RECORD_CREATE_ROLES } = require("../config/roles");
+const { PLANNING_APPROVE_ROLES, RECORD_CREATE_ROLES } = require("../config/roles");
 
 const SOURCES = ["AUDIT", "RISK", "CONTROL", "FINDING"];
 const STATUSES = ["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"];
@@ -37,28 +35,7 @@ const assertSourceInput = (sourceType, sourceId) => {
 
 // La misma regla de lectura se aplica al creador, al responsable y a cada consulta posterior.
 const visibleSource = async (user, sourceType, sourceId) => {
-  if (!Object.values(ROLES).includes(user.role)) return null;
-  let source;
-  if (sourceType === "AUDIT") {
-    source = await planningRepository.findById(sourceId);
-    if (user.role === ROLES.AUDITOR && source?.responsibleId !== user.id) return null;
-  } else if (sourceType === "RISK") {
-    source = await riskRepository.findById(sourceId);
-    if (user.role === ROLES.AUDITOR && source?.ownerId !== user.id) return null;
-  } else if (sourceType === "CONTROL") {
-    source = await controlRepository.findById(sourceId);
-    if (user.role === ROLES.AUDITOR && source) {
-      const owned = (await riskRepository.getAll()).some((risk) => risk.ownerId === user.id && source.riskIds?.includes(risk.id));
-      if (!owned) return null;
-    }
-  } else if (sourceType === "FINDING") {
-    source = (await findingRepository.getAll()).find((item) => item.id === sourceId);
-    if (user.role === ROLES.AUDITOR && source) {
-      const risk = await riskRepository.findById(source.riskId);
-      if (risk?.ownerId !== user.id) return null;
-    }
-  }
-  return source || null;
+  return visibleRecordForUser(user, sourceType, sourceId);
 };
 
 const requiredSource = async (user, sourceType, sourceId) => {
@@ -81,20 +58,7 @@ const dateIsValid = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value) &&
   !Number.isNaN(Date.parse(`${value}T00:00:00.000Z`)) &&
   new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) === value;
 
-const visibleCollections = async (user) => {
-  if (!Object.values(ROLES).includes(user.role)) return { AUDIT: [], RISK: [], CONTROL: [], FINDING: [] };
-  const [audits, risks, controls, findings] = await Promise.all([
-    planningRepository.getAll(), riskRepository.getAll(), controlRepository.getAll(), findingRepository.getAll()
-  ]);
-  const visibleRisks = risks.filter((risk) => user.role !== ROLES.AUDITOR || risk.ownerId === user.id);
-  const riskIds = new Set(visibleRisks.map((risk) => risk.id));
-  return {
-    AUDIT: audits.filter((audit) => user.role !== ROLES.AUDITOR || audit.responsibleId === user.id),
-    RISK: visibleRisks,
-    CONTROL: controls.filter((control) => user.role !== ROLES.AUDITOR || control.riskIds?.some((id) => riskIds.has(id))),
-    FINDING: findings.filter((finding) => user.role !== ROLES.AUDITOR || riskIds.has(finding.riskId))
-  };
-};
+const visibleCollections = visibleCollectionsForUser;
 
 const listSources = async (user) => {
   const groups = await visibleCollections(user);
