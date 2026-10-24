@@ -19,6 +19,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const actionRoutes = require("./routes/actionRoutes");
 const evidenceRoutes = require("./routes/evidenceRoutes");
 const assistantRoutes = require("./routes/assistantRoutes");
+const orgUnitRoutes = require("./routes/orgUnitRoutes");
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/actions", actionRoutes);
 app.use("/api/evidence", evidenceRoutes);
 app.use("/api/assistant", assistantRoutes);
+app.use("/api/org-units", orgUnitRoutes);
 
 app.get("/", (req, res) => {
   res.json({
