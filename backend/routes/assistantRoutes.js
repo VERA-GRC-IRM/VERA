@@ -46,7 +46,7 @@ const { createEvidenceForUser, createFileEvidenceForUser } = require("../service
 const evidenceRepository = require("../repositories/evidenceRepository");
 const { handleFileEvidence, isFileEvidenceCommand, sourceFor } = require("../services/assistantFileEvidenceService");
 const { handleAuditComment, isAuditCommentCommand } = require("../services/assistantAuditCommentService");
-const { createCommentForUser, findVisibleProposal } = require("../services/planningCommentService");
+const { createCommentForUser } = require("../services/planningCommentService");
 const commentRepository = require("../repositories/commentRepository");
 const conversations = require("../repositories/assistantConversationRepository");
 const projects = require("../repositories/assistantProjectRepository");
@@ -1120,16 +1120,21 @@ router.post("/conversations/:id/ask", conversationEnabled,
         const draft = result.auditComment;
         assistantMessage.mode = "action-reserved";
         assistantMessage.actionReservation = { type: "AUDIT_COMMENT", proposalId: draft.proposalId,
-          operationId: draft.operationId, createdAt: new Date().toISOString() };
+          operationId: draft.operationId, text: draft.text, createdAt: new Date().toISOString() };
         const reserved = await conversations.update(req.user, thread.id, thread.version, { messages });
         let comment = null;
         let executionError = null;
         try {
           comment = await createCommentForUser(req.user, draft.proposalId, { text: draft.text }, draft.operationId);
         } catch (error) {
-          const existing = (await commentRepository.listByProposal(draft.proposalId))
-            .find((item) => item.aiOperationId === draft.operationId);
-          if (existing) { await findVisibleProposal(req.user, existing.proposalId); comment = existing; }
+          if (!error?.status || error.status >= 500) {
+            try {
+              const committed = (await commentRepository.listByProposal(draft.proposalId))
+                .some((item) => item.aiOperationId === draft.operationId);
+              if (committed) comment = await createCommentForUser(req.user, draft.proposalId,
+                { text: draft.text }, draft.operationId);
+            } catch { /* Authorization or storage still unavailable. */ }
+          }
           if (!comment) executionError = error;
         }
         const finalMessage = { ...assistantMessage,

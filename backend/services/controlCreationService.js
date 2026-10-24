@@ -53,6 +53,7 @@ const createControlForUser = async (user, input, operationId = null) => {
   if (operationId) {
     const existing = (await controlRepository.getAll()).find((item) => item.aiOperationId === operationId);
     if (existing) {
+      if (existing.createdBy?.id !== user.id) throw errorFor(UNAVAILABLE_RECORD, 404);
       await assertWritableControlScope(user, existing);
       return withResult(existing);
     }

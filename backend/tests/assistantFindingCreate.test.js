@@ -42,7 +42,7 @@ test("El hallazgo exige cuatro campos explícitos sin repetirlos", () => {
     /sin repetirlos/);
 });
 
-test("un idempotente de hallazgo vuelve a comprobar el permiso del rol vigente", async () => {
+test("un idempotente de hallazgo no revela el registro a otro actor", async () => {
   const { risk, control } = fixture(3);
   const operationId = "c726ae9f-1732-4f5d-bdbb-d0cc81fc4394";
   const input = { title: `Hallazgo permiso ${Date.now()}`, description: "Control insuficiente para el riesgo.",
@@ -51,7 +51,7 @@ test("un idempotente de hallazgo vuelve a comprobar el permiso del rol vigente",
     input, operationId);
   assert.equal(created.riskId, risk.id);
   await assert.rejects(() => createFindingForUser({ id: 5, username: "auditor", role: "AUDITOR" },
-    input, operationId), { status: 403 });
+    input, operationId), { status: 404 });
 });
 
 test("Auditor dueño crea un hallazgo para control ineficaz tras confirmarlo", async (t) => {

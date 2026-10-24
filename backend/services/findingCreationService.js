@@ -58,6 +58,9 @@ const createFindingForUser = async (user, input, operationId = null, expectedCon
   if (operationId) {
     const existing = (await findingRepository.getAll()).find((item) => item.aiOperationId === operationId);
     if (existing) {
+      if (existing.createdBy?.id !== user.id) {
+        throw errorFor("El hallazgo no está disponible para tu cuenta.", 404);
+      }
       const risk = await riskRepository.findById(existing.riskId);
       if (!risk) throw errorFor("Riesgo no encontrado.", 404);
       if (!canCreateFindingForRisk(user, risk)) {

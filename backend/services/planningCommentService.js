@@ -39,7 +39,12 @@ const createCommentForUser = async (user, proposalId, body, operationId = null) 
   if (operationId) {
     const existing = (await commentRepository.listByProposal(proposal.id))
       .find((item) => item.aiOperationId === operationId);
-    if (existing) return existing;
+    if (existing) {
+      if (existing.author?.id !== user.id || existing.text !== text) {
+        throw errorFor("La operación no está disponible para este comentario.", 409);
+      }
+      return existing;
+    }
   }
   const comment = await commentRepository.create({ proposalId: proposal.id, text,
     ...(operationId ? { aiOperationId: operationId } : {}),

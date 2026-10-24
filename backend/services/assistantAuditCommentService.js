@@ -3,6 +3,8 @@ const userRepository = require("../repositories/userRepository");
 const commentRepository = require("../repositories/commentRepository");
 const { RECORD_CREATE_ROLES } = require("../config/roles");
 const { findVisibleProposal, parseComment } = require("./planningCommentService");
+const { assertWritableRecordScope } = require("./recordScopeVisibility");
+const { assertNewRelationUnscoped } = require("./recordWriteScopeService");
 
 const response = (answer, mode = "action-guidance", extra = {}) => ({ answer, mode,
   citations: [], references: [], coverage: { partial: false }, asOf: new Date().toISOString(),
@@ -27,9 +29,12 @@ const handleAuditComment = async (user, question, thread) => {
   if (confirm(question)) {
     const reservation = thread.messages.at(-1)?.actionReservation;
     if (reservation?.type === "AUDIT_COMMENT") {
-      await findVisibleProposal(user, reservation.proposalId);
+      const proposal = await findVisibleProposal(user, reservation.proposalId);
+      await assertWritableRecordScope(user, proposal);
+      assertNewRelationUnscoped(proposal);
       const existing = (await commentRepository.listByProposal(reservation.proposalId))
-        .find((item) => item.aiOperationId === reservation.operationId);
+        .find((item) => item.aiOperationId === reservation.operationId &&
+          item.author?.id === user.id && item.text === reservation.text);
       return existing
         ? response(`El comentario ya quedó registrado con identificador ${existing.id}.`,
           "action-executed", { actionOutcome: { id: existing.id } })

@@ -85,6 +85,7 @@ const createProposalForUser = async (user, input, operationId = null) => {
   if (operationId) {
     const existing = (await planningRepository.getAll()).find((item) => item.aiOperationId === operationId);
     if (existing) {
+      if (existing.createdBy?.id !== user.id) throw errorFor("La propuesta no está disponible para tu cuenta.", 404);
       await assertWritableRecordScope(user, existing);
       return existing;
     }
