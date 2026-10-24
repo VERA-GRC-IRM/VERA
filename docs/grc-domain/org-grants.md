@@ -4,6 +4,8 @@ El directorio puede registrar autorizaciones `VIEW` o `MANAGE` para una cuenta a
 
 Estas autorizaciones gobiernan las rutas enumeradas abajo, pero **todavía no cubren todo el producto**. Las rutas no cubiertas conservan sus reglas anteriores; no presente este incremento como aislamiento multiempresa terminado.
 
+El [inventario de superficies](scope-surface-inventory.md) relaciona los puntos de entrada, la evidencia sintética y los límites pendientes antes de asignar expedientes reales.
+
 La primera proyección de lectura para registros sintéticos que ya tengan `orgUnitId` filtra el listado de riesgos, el contexto del asistente, el reporte del portafolio y el dossier de auditoría. Un registro legado sin `orgUnitId` mantiene su visibilidad por rol; uno con ámbito exige una concesión directa activa o `SUPER_ADMIN`. El filtrado por ámbito es adicional al permiso de rol. La revocación se comprueba en cada consulta. **Todavía no se admite asignar ámbitos a expedientes reales**: falta cubrir mutaciones, búsqueda y otras rutas de IA antes de activar cualquier asignación. Consulte #247 para la secuencia y la aceptación pendiente.
 
 La segunda proyección aplica la misma restricción a listados de controles y hallazgos y a los conteos y pendientes del panel. Si existe alguna relación con ámbito, un control compartido solo se muestra cuando todos sus riesgos vinculados son visibles para la cuenta; un hallazgo requiere además que sean visibles su riesgo y su control. El contexto de IA, el dossier y los reportes reutilizan esta regla. Esto evita que un título o conteo de otra entidad aparezca por una relación transversal.
