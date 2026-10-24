@@ -13,6 +13,14 @@ const canViewRecordScope = async (user, record) => {
   return (await filterByVisibleScope(user, [record])).length === 1;
 };
 
+// A visible risk may still refer to an audit outside the reader's scope.
+// Keep the risk visible, but never expose or navigate to that audit ID.
+const projectVisibleAuditLinks = (risks, visibleAudits) => {
+  const auditIds = new Set(visibleAudits.map((audit) => audit.id));
+  return risks.map((risk) => risk.linkedAuditId && !auditIds.has(risk.linkedAuditId)
+    ? { ...risk, linkedAuditId: null } : risk);
+};
+
 const assertWritableRecordScope = async (user, record) => {
   if (!record?.orgUnitId) return;
   if (!await canViewRecordScope(user, record)) {
@@ -44,4 +52,4 @@ const projectVisibleRiskRelations = async (user, allRisks, allControls, allFindi
 };
 
 module.exports = { filterByVisibleScope, canViewRecordScope, assertWritableRecordScope,
-  projectVisibleRiskRelations };
+  projectVisibleRiskRelations, projectVisibleAuditLinks };
