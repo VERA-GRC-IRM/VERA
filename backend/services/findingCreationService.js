@@ -4,7 +4,7 @@ const riskRepository = require("../repositories/riskRepository");
 const userRepository = require("../repositories/userRepository");
 const { ROLES, RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { logActivity } = require("./auditLogger");
-const { assertWritableSourceScope, assertNewRelationUnscoped } = require("./recordWriteScopeService");
+const { assertWritableSourceScope } = require("./recordWriteScopeService");
 
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
 const text = (value) => String(value ?? "").trim();
@@ -32,8 +32,9 @@ const prepareFinding = async (user, input, expectedControlVersion) => {
   }
   await assertWritableSourceScope(user, "RISK", risk);
   await assertWritableSourceScope(user, "CONTROL", control);
-  assertNewRelationUnscoped(risk);
-  assertNewRelationUnscoped(control);
+  if ((risk.orgUnitId || null) !== (control.orgUnitId || null)) {
+    throw errorFor("El control y el riesgo deben pertenecer al mismo ámbito.", 409);
+  }
   if (control.effectiveness >= 4) {
     throw errorFor("Solo se puede abrir un hallazgo desde un control con efectividad insuficiente (1–3).", 409);
   }
@@ -72,6 +73,7 @@ const createFindingForUser = async (user, input, operationId = null, expectedCon
   }
   const { title, description, control, risk } = await prepareFinding(user, input, expectedControlVersion);
   const finding = await findingRepository.create({ title, description,
+    orgUnitId: risk.orgUnitId || null,
     controlId: control.id, controlTitle: control.title,
     riskId: risk.id, riskTitle: risk.title, auditId: risk.linkedAuditId || null,
     proposalId: risk.linkedAuditId || null, evaluationVersion: control.evaluations.length,

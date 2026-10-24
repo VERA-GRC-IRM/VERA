@@ -36,3 +36,19 @@ test("el reintento de evidencia exige el mismo autor y los mismos datos", async 
     { status: 409 });
   assert.equal(canReplayEvidence(created, other, input), false);
 });
+
+test("el reintento conserva el ámbito de origen y admite registros legados sin ámbito", () => {
+  const fields = { sourceType: "RISK", sourceId: "RSK-TEST", title: "Revisión",
+    rationale: "Motivo", dueDate: "2026-12-01", assigneeId: manager.id };
+  const action = { ...fields, createdBy: { id: manager.id }, orgUnitId: "ORG-A" };
+  assert.equal(canReplayAction(action, manager, { ...fields, orgUnitId: "ORG-A" }), true);
+  assert.equal(canReplayAction(action, manager, { ...fields, orgUnitId: "ORG-B" }), false);
+  const legacy = { ...fields, createdBy: { id: manager.id } };
+  assert.equal(canReplayAction(legacy, manager, { ...fields, orgUnitId: null }), true);
+
+  const evidenceFields = { title: "Acta", description: "Documento", evidenceType: "DOCUMENT",
+    reference: "https://example.com/acta", entityType: "RISK", entityId: "RSK-TEST" };
+  const evidence = { ...evidenceFields, author: { id: manager.id }, orgUnitId: "ORG-A" };
+  assert.equal(canReplayEvidence(evidence, manager, { ...evidenceFields, orgUnitId: "ORG-A" }), true);
+  assert.equal(canReplayEvidence(evidence, manager, { ...evidenceFields, orgUnitId: "ORG-B" }), false);
+});

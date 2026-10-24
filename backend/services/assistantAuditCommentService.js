@@ -4,7 +4,6 @@ const commentRepository = require("../repositories/commentRepository");
 const { RECORD_CREATE_ROLES } = require("../config/roles");
 const { findVisibleProposal, parseComment } = require("./planningCommentService");
 const { assertWritableRecordScope } = require("./recordScopeVisibility");
-const { assertNewRelationUnscoped } = require("./recordWriteScopeService");
 
 const response = (answer, mode = "action-guidance", extra = {}) => ({ answer, mode,
   citations: [], references: [], coverage: { partial: false }, asOf: new Date().toISOString(),
@@ -31,7 +30,6 @@ const handleAuditComment = async (user, question, thread) => {
     if (reservation?.type === "AUDIT_COMMENT") {
       const proposal = await findVisibleProposal(user, reservation.proposalId);
       await assertWritableRecordScope(user, proposal);
-      assertNewRelationUnscoped(proposal);
       const existing = (await commentRepository.listByProposal(reservation.proposalId))
         .find((item) => item.aiOperationId === reservation.operationId &&
           item.author?.id === user.id && item.text === reservation.text);

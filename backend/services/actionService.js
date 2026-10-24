@@ -4,7 +4,7 @@ const userRepository = require("../repositories/userRepository");
 const { logActivity } = require("./auditLogger");
 const { buildAuditContext } = require("./auditContextService");
 const { visibleCollectionsForUser, visibleRecordForUser } = require("./recordReadAccessService");
-const { assertWritableSourceScope, assertNewRelationUnscoped } = require("./recordWriteScopeService");
+const { assertWritableSourceScope } = require("./recordWriteScopeService");
 const { USER_STATUS } = require("../config/accountRules");
 const { PLANNING_APPROVE_ROLES, RECORD_CREATE_ROLES } = require("../config/roles");
 const { canReplayAction } = require("./creationReplayScope");
@@ -125,7 +125,6 @@ const createAction = async (user, body, { operationId } = {}) => {
   const sourceId = text(body.sourceId);
   const source = await requiredSource(user, sourceType, sourceId);
   await assertWritableSourceScope(user, sourceType, source);
-  assertNewRelationUnscoped(source);
   if (sourceType === "FINDING" && source.status === "CLOSED") {
     throw new ActionError("El hallazgo está cerrado; no se pueden añadir acciones.", 409);
   }
@@ -145,7 +144,8 @@ const createAction = async (user, body, { operationId } = {}) => {
     }
     const existing = (await actionRepository.getAll()).find((item) => item.aiOperationId === operationId);
     if (existing) {
-      if (!canReplayAction(existing, user, { sourceType, sourceId, title, rationale, dueDate, assigneeId })) {
+      if (!canReplayAction(existing, user, { sourceType, sourceId, title, rationale,
+        dueDate, assigneeId, orgUnitId: source.orgUnitId || null })) {
         throw new ActionError("La operación no está disponible para este registro.", 409);
       }
       return existing;
@@ -154,6 +154,7 @@ const createAction = async (user, body, { operationId } = {}) => {
   const now = new Date().toISOString();
   const action = await actionRepository.create({
     sourceType, sourceId, sourceTitle: source.title,
+    orgUnitId: source.orgUnitId || null,
     title, rationale, dueDate, assigneeId, assigneeName: assignee.name,
     ...(operationId ? { aiOperationId: operationId } : {}),
     status: "OPEN", createdBy: { id: user.id, name: user.name || user.username },

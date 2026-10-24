@@ -18,7 +18,7 @@ const assertWritableControlScope = async (user, control) => {
   const risks = await Promise.all((control.riskIds || []).map((id) => riskRepository.findById(id)));
   for (const risk of risks.filter(Boolean)) {
     await assertWritableRecordScope(user, risk);
-    if (risk.orgUnitId && control.orgUnitId !== risk.orgUnitId) {
+    if ((risk.orgUnitId || null) !== (control.orgUnitId || null)) {
       throw Object.assign(new Error("La relación control-riesgo requiere el mismo ámbito."), { status: 409 });
     }
   }
@@ -44,11 +44,5 @@ const assertWritableSourceScope = async (user, type, source) => {
   }
 };
 
-const assertNewRelationUnscoped = (source) => {
-  if (source?.orgUnitId) {
-    throw Object.assign(new Error("Aún no se pueden crear registros derivados en un ámbito empresarial."), { status: 409 });
-  }
-};
-
 module.exports = { assertWritableRecordScope, assertWritableRiskAuditLink,
-  assertWritableControlScope, assertWritableSourceScope, assertNewRelationUnscoped };
+  assertWritableControlScope, assertWritableSourceScope };
