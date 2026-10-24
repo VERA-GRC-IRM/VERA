@@ -57,7 +57,7 @@ test("HU-14: risk registration validates fields, calculates level and retains ev
       title: `${body.title} sin auditoría`,
       linkedAuditId: "AUD-999"
     }));
-    assert.equal(missingAudit.status, 400);
+    assert.equal(missingAudit.status, 404);
     const noJustification = await fetch(`${baseUrl}/api/risks/${risk.id}/evaluate`, json(manager, "POST", { likelihood: 1, impact: 1, note: "corta" }));
     assert.equal(noJustification.status, 400);
 

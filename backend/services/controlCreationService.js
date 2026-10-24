@@ -6,6 +6,7 @@ const { USER_STATUS } = require("../config/accountRules");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { withResult, parseEvaluation } = require("./controlEvaluationService");
 const { assertWritableControlScope } = require("./recordWriteScopeService");
+const { UNAVAILABLE_RECORD } = require("./recordScopeVisibility");
 
 const TYPES = ["PREVENTIVE", "DETECTIVE", "CORRECTIVE"];
 const FREQUENCIES = ["Daily", "Weekly", "Monthly", "Quarterly", "Annually"];
@@ -30,8 +31,11 @@ const parseCore = async (body) => {
   if (!TYPES.includes(type)) return { error: "Selecciona un tipo de control válido." };
   if (!FREQUENCIES.includes(frequency)) return { error: "Selecciona una frecuencia válida." };
   if (!owner) return { error: "Selecciona una persona responsable con cuenta activa." };
-  if (rawRiskIds.length === 0 || rawRiskIds.some((id) => !risks.some((risk) => risk.id === id))) {
+  if (rawRiskIds.length === 0) {
     return { error: "Relaciona el control con al menos un riesgo existente." };
+  }
+  if (rawRiskIds.some((id) => !risks.some((risk) => risk.id === id))) {
+    return { error: UNAVAILABLE_RECORD, status: 404 };
   }
   return { data: { title, description, type, frequency,
     ownerId: owner.id, ownerName: owner.name, riskIds: rawRiskIds } };
@@ -54,7 +58,7 @@ const createControlForUser = async (user, input, operationId = null) => {
     }
   }
   const core = await parseCore(input);
-  if (core.error) throw errorFor(core.error, 400);
+  if (core.error) throw errorFor(core.error, core.status || 400);
   await assertWritableControlScope(user, core.data);
   const evaluation = parseEvaluation(input);
   if (evaluation.error) throw errorFor(evaluation.error, 400);

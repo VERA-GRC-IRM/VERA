@@ -96,6 +96,26 @@ test("scope read projections use direct grants and hide denied records from list
   const deniedEvidence = evidenceRepository.create({ title: `Evidencia B ${stamp}`,
     description: "Referencia sintética", entityType: "RISK", entityId: deniedRisk.id,
     entityTitle: deniedRisk.title, author: admin });
+  const rejected = (operation) => operation().then(() => null, (error) =>
+    ({ status: error.status, message: error.message }));
+  const riskInput = { title: `Riesgo vínculo ${stamp}`, description: "Descripción sintética de vínculo",
+    area: "Operaciones", ownerId: 5, likelihood: 2, impact: 3,
+    note: "Evaluación sintética documentada" };
+  const deniedAuditLink = await rejected(() => createRiskForUser(manager,
+    { ...riskInput, linkedAuditId: deniedAudit.id }));
+  const missingAuditLink = await rejected(() => createRiskForUser(manager,
+    { ...riskInput, linkedAuditId: "AUD-INEXISTENTE" }));
+  assert.deepEqual(deniedAuditLink, missingAuditLink);
+  assert.equal(deniedAuditLink.status, 404);
+  const controlInput = { title: `Control vínculo ${stamp}`, description: "Control sintético para el vínculo",
+    type: "DETECTIVE", frequency: "Monthly", ownerId: 5, rating: 2,
+    note: "Evaluación sintética documentada" };
+  const deniedRiskLink = await rejected(() => createControlForUser(manager,
+    { ...controlInput, riskIds: [deniedRisk.id] }));
+  const missingRiskLink = await rejected(() => createControlForUser(manager,
+    { ...controlInput, riskIds: ["RSK-INEXISTENTE"] }));
+  assert.deepEqual(deniedRiskLink, missingRiskLink);
+  assert.equal(deniedRiskLink.status, 404);
   const url = `${base}/api/risks/`;
   const list = async (id) => (await (await fetch(url, { headers: {
     Authorization: `Bearer ${token(id)}`
