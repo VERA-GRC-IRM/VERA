@@ -1,5 +1,6 @@
 const riskRepository = require("../repositories/riskRepository");
 const planningRepository = require("../repositories/planningRepository");
+const controlRepository = require("../repositories/controlRepository");
 const { assertWritableRecordScope } = require("./recordScopeVisibility");
 
 const assertWritableRiskAuditLink = async (user, risk) => {
@@ -23,5 +24,31 @@ const assertWritableControlScope = async (user, control) => {
   }
 };
 
+const assertWritableSourceScope = async (user, type, source) => {
+  if (type === "AUDIT") return assertWritableRecordScope(user, source);
+  if (type === "RISK") {
+    await assertWritableRecordScope(user, source);
+    return assertWritableRiskAuditLink(user, source);
+  }
+  if (type === "CONTROL") return assertWritableControlScope(user, source);
+  if (type === "FINDING") {
+    await assertWritableRecordScope(user, source);
+    const risk = await riskRepository.findById(source.riskId);
+    const control = await controlRepository.findById(source.controlId);
+    if (risk) await assertWritableRecordScope(user, risk);
+    if (control) await assertWritableControlScope(user, control);
+    if ((source.orgUnitId || risk?.orgUnitId || control?.orgUnitId) &&
+        (source.orgUnitId !== risk?.orgUnitId || source.orgUnitId !== control?.orgUnitId)) {
+      throw Object.assign(new Error("El hallazgo y sus relaciones deben pertenecer al mismo ámbito."), { status: 409 });
+    }
+  }
+};
+
+const assertNewRelationUnscoped = (source) => {
+  if (source?.orgUnitId) {
+    throw Object.assign(new Error("Aún no se pueden crear registros derivados en un ámbito empresarial."), { status: 409 });
+  }
+};
+
 module.exports = { assertWritableRecordScope, assertWritableRiskAuditLink,
-  assertWritableControlScope };
+  assertWritableControlScope, assertWritableSourceScope, assertNewRelationUnscoped };

@@ -3,6 +3,7 @@ const userRepository = require("../repositories/userRepository");
 const { logActivity } = require("../services/auditLogger");
 const { ENTITY_TYPES, EVIDENCE_TYPES, findEntity, canAccessEntity,
   createEvidenceForUser } = require("../services/evidenceCreationService");
+const { assertWritableSourceScope, assertNewRelationUnscoped } = require("../services/recordWriteScopeService");
 const evidenceStorage = require("../services/evidenceStorage");
 const { indexFile, askEvidenceContent } = require("../services/evidenceContentService");
 const { SEARCHABLE_MIME, makeChunks } = require("../services/evidenceTextExtraction");
@@ -64,6 +65,13 @@ const uploadEvidence = async (req, res) => {
   const entity = await findEntity(entityType, entityId);
   if (!entity || !await canAccessEntity(entityType, entityId, req.user)) {
     return res.status(404).json({ message: "El elemento relacionado no existe." });
+  }
+  try {
+    await assertWritableSourceScope(req.user, entityType, entity);
+    assertNewRelationUnscoped(entity);
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ message: error.message });
+    throw error;
   }
   const file = await evidenceStorage.upload({ entityType, entityId, mime, bytes: req.body });
   const author = await userRepository.findById(req.user.id);
