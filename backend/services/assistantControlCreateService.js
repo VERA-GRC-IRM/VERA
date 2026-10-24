@@ -1,9 +1,9 @@
 const { randomUUID } = require("node:crypto");
 const userRepository = require("../repositories/userRepository");
-const riskRepository = require("../repositories/riskRepository");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { activeUsers, parseCore } = require("./controlCreationService");
 const { parseEvaluation, resultFor } = require("./controlEvaluationService");
+const { visibleCollectionsForUser } = require("./recordReadAccessService");
 
 const normalize = (value) => String(value || "").normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
@@ -82,7 +82,7 @@ const handleControlCreate = async (user, question, thread) => {
     return response("No identifiqué una única cuenta activa como responsable. Indica nombre o cuenta exacta y envía los campos de nuevo.",
       "action-guidance", fieldsDraft());
   }
-  const risks = await riskRepository.getAll();
+  const risks = (await visibleCollectionsForUser(user)).RISK;
   const requested = fields.risks.split(",").map((item) => normalize(item)).filter(Boolean);
   if (requested.length === 0 || requested.length > 10 || new Set(requested).size !== requested.length) {
     return response("Indica de uno a diez riesgos distintos, separados por comas. Envía los campos de nuevo.",

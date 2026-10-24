@@ -2,6 +2,7 @@ const riskRepository = require("../repositories/riskRepository");
 const userRepository = require("../repositories/userRepository");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { parseAssessment, evaluateRiskForUser } = require("./riskEvaluationService");
+const { visibleCollectionsForUser } = require("./recordReadAccessService");
 
 const normalize = (value) => String(value || "").normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
@@ -48,7 +49,7 @@ const handleRiskEvaluation = async (user, question, thread) => {
   }
   const assessment = parseAssessment(command);
   if (assessment.error) return response(assessment.error);
-  const matches = (await riskRepository.getAll()).filter((item) =>
+  const matches = (await visibleCollectionsForUser(user)).RISK.filter((item) =>
     normalize(item.title) === normalize(command.target) || normalize(item.id) === normalize(command.target));
   if (matches.length !== 1) {
     return response(matches.length > 1

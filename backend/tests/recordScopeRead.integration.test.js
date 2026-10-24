@@ -29,6 +29,10 @@ const { applyTransition } = require("../services/planningTransitionService");
 const { updateProposalForUser } = require("../services/proposalService");
 const { createCommentForUser } = require("../services/planningCommentService");
 const { visibleNotifications } = require("../services/notificationWorkflowService");
+const { handleRiskEvaluation } = require("../services/assistantRiskEvaluationService");
+const { handleControlEvaluation } = require("../services/assistantControlEvaluationService");
+const { handleFindingClose } = require("../services/assistantFindingCloseService");
+const { handleFindingCreate } = require("../services/assistantFindingCreateService");
 
 const admin = { id: 1, username: "admin", role: "SUPER_ADMIN" };
 const manager = { id: 3, username: "gerente", role: "GERENTE" };
@@ -107,6 +111,28 @@ test("scope read projections use direct grants and hide denied records from list
   assert.ok(!assistant.sourceCatalog.some((item) =>
     [deniedControl.id, mixedControl.id, deniedFinding.id].includes(item.id)));
   assert.ok(!assistant.visibleRecords.pending.some((item) => item.entityId === deniedAction.id));
+  const emptyThread = { messages: [] };
+  const hiddenRiskPreview = await handleRiskEvaluation(manager,
+    `Evalúa el riesgo «${deniedRisk.title}» con probabilidad 2 e impacto 3 porque el caso requiere revisión`,
+    emptyThread);
+  assert.equal(hiddenRiskPreview.mode, "action-guidance");
+  assert.ok(!hiddenRiskPreview.answer.includes(deniedRisk.id));
+  assert.equal(hiddenRiskPreview.actionDraft, undefined);
+  const hiddenControlPreview = await handleControlEvaluation(manager,
+    `Evalúa el control «${deniedControl.title}» con efectividad 2 porque el caso requiere revisión`,
+    emptyThread);
+  assert.equal(hiddenControlPreview.mode, "action-guidance");
+  assert.ok(!hiddenControlPreview.answer.includes(deniedControl.id));
+  assert.equal(hiddenControlPreview.actionDraft, undefined);
+  const hiddenFindingPreview = await handleFindingClose(manager,
+    `Cierra el hallazgo ${deniedFinding.id} porque el caso requiere revisión documentada`, emptyThread);
+  assert.equal(hiddenFindingPreview.mode, "action-guidance");
+  assert.ok(!hiddenFindingPreview.answer.includes(deniedFinding.id));
+  const hiddenFindingCreate = await handleFindingCreate(manager,
+    `Registrar hallazgo\nTítulo: Hallazgo sintético\nDescripción: Descripción sintética documentada\nControl: ${deniedControl.id}\nRiesgo: ${deniedRisk.id}`,
+    emptyThread);
+  assert.equal(hiddenFindingCreate.mode, "action-guidance");
+  assert.equal(hiddenFindingCreate.actionDraft?.type, "FINDING_FIELDS");
   const report = await buildPortfolioReport(manager, {});
   const reportRow = report.rows.find((row) => row.audit.id === audit.id);
   assert.ok(reportRow.risks.some((item) => item.id === firstRisk.id));

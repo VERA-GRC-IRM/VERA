@@ -2,6 +2,7 @@ const controlRepository = require("../repositories/controlRepository");
 const userRepository = require("../repositories/userRepository");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { parseEvaluation, evaluateControlForUser, resultFor } = require("./controlEvaluationService");
+const { visibleCollectionsForUser } = require("./recordReadAccessService");
 
 const normalize = (value) => String(value || "").normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
@@ -49,7 +50,7 @@ const handleControlEvaluation = async (user, question, thread) => {
   }
   const evaluation = parseEvaluation(command);
   if (evaluation.error) return response(evaluation.error);
-  const matches = (await controlRepository.getAll()).filter((item) =>
+  const matches = (await visibleCollectionsForUser(user)).CONTROL.filter((item) =>
     normalize(item.title) === normalize(command.target) || normalize(item.id) === normalize(command.target));
   if (matches.length !== 1) {
     return response(matches.length > 1
