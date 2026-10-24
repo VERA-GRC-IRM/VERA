@@ -1,6 +1,7 @@
 const { createStore } = require("./supabaseDocumentStore");
 const store = createStore("vera_org_grants");
 const listByUnit = (unitId) => store.getAll({ unit_id: `eq.${unitId}` });
+const listActiveByUser = (userId) => store.getAll({ user_id: `eq.${userId}`, status: "eq.ACTIVE" });
 const findActive = async (unitId, userId) =>
   (await store.getAll({ unit_id: `eq.${unitId}`, user_id: `eq.${userId}`, status: "eq.ACTIVE" }))[0] || null;
 const create = (grant) => store.create(grant, {
@@ -10,4 +11,5 @@ const create = (grant) => store.create(grant, {
 const revoke = (id, changes, expectedVersion) =>
   store.mutate(id, { ...changes, status: "REVOKED" }, expectedVersion, { status: "REVOKED" });
 
-module.exports = { getAll: store.getAll, listByUnit, findById: store.findById, findActive, create, revoke };
+module.exports = { getAll: store.getAll, listByUnit, listActiveByUser,
+  findById: store.findById, findActive, create, revoke };
