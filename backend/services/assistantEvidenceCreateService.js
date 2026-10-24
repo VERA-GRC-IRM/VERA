@@ -3,6 +3,7 @@ const userRepository = require("../repositories/userRepository");
 const evidenceRepository = require("../repositories/evidenceRepository");
 const { RECORD_CREATE_ROLES } = require("../config/roles");
 const { parseEvidence } = require("./evidenceCreationService");
+const { canReplayEvidence } = require("./creationReplayScope");
 
 const normalize = (value) => String(value || "").normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
@@ -52,8 +53,12 @@ const handleEvidenceCreate = async (user, question, thread) => {
   if (confirm(question)) {
     const reservation = thread.messages.at(-1)?.actionReservation;
     if (reservation?.type === "EVIDENCE_CREATE") {
+      if (!reservation.data) return response("La confirmación anterior ya no está disponible. Solicita una vista previa nueva.");
+      let data;
+      try { data = await parseEvidence(user, reservation.data); }
+      catch (error) { if (error.status) return response("El expediente ya no está disponible. Solicita una vista previa nueva."); throw error; }
       const existing = (await evidenceRepository.getAll()).find((item) => item.aiOperationId === reservation.operationId);
-      return existing
+      return existing && canReplayEvidence(existing, user, data) && !existing.file
         ? response(`La evidencia «${existing.title}» ya quedó registrada con identificador ${existing.id}.`,
           "action-executed", { actionOutcome: { id: existing.id } })
         : Date.now() - Date.parse(reservation.createdAt) < 120_000

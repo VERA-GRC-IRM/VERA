@@ -7,6 +7,7 @@ const { visibleCollectionsForUser, visibleRecordForUser } = require("./recordRea
 const { assertWritableSourceScope, assertNewRelationUnscoped } = require("./recordWriteScopeService");
 const { USER_STATUS } = require("../config/accountRules");
 const { PLANNING_APPROVE_ROLES, RECORD_CREATE_ROLES } = require("../config/roles");
+const { canReplayAction } = require("./creationReplayScope");
 
 const SOURCES = ["AUDIT", "RISK", "CONTROL", "FINDING"];
 const STATUSES = ["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"];
@@ -143,7 +144,12 @@ const createAction = async (user, body, { operationId } = {}) => {
       throw new ActionError("Identificador de operación inválido.", 400);
     }
     const existing = (await actionRepository.getAll()).find((item) => item.aiOperationId === operationId);
-    if (existing) return existing;
+    if (existing) {
+      if (!canReplayAction(existing, user, { sourceType, sourceId, title, rationale, dueDate, assigneeId })) {
+        throw new ActionError("La operación no está disponible para este registro.", 409);
+      }
+      return existing;
+    }
   }
   const now = new Date().toISOString();
   const action = await actionRepository.create({

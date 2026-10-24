@@ -5,7 +5,8 @@ const { buildAssistantContext } = require("../services/assistantContextService")
 const { readiness } = require("../services/azureOpenAiService");
 const { answerAssistant } = require("../services/assistantAnswerService");
 const { handleAssistantAction, isActionCommand, isCommitmentList } = require("../services/assistantActionService");
-const { createAction, listActions } = require("../services/actionService");
+const { createAction } = require("../services/actionService");
+const actionRepository = require("../repositories/actionRepository");
 const { handleAssistantReport, parseReportRequest } = require("../services/assistantReportService");
 const { handlePlanningTransition, isPlanningCommand } = require("../services/assistantPlanningService");
 const { handleRiskEvaluation, isRiskCommand } = require("../services/assistantRiskEvaluationService");
@@ -41,7 +42,7 @@ const { reviewRoleRequestForUser } = require("../services/roleRequestService");
 const roleRequestRepository = require("../repositories/roleRequestRepository");
 const { handleProposalEdit, isProposalEditCommand } = require("../services/assistantProposalEditService");
 const { handleEvidenceCreate, isEvidenceCreateCommand } = require("../services/assistantEvidenceCreateService");
-const { createEvidenceForUser, createFileEvidenceForUser, canAccessEntity } = require("../services/evidenceCreationService");
+const { createEvidenceForUser, createFileEvidenceForUser } = require("../services/evidenceCreationService");
 const evidenceRepository = require("../repositories/evidenceRepository");
 const { handleFileEvidence, isFileEvidenceCommand, sourceFor } = require("../services/assistantFileEvidenceService");
 const { handleAuditComment, isAuditCommentCommand } = require("../services/assistantAuditCommentService");
@@ -686,7 +687,8 @@ router.post("/conversations/:id/ask", conversationEnabled,
         try {
           createdAction = await createAction(req.user, draft, { operationId: draft.operationId });
         } catch (error) {
-          createdAction = (await listActions(req.user)).find((item) => item.aiOperationId === draft.operationId);
+          createdAction = await recoverCommittedCreation(error, actionRepository, draft.operationId,
+            () => createAction(req.user, draft, { operationId: draft.operationId }));
           if (!createdAction) executionError = error;
         }
         const finalMessage = { ...assistantMessage,
@@ -865,15 +867,15 @@ router.post("/conversations/:id/ask", conversationEnabled,
         const draft = result.evidenceCreate;
         assistantMessage.mode = "action-reserved";
         assistantMessage.actionReservation = { type: "EVIDENCE_CREATE", operationId: draft.operationId,
-          createdAt: new Date().toISOString() };
+          data: draft.data, createdAt: new Date().toISOString() };
         const reserved = await conversations.update(req.user, thread.id, thread.version, { messages });
         let evidence = null;
         let executionError = null;
         try {
           evidence = await createEvidenceForUser(req.user, draft.data, draft.operationId);
         } catch (error) {
-          const existing = (await evidenceRepository.getAll()).find((item) => item.aiOperationId === draft.operationId);
-          if (existing && await canAccessEntity(existing.entityType, existing.entityId, req.user)) evidence = existing;
+          evidence = await recoverCommittedCreation(error, evidenceRepository, draft.operationId,
+            () => createEvidenceForUser(req.user, draft.data, draft.operationId));
           if (!evidence) executionError = error;
         }
         const finalMessage = { ...assistantMessage,
@@ -910,8 +912,9 @@ router.post("/conversations/:id/ask", conversationEnabled,
           const sourceFile = await sourceFor(req.user, thread, draft.source);
           evidence = await createFileEvidenceForUser(req.user, draft.data, sourceFile, draft.operationId);
         } catch (error) {
-          const existing = (await evidenceRepository.getAll()).find((item) => item.aiOperationId === draft.operationId);
-          if (existing && await canAccessEntity(existing.entityType, existing.entityId, req.user)) evidence = existing;
+          evidence = await recoverCommittedCreation(error, evidenceRepository, draft.operationId,
+            async () => createFileEvidenceForUser(req.user, draft.data,
+              await sourceFor(req.user, thread, draft.source), draft.operationId));
           if (!evidence) executionError = error;
         }
         const finalMessage = { ...assistantMessage,

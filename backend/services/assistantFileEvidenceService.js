@@ -4,6 +4,7 @@ const evidenceRepository = require("../repositories/evidenceRepository");
 const attachments = require("../repositories/assistantAttachmentRepository");
 const { RECORD_CREATE_ROLES } = require("../config/roles");
 const { parseEvidence } = require("./evidenceCreationService");
+const { canReplayEvidence } = require("./creationReplayScope");
 
 const normalize = (value) => String(value || "").normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
@@ -61,9 +62,11 @@ const handleFileEvidence = async (user, question, thread, selectedFile) => {
   if (confirm(question)) {
     const reservation = thread.messages.at(-1)?.actionReservation;
     if (reservation?.type === "FILE_EVIDENCE_CREATE") {
-      await parseEvidence(user, { ...reservation.data, reference: "Archivo privado almacenado en VERA" });
+      let data;
+      try { data = await parseEvidence(user, { ...reservation.data, reference: "Archivo privado almacenado en VERA" }); }
+      catch (error) { if (error.status) return response("El expediente ya no está disponible. Solicita una vista previa nueva."); throw error; }
       const existing = (await evidenceRepository.getAll()).find((item) => item.aiOperationId === reservation.operationId);
-      return existing
+      return existing && canReplayEvidence(existing, user, data) && Boolean(existing.file)
         ? response(`El archivo ya quedó registrado como evidencia ${existing.id}.`,
           "action-executed", { actionOutcome: { id: existing.id } })
         : Date.now() - Date.parse(reservation.createdAt) < 120_000

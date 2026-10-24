@@ -122,7 +122,8 @@ const handleAssistantAction = async (user, question, thread) => {
 
   if (confirm(question)) {
     if (reservation?.type === "ACTION_CREATE") {
-      const existing = (await listActions(user)).find((item) => item.aiOperationId === reservation.operationId);
+      const existing = (await listActions(user)).find((item) => item.aiOperationId === reservation.operationId &&
+        item.createdBy?.id === user.id);
       return existing
         ? response(`El compromiso «${existing.title}» ya quedó creado con identificador ${existing.id}. Puedes consultarlo en tus compromisos.`,
           "action-executed", { actionOutcome: { id: existing.id, status: existing.status } })
