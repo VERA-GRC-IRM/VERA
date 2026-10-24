@@ -41,6 +41,9 @@ test("HU-14: risk registration validates fields, calculates level and retains ev
     const { risk } = await createdResponse.json();
     assert.equal(risk.score, 6);
     assert.equal(risk.level, "Alto");
+    assert.equal(risk.methodId, "legacy-3x3-v1");
+    assert.equal(risk.assessmentStage, "UNSPECIFIED");
+    assert.equal(risk.evaluations[0].methodId, "legacy-3x3-v1");
     assert.equal(risk.status, "OPEN");
     assert.equal(risk.linkedAuditId, "AUD-01");
     assert.equal(risk.evaluations.length, 1);
@@ -66,6 +69,7 @@ test("HU-14: risk registration validates fields, calculates level and retains ev
     assert.equal(reevaluated.level, "Bajo");
     assert.equal(reevaluated.evaluations.length, 2);
     assert.equal(reevaluated.evaluations[1].version, 2);
+    assert.equal(reevaluated.evaluations[1].methodId, "legacy-3x3-v1");
     assert.equal(reevaluated.evaluations[1].note, evaluationNote);
     assert.equal(reevaluated.evaluations[1].assessedBy.id, 3);
 
@@ -73,6 +77,14 @@ test("HU-14: risk registration validates fields, calculates level and retains ev
     assert.ok((await visible.json()).risks.some((item) => item.id === risk.id));
     const forbidden = await fetch(`${baseUrl}/api/risks/${risk.id}/evaluate`, json(auditor, "POST", { likelihood: 1, impact: 1, note: evaluationNote }));
     assert.equal(forbidden.status, 403);
+    const methods = await fetch(`${baseUrl}/api/risks/methods`, json(auditor));
+    assert.equal(methods.status, 200);
+    assert.equal((await methods.json()).methods[0].approvedEnterprisePolicy, false);
+    assert.equal((await fetch(`${baseUrl}/api/risks/methods`)).status, 401);
+    const unapproved = await fetch(`${baseUrl}/api/risks/${risk.id}/evaluate`, json(manager, "POST", {
+      likelihood: 1, impact: 1, note: evaluationNote, assessmentStage: "RESIDUAL"
+    }));
+    assert.equal(unapproved.status, 400);
     const update = await fetch(`${baseUrl}/api/risks/${risk.id}`, json(manager, "PUT", { ...body, title: `${body.title} actualizado` }));
     assert.equal(update.status, 200);
     assert.equal((await update.json()).risk.title, `${body.title} actualizado`);

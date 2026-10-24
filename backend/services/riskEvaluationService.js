@@ -1,10 +1,20 @@
 const riskRepository = require("../repositories/riskRepository");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { classifyRisk } = require("../config/riskRules");
+const { LEGACY_RISK_METHOD_ID, UNSPECIFIED_STAGE } = require("../config/riskMethods");
 const { logActivity } = require("./auditLogger");
 
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
 const parseAssessment = (body) => {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return { error: "Envía una evaluación válida." };
+  }
+  if (body.methodId !== undefined && body.methodId !== LEGACY_RISK_METHOD_ID) {
+    return { error: "La metodología solicitada no está habilitada." };
+  }
+  if (body.assessmentStage !== undefined && body.assessmentStage !== UNSPECIFIED_STAGE) {
+    return { error: "Esta metodología aún no distingue riesgo inherente, residual u objetivo." };
+  }
   const likelihood = Number(body.likelihood);
   const impact = Number(body.impact);
   const note = String(body.note ?? "").trim();
@@ -15,7 +25,8 @@ const parseAssessment = (body) => {
     return { error: "La justificación debe tener entre 10 y 1,000 caracteres." };
   }
   const score = likelihood * impact;
-  return { data: { likelihood, impact, score, level: classifyRisk(score), note } };
+  return { data: { likelihood, impact, score, level: classifyRisk(score), note,
+    methodId: LEGACY_RISK_METHOD_ID, assessmentStage: UNSPECIFIED_STAGE } };
 };
 
 const evaluateRiskForUser = async (user, id, body, expectedVersion) => {

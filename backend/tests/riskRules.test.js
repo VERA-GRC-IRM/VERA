@@ -1,6 +1,18 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { classifyRisk } = require("../config/riskRules");
+const { methodIdFor, stageFor, presentRiskMethod, LEGACY_RISK_METHOD } = require("../config/riskMethods");
+
+test("legacy records retain their historical method without a data rewrite", () => {
+  assert.equal(methodIdFor({ score: 6 }), "legacy-3x3-v1");
+  assert.equal(stageFor({ score: 6 }), "UNSPECIFIED");
+  assert.equal(LEGACY_RISK_METHOD.approvedEnterprisePolicy, false);
+  const original = { id: "RSK-old", evaluations: [{ score: 6, note: "Histórico" }] };
+  const presented = presentRiskMethod(original);
+  assert.equal(presented.methodId, "legacy-3x3-v1");
+  assert.equal(presented.evaluations[0].assessmentStage, "UNSPECIFIED");
+  assert.equal(original.evaluations[0].methodId, undefined);
+});
 
 test("risk matrix classifies each valid probability and impact combination", () => {
   const expected = [

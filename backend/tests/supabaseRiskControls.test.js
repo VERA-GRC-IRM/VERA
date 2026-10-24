@@ -58,12 +58,14 @@ test("Supabase risks and controls retain assessments and reject stale writes", a
   });
   assert.match(createdRisk.id, /^RSK-[0-9a-f-]{36}$/);
   assert.equal(createdRisk.evaluations.length, 1);
+  assert.equal(createdRisk.evaluations[0].methodId, "legacy-3x3-v1");
   assert.equal((await risks.findDuplicate({ title: " RIESGO DE PRUEBA ", area: "finanzas" })).id, createdRisk.id);
   const evaluatedRisk = await risks.evaluate(createdRisk.id, {
     likelihood: 1, impact: 2, score: 2, level: "Bajo",
     note: "Mitigación aplicada.", assessedBy: { id: 3, name: "Gerencia" }
   }, createdRisk.storageVersion);
   assert.equal(evaluatedRisk.evaluations.length, 2);
+  assert.equal(evaluatedRisk.evaluations[1].assessmentStage, "UNSPECIFIED");
   assert.equal(evaluatedRisk.storageVersion, 2);
   await assert.rejects(risks.update(createdRisk.id, { title: "Stale" }, createdRisk.storageVersion),
     (error) => error.status === 409);

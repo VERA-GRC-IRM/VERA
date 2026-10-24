@@ -1,6 +1,7 @@
 const risks = [];
+const { LEGACY_RISK_METHOD_ID, UNSPECIFIED_STAGE, presentRiskMethod } = require("../config/riskMethods");
 
-const clone = (risk) => ({
+const clone = (risk) => presentRiskMethod({
   ...risk,
   createdBy: risk.createdBy ? { ...risk.createdBy } : null,
   evaluations: risk.evaluations.map((item) => ({
@@ -10,7 +11,11 @@ const clone = (risk) => ({
 });
 
 const getAll = () => risks.map(clone);
-const findById = (id) => risks.find((risk) => risk.id === id) || null;
+const findMutableById = (id) => risks.find((item) => item.id === id) || null;
+const findById = (id) => {
+  const risk = findMutableById(id);
+  return risk ? clone(risk) : null;
+};
 const normalize = (value) => String(value ?? "").trim().toLowerCase();
 
 const findDuplicate = ({ title, area }, excludeId = null) => risks.find((risk) =>
@@ -27,8 +32,12 @@ const nextId = () => {
 
 const create = (data) => {
   const assessedAt = new Date().toISOString();
+  const methodId = data.methodId || LEGACY_RISK_METHOD_ID;
+  const assessmentStage = data.assessmentStage || UNSPECIFIED_STAGE;
   const risk = {
     ...data,
+    methodId,
+    assessmentStage,
     id: nextId(),
     status: "OPEN",
     createdAt: assessedAt,
@@ -41,6 +50,8 @@ const create = (data) => {
       score: data.score,
       level: data.level,
       note: data.note,
+      methodId,
+      assessmentStage,
       assessedAt,
       assessedBy: { ...data.createdBy }
     }]
@@ -51,14 +62,15 @@ const create = (data) => {
 };
 
 const update = (id, data) => {
-  const risk = findById(id);
+  const risk = findMutableById(id);
   if (!risk) return null;
   Object.assign(risk, data, { updatedAt: new Date().toISOString() });
   return clone(risk);
 };
 
-const evaluate = (id, { likelihood, impact, score, level, note, assessedBy }) => {
-  const risk = findById(id);
+const evaluate = (id, { likelihood, impact, score, level, note, methodId = LEGACY_RISK_METHOD_ID,
+  assessmentStage = UNSPECIFIED_STAGE, assessedBy }) => {
+  const risk = findMutableById(id);
   if (!risk) return null;
   const evaluation = {
     version: risk.evaluations.length + 1,
@@ -67,10 +79,13 @@ const evaluate = (id, { likelihood, impact, score, level, note, assessedBy }) =>
     score,
     level,
     note,
+    methodId,
+    assessmentStage,
     assessedAt: new Date().toISOString(),
     assessedBy: { ...assessedBy }
   };
-  Object.assign(risk, { likelihood, impact, score, level, updatedAt: evaluation.assessedAt });
+  Object.assign(risk, { likelihood, impact, score, level, methodId, assessmentStage,
+    updatedAt: evaluation.assessedAt });
   risk.evaluations.push(evaluation);
   return clone(risk);
 };

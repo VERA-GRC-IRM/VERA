@@ -30,6 +30,8 @@ Este programa amplía el alcance de negocio de VERA sin atribuirle una certifica
 
 El [directorio de ámbitos empresariales](org-directory.md) es el primer incremento del tramo 1. Todavía no aplica ámbitos a expedientes ni representa una estructura corporativa aprobada.
 
+La [línea base de metodología](risk-methods.md) identifica la matriz histórica y evita llamar “residual” a una evaluación que no lo especifica.
+
 | Tramo | Primer resultado verificable | Dependencia |
 | --- | --- | --- |
 | 0. Contrato | Glosario, invariantes, decisiones pendientes y casos sintéticos | Ninguna |
