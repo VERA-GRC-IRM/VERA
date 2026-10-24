@@ -34,6 +34,7 @@ const { handleRiskEvaluation } = require("../services/assistantRiskEvaluationSer
 const { handleControlEvaluation } = require("../services/assistantControlEvaluationService");
 const { handleFindingClose } = require("../services/assistantFindingCloseService");
 const { handleFindingCreate } = require("../services/assistantFindingCreateService");
+const { handleRiskCreate } = require("../services/assistantRiskCreateService");
 
 const admin = { id: 1, username: "admin", role: "SUPER_ADMIN" };
 const manager = { id: 3, username: "gerente", role: "GERENTE" };
@@ -140,6 +141,17 @@ test("scope read projections use direct grants and hide denied records from list
     emptyThread);
   assert.equal(hiddenFindingCreate.mode, "action-guidance");
   assert.equal(hiddenFindingCreate.actionDraft?.type, "FINDING_FIELDS");
+  const riskCommand = (linkedAuditId) => `Registrar riesgo\nTítulo: Riesgo nuevo ${stamp}\n` +
+    "Descripción: Escenario sintético con impacto en operaciones\nÁrea: Operaciones\n" +
+    "Probabilidad: 2\nImpacto: 3\nJustificación: Evaluación sintética documentada\n" +
+    `Responsable: 3\nAuditoría: ${linkedAuditId}`;
+  const deniedRiskCreate = await handleRiskCreate(manager, riskCommand(deniedAudit.id), emptyThread);
+  const missingRiskCreate = await handleRiskCreate(manager, riskCommand("AUD-INEXISTENTE"), emptyThread);
+  const viewRiskCreate = await handleRiskCreate(manager, riskCommand(audit.id), emptyThread);
+  assert.equal(deniedRiskCreate.mode, "action-guidance");
+  assert.equal(deniedRiskCreate.answer, missingRiskCreate.answer);
+  assert.equal(deniedRiskCreate.answer, viewRiskCreate.answer);
+  assert.equal(deniedRiskCreate.actionDraft?.type, "RISK_FIELDS");
   const report = await buildPortfolioReport(manager, {});
   const reportRow = report.rows.find((row) => row.audit.id === audit.id);
   assert.ok(reportRow.risks.some((item) => item.id === firstRisk.id));

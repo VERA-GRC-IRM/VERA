@@ -4,6 +4,7 @@ const riskRepository = require("../repositories/riskRepository");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { activeUsers, parseCore } = require("./riskCreationService");
 const { parseAssessment } = require("./riskEvaluationService");
+const { assertWritableRiskAuditLink } = require("./recordWriteScopeService");
 
 const normalize = (value) => String(value || "").normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
@@ -18,6 +19,7 @@ const FIELD_NAMES = { titulo: "title", descripcion: "description", area: "area",
   probabilidad: "likelihood", impacto: "impact", justificacion: "note",
   responsable: "owner", auditoria: "linkedAuditId", plan: "responsePlan" };
 const FIELD_LABELS = "Título, Descripción, Área, Probabilidad, Impacto y Justificación";
+const UNAVAILABLE_AUDIT = "La auditoría relacionada no está disponible para este vínculo. Comprueba el ID, el ámbito y tu acceso; envía los campos de nuevo.";
 const template = `Para registrar un riesgo, envía estos campos en un solo mensaje (uno por línea):\nTítulo: Accesos sin revisión\nDescripción: Los permisos antiguos pueden dar acceso indebido a información\nÁrea: Operaciones\nProbabilidad: 2\nImpacto: 3\nJustificación: Se observaron cuentas sin revisión durante el trimestre\nOpcional: «Responsable:» con nombre exacto de una cuenta activa; si lo omites, quedas tú. Puedes añadir «Auditoría:» con identificador exacto existente y «Plan:» con una acción de respuesta.`;
 
 const parseFields = (question) => {
@@ -81,7 +83,17 @@ const handleRiskCreate = async (user, question, thread) => {
   const core = await parseCore(input);
   const assessment = parseAssessment(input);
   if (core.error || assessment.error) {
+    if (core.error === "La auditoría relacionada no existe.") {
+      return response(UNAVAILABLE_AUDIT, "action-guidance", fieldsDraft());
+    }
     return response(`${core.error || assessment.error} Envía los campos de nuevo.`, "action-guidance", fieldsDraft());
+  }
+  // A preview must observe the same link authorization as the final write.
+  // Otherwise an inaccessible audit can be confirmed as existing in chat.
+  try { await assertWritableRiskAuditLink(user, core.data); }
+  catch (error) {
+    if (!error.status) throw error;
+    return response(UNAVAILABLE_AUDIT, "action-guidance", fieldsDraft());
   }
   if (await riskRepository.findDuplicate(core.data)) {
     return response("Ya existe un riesgo con el mismo nombre y área. Revisa el registro antes de continuar.");
