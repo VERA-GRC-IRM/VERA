@@ -55,11 +55,12 @@ const nextId = () => {
   return `AUD-${String(max + 1).padStart(2, "0")}`;
 };
 
-// Duplicada: mismo título, área y año (se ignora la propuesta indicada en excludeId).
-const findDuplicate = ({ title, area, year }, excludeId = null) =>
+// Duplicada dentro del mismo ámbito: título, área y año.
+const findDuplicate = ({ title, area, year, orgUnitId }, excludeId = null) =>
   proposals.find(
     (p) =>
       p.id !== excludeId &&
+      (p.orgUnitId || null) === (orgUnitId || null) &&
       normalize(p.title) === normalize(title) &&
       normalize(p.area) === normalize(area) &&
       p.year === year

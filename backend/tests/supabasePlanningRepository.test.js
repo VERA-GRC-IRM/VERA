@@ -78,4 +78,12 @@ test("Supabase planning adapter reads persisted rows, updates versions and detec
   ]);
   assert.notEqual(second.id, third.id);
   assert.equal((await repository.getAll()).length, 3);
+  const scoped = await repository.create({ title: created.title, area: created.area,
+    year: created.year, orgUnitId: "ORG-A", objective: "Objetivo de entidad A" });
+  assert.equal((await repository.findDuplicate({ title: created.title, area: created.area,
+    year: created.year })).id, created.id);
+  assert.equal((await repository.findDuplicate({ title: created.title, area: created.area,
+    year: created.year, orgUnitId: "ORG-A" })).id, scoped.id);
+  assert.equal(await repository.findDuplicate({ title: created.title, area: created.area,
+    year: created.year, orgUnitId: "ORG-B" }), null);
 });

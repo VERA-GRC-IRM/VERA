@@ -39,7 +39,7 @@ const prepareRecordEdit = async (user, type, id, field, value) => {
   }
   const parsed = await parseFor(type)({ ...current, [field]: value.trim() });
   if (parsed.error) throw fail(parsed.error);
-  if (type === "RISK" && await riskRepository.findDuplicate(parsed.data, current.id)) {
+  if (type === "RISK" && await riskRepository.findDuplicate({ ...parsed.data, orgUnitId: current.orgUnitId }, current.id)) {
     throw fail("Ya existe un riesgo con el mismo nombre y área.", 409);
   }
   return { current, data: parsed.data, field, value: value.trim() };
@@ -62,7 +62,7 @@ const updateCoreForUser = async (user, type, id, input, options = {}) => {
   const parsed = await parseFor(type)(input);
   if (parsed.error) throw fail(parsed.error);
   await assertWritable(user, type, { ...current, ...parsed.data });
-  if (type === "RISK" && await riskRepository.findDuplicate(parsed.data, id)) {
+  if (type === "RISK" && await riskRepository.findDuplicate({ ...parsed.data, orgUnitId: current.orgUnitId }, id)) {
     throw fail("Ya existe un riesgo con el mismo nombre y área.", 409);
   }
   const latest = await repository.findById(id);

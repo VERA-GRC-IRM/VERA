@@ -18,8 +18,9 @@ const findById = (id) => {
 };
 const normalize = (value) => String(value ?? "").trim().toLowerCase();
 
-const findDuplicate = ({ title, area }, excludeId = null) => risks.find((risk) =>
-  risk.id !== excludeId && normalize(risk.title) === normalize(title) && normalize(risk.area) === normalize(area)
+const findDuplicate = ({ title, area, orgUnitId }, excludeId = null) => risks.find((risk) =>
+  risk.id !== excludeId && (risk.orgUnitId || null) === (orgUnitId || null) &&
+  normalize(risk.title) === normalize(title) && normalize(risk.area) === normalize(area)
 ) || null;
 
 const nextId = () => {

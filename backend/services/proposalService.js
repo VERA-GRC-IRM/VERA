@@ -124,7 +124,9 @@ const prepareProposalEdit = async (user, id, changes, expectedVersion, expectedV
   }
   const { data, error } = await parseProposal({ ...current, ...changes });
   if (error) throw errorFor(error, 400);
-  if (await planningRepository.findDuplicate(data, current.id)) throw errorFor(DUPLICATE_MESSAGE, 409);
+  if (await planningRepository.findDuplicate({ ...data, orgUnitId: current.orgUnitId }, current.id)) {
+    throw errorFor(DUPLICATE_MESSAGE, 409);
+  }
   if (!Object.keys(changes).some((key) => String(current[key] ?? "") !== String(data[key] ?? ""))) {
     throw errorFor("No hay cambios que guardar.", 400);
   }

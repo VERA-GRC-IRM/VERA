@@ -82,8 +82,9 @@ const findById = async (id) => {
   return unpack(rows[0]);
 };
 
-const findDuplicate = async ({ title, area, year }, excludeId = null) =>
+const findDuplicate = async ({ title, area, year, orgUnitId }, excludeId = null) =>
   (await getAll()).find((proposal) => proposal.id !== excludeId &&
+    (proposal.orgUnitId || null) === (orgUnitId || null) &&
     normalize(proposal.title) === normalize(title) &&
     normalize(proposal.area) === normalize(area) && proposal.year === year) || null;
 

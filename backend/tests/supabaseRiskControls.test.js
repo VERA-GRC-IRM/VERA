@@ -84,4 +84,14 @@ test("Supabase risks and controls retain assessments and reject stale writes", a
   assert.equal(evaluatedControl.evaluations.length, 2);
   assert.equal((await controls.getAll()).length, 1);
   assert.equal((await risks.getAll()).length, 1);
+  const scopedRisk = await risks.create({
+    title: createdRisk.title, area: createdRisk.area, orgUnitId: "ORG-A",
+    likelihood: 2, impact: 2, score: 4, level: "Medio", note: "Evaluación sintética.",
+    createdBy: { id: 3, name: "Gerencia" }
+  });
+  assert.equal((await risks.findDuplicate({ title: createdRisk.title, area: createdRisk.area })).id, createdRisk.id);
+  assert.equal((await risks.findDuplicate({ title: createdRisk.title, area: createdRisk.area,
+    orgUnitId: "ORG-A" })).id, scopedRisk.id);
+  assert.equal(await risks.findDuplicate({ title: createdRisk.title, area: createdRisk.area,
+    orgUnitId: "ORG-B" }), null);
 });
