@@ -12,6 +12,7 @@ const { indexFile } = require("./evidenceContentService");
 const { SEARCHABLE_MIME } = require("./evidenceTextExtraction");
 const { IMAGE_MIME } = require("./azureVisionOcrService");
 const evidenceIndexCoverage = require("../repositories/evidenceIndexCoverage");
+const { canReplayEvidence } = require("./creationReplayScope");
 
 const ENTITY_TYPES = ["RISK", "CONTROL", "AUDIT"];
 const EVIDENCE_TYPES = ["DOCUMENT", "SCREENSHOT", "REPORT", "OTHER"];
@@ -67,7 +68,12 @@ const createEvidenceForUser = async (user, body, operationId = null) => {
   const data = await parseEvidence(user, body);
   if (operationId) {
     const existing = (await evidenceRepository.getAll()).find((item) => item.aiOperationId === operationId);
-    if (existing) return existing;
+    if (existing) {
+      if (!canReplayEvidence(existing, user, data) || existing.file) {
+        throw errorFor("La operación no está disponible para esta evidencia.", 409);
+      }
+      return existing;
+    }
   }
   const evidence = await evidenceRepository.create({ ...data,
     ...(operationId ? { aiOperationId: operationId } : {}),
@@ -90,7 +96,12 @@ const createFileEvidenceForUser = async (user, body, sourceFile, operationId) =>
   if (!sourceFile?.file || !sourceFile.id) throw errorFor("El archivo privado ya no está disponible.", 404);
   const data = await parseEvidence(user, { ...body, reference: "Archivo privado almacenado en VERA" });
   const existing = (await evidenceRepository.getAll()).find((item) => item.aiOperationId === operationId);
-  if (existing) return existing;
+  if (existing) {
+    if (!canReplayEvidence(existing, user, data) || !existing.file) {
+      throw errorFor("La operación no está disponible para esta evidencia.", 409);
+    }
+    return existing;
+  }
   const bytes = await evidenceStorage.downloadBytes(sourceFile.file);
   const file = await evidenceStorage.upload({ entityType: data.entityType, entityId: data.entityId,
     mime: sourceFile.file.mime, bytes });
