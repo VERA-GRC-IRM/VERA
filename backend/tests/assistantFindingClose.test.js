@@ -87,7 +87,7 @@ test("El chat deniega rol ajeno y rechaza vista previa obsoleta", async (t) => {
     note: "Se corrigieron los accesos y se revisó el resultado.", version: action.storageVersion });
   const command = `Cierra el hallazgo ${finding.id} porque las acciones de corrección terminaron.`;
   const deniedUrl = await conversation(base, 5);
-  assert.match((await (await ask(deniedUrl, 5, command)).json()).message.text, /no está disponible/);
+  assert.match((await (await ask(deniedUrl, 5, command)).json()).message.text, /No encontré ese hallazgo/);
   const url = await conversation(base, 3);
   assert.equal((await (await ask(url, 3, command)).json()).message.mode, "action-preview");
   findingRepository.mutate(finding.id, { description: "Cambió el expediente antes del cierre." },

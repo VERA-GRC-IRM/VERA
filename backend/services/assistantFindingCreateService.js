@@ -1,9 +1,8 @@
 const { randomUUID } = require("node:crypto");
 const userRepository = require("../repositories/userRepository");
-const controlRepository = require("../repositories/controlRepository");
-const riskRepository = require("../repositories/riskRepository");
 const { ROLES, RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { prepareFinding } = require("./findingCreationService");
+const { visibleCollectionsForUser } = require("./recordReadAccessService");
 
 const normalize = (value) => String(value || "").normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
@@ -70,8 +69,9 @@ const handleFindingCreate = async (user, question, thread) => {
   const parsed = parseFields(raw);
   if (parsed.error) return response(`${parsed.error}\n${template}`, "action-guidance", fieldsDraft());
   const fields = parsed.fields;
-  const control = await resolveOne(await controlRepository.getAll(), fields.control);
-  const risk = await resolveOne(await riskRepository.getAll(), fields.risk);
+  const visible = await visibleCollectionsForUser(user);
+  const control = await resolveOne(visible.CONTROL, fields.control);
+  const risk = await resolveOne(visible.RISK, fields.risk);
   if (!control || !risk) {
     return response("No encontré un único control y riesgo con esos nombres o identificadores. Usa sus identificadores exactos.",
       "action-guidance", fieldsDraft());

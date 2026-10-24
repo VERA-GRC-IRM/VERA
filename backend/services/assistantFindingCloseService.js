@@ -1,6 +1,6 @@
-const findingRepository = require("../repositories/findingRepository");
 const userRepository = require("../repositories/userRepository");
 const { prepareFindingClosure, closeFindingForUser } = require("./findingClosureService");
+const { visibleCollectionsForUser } = require("./recordReadAccessService");
 
 const normalize = (value) => String(value || "").normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
@@ -40,7 +40,7 @@ const handleFindingClose = async (user, question, thread) => {
   if (!command || command.target.length > 120 || command.note.length < 10 || command.note.length > 1000) {
     return response("Indica hallazgo exacto y motivo de 10 a 1,000 caracteres. Ejemplo: Cierra el hallazgo FDG-001 porque todas las acciones vinculadas terminaron.");
   }
-  const matches = (await findingRepository.getAll()).filter((item) =>
+  const matches = (await visibleCollectionsForUser(user)).FINDING.filter((item) =>
     [item.id, item.title].some((value) => normalize(value) === normalize(command.target)));
   if (matches.length !== 1) {
     return response(matches.length > 1

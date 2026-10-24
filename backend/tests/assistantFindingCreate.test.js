@@ -80,7 +80,7 @@ test("Control eficaz, rol ajeno y evaluación alterada bloquean la creación", a
   const { risk, control } = fixture(3, 2);
   const auditorUrl = await conversation(base, 5);
   const denied = await ask(auditorUrl, 5, `Registrar hallazgo\n${fields("Ajeno", control.id, risk.id)}`);
-  assert.match((await denied.json()).message.text, /No puedes registrar/);
+  assert.match((await denied.json()).message.text, /No encontré un único control y riesgo/);
   const directorUrl = await conversation(base, 2);
   assert.match((await (await ask(directorUrl, 2, "Registrar hallazgo")).json()).message.text,
     /no registrarlos/);
