@@ -19,4 +19,6 @@ Ejemplo sintético de solicitud (no representa la estructura real de FEMSA):
 
 No se carga ninguna entidad por defecto. `VERA_ORG_STORE=memory` mantiene el directorio local en memoria. Para persistir, primero aplique la migración `20261024010000_create_org_units.sql`, configure `VERA_USER_STORE=supabase` y `VERA_ORG_STORE=supabase` solo en el backend y compruebe el destino. La tabla tiene RLS y acceso únicamente mediante la API de servidor. La migración no altera las tablas GRC anteriores.
 
+Las [autorizaciones directas](org-grants.md) tienen una migración posterior y no afectan aún los permisos de expedientes.
+
 La prueba local con adaptador simulado no acredita persistencia remota. Antes de activar el modo Supabase en un despliegue, crear una unidad sintética autorizada, reiniciar, consultar el mismo ID y validar que perfiles distintos de Super Admin reciben 403. No usar nombres corporativos reales sin una fuente maestra validada.
