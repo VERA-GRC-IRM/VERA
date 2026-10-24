@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Activity,
   BellRing,
+  BookOpen,
   Bot,
   ChartNoAxesCombined,
   CalendarRange,
@@ -111,6 +112,7 @@ function Sidebar({ active }) {
     { id: "auditorias-activas", label: "Auditorías activas y riesgos", Icon: Activity, path: "/auditorias-activas" },
     { id: "auditorias", label: "Buscar auditorías", Icon: Search, path: "/auditorias" },
     { id: "riesgos", label: "Registro de riesgos", Icon: ShieldAlert, path: "/riesgos" },
+    { id: "biblioteca-riesgos", label: "Biblioteca de riesgos", Icon: BookOpen, path: "/biblioteca-riesgos" },
     { id: "controles", label: "Mapa de controles", Icon: ClipboardCheck, path: "/controles" },
     { id: "notificaciones", label: "Pendientes", Icon: BellRing, path: "/notificaciones" },
     { id: "actividad", label: "Actividad reciente", Icon: Activity, path: "/actividad" },
@@ -123,7 +125,7 @@ function Sidebar({ active }) {
   ];
   const groups = [
     { label: "Portafolio y auditorías", ids: ["dashboard", "planificacion", "trimestres", "auditorias-activas", "auditorias"] },
-    { label: "Riesgos y evidencia", ids: ["riesgos", "controles", "evidencias"] },
+    { label: "Riesgos y evidencia", ids: ["riesgos", "biblioteca-riesgos", "controles", "evidencias"] },
     { label: "Seguimiento", ids: ["notificaciones", "actividad"] },
     { label: "Asistencia", ids: ["asistente", "calidad-ia"] },
     { label: "Cuenta y administración", ids: ["mi-rol", "usuarios", "auditoria"] }
