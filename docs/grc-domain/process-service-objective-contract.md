@@ -1,6 +1,6 @@
 # Contrato propuesto: procesos, servicios y objetivos
 
-**Estado:** diseño de dominio para #252. No hay esquema, API ni pantalla implementados por este documento. No representa el organigrama, la taxonomía ni las decisiones de FEMSA.
+**Estado:** contrato objetivo para #252. El [primer catálogo funcional](business-context.md) ya agrega esquema, API y pantalla para registrar y consultar la revisión inicial. Las relaciones entre conceptos, la titularidad, el historial de cambios y la asociación a expedientes siguen pendientes. Este contrato no representa el organigrama, la taxonomía ni las decisiones de FEMSA.
 
 ## Qué problema resuelve
 

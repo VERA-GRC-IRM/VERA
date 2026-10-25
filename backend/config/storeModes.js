@@ -7,7 +7,7 @@ const validateStoreModes = (environment = process.env) => {
   for (const name of [
     "VERA_PLANNING_STORE", "VERA_USER_STORE", "VERA_RISK_CONTROL_STORE",
     "VERA_EVIDENCE_COMMENT_STORE", "VERA_AUDIT_STORE", "VERA_NOTIFICATION_STORE",
-    "VERA_ORG_STORE", "VERA_RISK_LIBRARY_STORE"
+    "VERA_ORG_STORE", "VERA_RISK_LIBRARY_STORE", "VERA_BUSINESS_CONTEXT_STORE"
   ]) {
     if (environment[name] !== undefined && !["memory", "supabase"].includes(environment[name])) {
       throw new Error(`${name} debe ser memory o supabase.`);
@@ -38,6 +38,10 @@ const validateStoreModes = (environment = process.env) => {
   }
   if (environment.VERA_RISK_LIBRARY_STORE === "supabase" && environment.VERA_USER_STORE !== "supabase") {
     throw new Error("La biblioteca de riesgos persistente requiere cuentas persistentes.");
+  }
+  if (environment.VERA_BUSINESS_CONTEXT_STORE === "supabase" &&
+      (environment.VERA_ORG_STORE !== "supabase" || environment.VERA_USER_STORE !== "supabase")) {
+    throw new Error("El catálogo empresarial persistente requiere unidades y cuentas persistentes.");
   }
 };
 

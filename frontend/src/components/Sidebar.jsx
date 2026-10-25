@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Network,
   ChevronLeft,
   ChevronRight,
   Search,
@@ -107,6 +108,7 @@ function Sidebar({ active }) {
   const canSeeAuditLog = user?.role === "SUPER_ADMIN";
   const items = [
     { id: "dashboard", label: "Panel de Portafolio", Icon: LayoutDashboard, path: "/dashboard" },
+    { id: "business-context", label: "Mapa del negocio", Icon: Network, path: "/mapa-negocio" },
     { id: "planificacion", label: "Planificación", Icon: ClipboardList, path: "/planificacion" },
     { id: "trimestres", label: "Trimestres", Icon: CalendarRange, path: "/trimestres" },
     { id: "auditorias-activas", label: "Auditorías activas y riesgos", Icon: Activity, path: "/auditorias-activas" },
@@ -124,7 +126,7 @@ function Sidebar({ active }) {
     ...(canSeeAuditLog ? [{ id: "auditoria", label: "Registro de actividad", Icon: ScrollText, path: "/auditoria" }] : [])
   ];
   const groups = [
-    { label: "Portafolio y auditorías", ids: ["dashboard", "planificacion", "trimestres", "auditorias-activas", "auditorias"] },
+    { label: "Portafolio y auditorías", ids: ["dashboard", "business-context", "planificacion", "trimestres", "auditorias-activas", "auditorias"] },
     { label: "Riesgos y evidencia", ids: ["riesgos", "biblioteca-riesgos", "controles", "evidencias"] },
     { label: "Seguimiento", ids: ["notificaciones", "actividad"] },
     { label: "Asistencia", ids: ["asistente", "calidad-ia"] },

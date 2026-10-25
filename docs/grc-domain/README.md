@@ -38,7 +38,7 @@ La [línea base de metodología](risk-methods.md) identifica la matriz históric
 
 La [biblioteca de riesgos](risk-library.md) introduce categorías y plantillas publicadas con historial inmutable. Aún no reclasifica los riesgos registrados.
 
-El [contrato de procesos, servicios y objetivos](process-service-objective-contract.md) define identidades y vínculos muchos a muchos con unidades, vigencia, versiones y límites de acceso. Es diseño para #252; todavía no añade esquema ni datos corporativos.
+El [contrato de procesos, servicios y objetivos](process-service-objective-contract.md) define identidades y vínculos muchos a muchos con unidades, vigencia, versiones y límites de acceso. El [primer mapa del negocio](business-context.md) añade registro y consulta de la revisión inicial; las relaciones entre conceptos, el historial de cambios y la carga corporativa siguen pendientes.
 
 | Tramo | Primer resultado verificable | Dependencia |
 | --- | --- | --- |

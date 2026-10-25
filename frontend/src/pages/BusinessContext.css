@@ -1,0 +1,40 @@
+.business-context-page { max-width: 1320px; }
+.business-context-page .dashboard-header p { max-width: 70ch; }
+.business-context-guidance { max-width: 90ch; margin: 0 0 1.3rem; color: var(--vera-text-muted); line-height: 1.55; }
+.business-context-error, .business-context-notice { padding: .8rem 1rem; border-radius: 10px; margin-bottom: 1rem; }
+.business-context-error { color: var(--vera-danger); background: var(--vera-danger-soft); }
+.business-context-notice { color: var(--vera-success); background: var(--vera-success-soft); }
+.business-context-actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-bottom: 1.3rem; }
+.business-context-actions button { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; padding: .65rem .9rem; border: 1px solid var(--vera-border); border-radius: 10px; color: var(--vera-text-strong); background: var(--vera-surface); font: inherit; font-weight: 700; cursor: pointer; }
+.business-context-actions button[aria-expanded="true"] { border-color: var(--vera-accent); background: var(--vera-accent-soft); }
+.business-context-form { margin-bottom: 1.5rem; padding: 1.4rem; border: 1px solid var(--vera-border); border-radius: 16px; background: var(--vera-surface); color: var(--vera-text); }
+.business-context-form h2 { margin: 0 0 .4rem; color: var(--vera-text-strong); font-size: 1.2rem; }
+.business-context-form p { margin: 0 0 1rem; color: var(--vera-text-muted); line-height: 1.5; }
+.business-context-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.1rem; }
+.business-context-fields > label { display: grid; gap: .4rem; color: var(--vera-text-strong); font-weight: 650; }
+.business-context-fields .wide { grid-column: 1 / -1; }
+.business-context-fields :is(input:not([type="checkbox"]), select, textarea) { box-sizing: border-box; width: 100%; min-height: 44px; padding: .65rem .75rem; border: 1px solid var(--vera-border); border-radius: 9px; background: var(--vera-surface); color: var(--vera-text); font: inherit; }
+.business-context-fields textarea { min-height: 100px; resize: vertical; }
+.business-context-fields fieldset { display: flex; flex-wrap: wrap; gap: .45rem .8rem; padding: .8rem 1rem; border: 1px solid var(--vera-border); border-radius: 10px; }
+.business-context-fields legend { color: var(--vera-text-strong); font-weight: 700; }
+.business-context-fields fieldset p { width: 100%; margin: 0; }
+.business-context-check { display: inline-flex; align-items: center; gap: .35rem; min-height: 38px; padding: .2rem .6rem; border: 1px solid var(--vera-border); border-radius: 8px; color: var(--vera-text); }
+.business-context-toolbar { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.business-context-tabs { display: flex; flex-wrap: wrap; gap: .4rem; }
+.business-context-tabs button { min-height: 44px; padding: .55rem .9rem; border: 1px solid var(--vera-border); border-radius: 9px; background: var(--vera-surface); color: var(--vera-text); font: inherit; cursor: pointer; }
+.business-context-tabs button[aria-pressed="true"] { border-color: var(--vera-accent-strong); background: var(--vera-accent-strong); color: var(--vera-on-accent); }
+.business-context-toolbar > label { display: grid; gap: .35rem; color: var(--vera-text-strong); font-weight: 650; }
+.business-context-toolbar > label svg { display: none; }
+.business-context-toolbar input { box-sizing: border-box; min-width: min(100%, 280px); min-height: 44px; padding: .55rem .7rem; border: 1px solid var(--vera-border); border-radius: 9px; background: var(--vera-surface); color: var(--vera-text); font: inherit; }
+.business-context-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.business-context-card, .business-context-empty { padding: 1.3rem; border: 1px solid var(--vera-border); border-radius: 15px; background: var(--vera-surface); color: var(--vera-text); }
+.business-context-card-head { display: flex; align-items: center; gap: .5rem; color: var(--vera-accent); font-size: .75rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.business-context-card h2 { margin: .65rem 0 .3rem; color: var(--vera-text-strong); font-size: 1.15rem; }
+.business-context-card p { margin: 0 0 1rem; color: var(--vera-text-muted); line-height: 1.55; }
+.business-context-unit-list { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
+.business-context-unit-list span { padding: .3rem .55rem; border-radius: 999px; background: var(--vera-accent-soft); color: var(--vera-accent-strong); font-size: .78rem; font-weight: 650; }
+.business-context-card small { display: flex; align-items: flex-start; gap: .35rem; color: var(--vera-text-muted); line-height: 1.5; }
+.business-context-card small svg { flex: 0 0 auto; margin-top: .1rem; }
+.business-context-empty { grid-column: 1 / -1; color: var(--vera-text-muted); }
+.business-context-page :is(button, input, select, textarea):focus-visible { outline: 3px solid var(--vera-focus); outline-offset: 2px; }
+@media (max-width: 760px) { .business-context-list, .business-context-fields { grid-template-columns: 1fr; } .business-context-fields .wide { grid-column: auto; } .business-context-toolbar > label, .business-context-toolbar input { width: 100%; } }
