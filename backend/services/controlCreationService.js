@@ -5,7 +5,8 @@ const { logActivity } = require("./auditLogger");
 const { USER_STATUS } = require("../config/accountRules");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { withResult, parseEvaluation } = require("./controlEvaluationService");
-const { assertWritableControlScope } = require("./recordWriteScopeService");
+const { assertWritableControlScope, assertWritableSourceScope } = require("./recordWriteScopeService");
+const { scopeForNewRecord } = require("./recordCreationScopeService");
 const { UNAVAILABLE_RECORD } = require("./recordScopeVisibility");
 
 const TYPES = ["PREVENTIVE", "DETECTIVE", "CORRECTIVE"];
@@ -60,10 +61,15 @@ const createControlForUser = async (user, input, operationId = null) => {
   }
   const core = await parseCore(input);
   if (core.error) throw errorFor(core.error, core.status || 400);
-  await assertWritableControlScope(user, core.data);
+  const risks = await Promise.all(core.data.riskIds.map((id) => riskRepository.findById(id)));
+  if (risks.some((risk) => !risk)) throw errorFor(UNAVAILABLE_RECORD, 404);
+  for (const risk of risks) await assertWritableSourceScope(user, "RISK", risk);
+  const orgUnitId = await scopeForNewRecord(user, input.orgUnitId, risks);
+  const scopedData = { ...core.data, orgUnitId };
+  await assertWritableControlScope(user, scopedData);
   const evaluation = parseEvaluation(input);
   if (evaluation.error) throw errorFor(evaluation.error, 400);
-  const control = await controlRepository.create({ ...core.data,
+  const control = await controlRepository.create({ ...scopedData,
     effectiveness: evaluation.data.rating, note: evaluation.data.note,
     ...(operationId ? { aiOperationId: operationId } : {}),
     createdBy: { id: user.id, username: user.username, role: user.role } });

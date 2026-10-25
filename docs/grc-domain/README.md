@@ -28,9 +28,9 @@ Este programa amplía el alcance de negocio de VERA sin atribuirle una certifica
 
 ## Orden de entrega
 
-El [directorio de ámbitos empresariales](org-directory.md) es el primer incremento del tramo 1. Todavía no aplica ámbitos a expedientes ni representa una estructura corporativa aprobada.
+El [directorio de ámbitos empresariales](org-directory.md) es el primer incremento del tramo 1. La API admite ámbitos explícitos para propuestas nuevas y los hereda en riesgos y controles relacionados; todavía no reasigna expedientes existentes ni representa una estructura corporativa aprobada.
 
-Las [autorizaciones directas por ámbito](org-grants.md) registran concesiones y revocaciones con motivo. Ya filtran las superficies enumeradas en el [inventario de rutas](scope-surface-inventory.md), pero todavía no habilitan asignar ámbitos a expedientes reales ni demuestran aislamiento multiempresa completo.
+Las [autorizaciones directas por ámbito](org-grants.md) registran concesiones y revocaciones con motivo. Ya filtran las superficies enumeradas en el [inventario de rutas](scope-surface-inventory.md), pero todavía no incluyen reasignación controlada de expedientes existentes ni demuestran aislamiento multiempresa completo.
 
 La [línea base de metodología](risk-methods.md) identifica la matriz histórica y evita llamar “residual” a una evaluación que no lo especifica.
 
