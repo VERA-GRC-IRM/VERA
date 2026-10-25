@@ -115,6 +115,7 @@ function Sidebar({ active }) {
     { id: "auditorias", label: "Buscar auditorías", Icon: Search, path: "/auditorias" },
     { id: "riesgos", label: "Registro de riesgos", Icon: ShieldAlert, path: "/riesgos" },
     { id: "biblioteca-riesgos", label: "Biblioteca de riesgos", Icon: BookOpen, path: "/biblioteca-riesgos" },
+    ...(canSeeAuditLog ? [{ id: "metodos-riesgo", label: "Métodos de evaluación", Icon: ClipboardCheck, path: "/metodos-riesgo" }] : []),
     { id: "controles", label: "Mapa de controles", Icon: ClipboardCheck, path: "/controles" },
     { id: "notificaciones", label: "Pendientes", Icon: BellRing, path: "/notificaciones" },
     { id: "actividad", label: "Actividad reciente", Icon: Activity, path: "/actividad" },
@@ -127,7 +128,7 @@ function Sidebar({ active }) {
   ];
   const groups = [
     { label: "Portafolio y auditorías", ids: ["dashboard", "business-context", "planificacion", "trimestres", "auditorias-activas", "auditorias"] },
-    { label: "Riesgos y evidencia", ids: ["riesgos", "biblioteca-riesgos", "controles", "evidencias"] },
+    { label: "Riesgos y evidencia", ids: ["riesgos", "biblioteca-riesgos", "metodos-riesgo", "controles", "evidencias"] },
     { label: "Seguimiento", ids: ["notificaciones", "actividad"] },
     { label: "Asistencia", ids: ["asistente", "calidad-ia"] },
     { label: "Cuenta y administración", ids: ["mi-rol", "usuarios", "auditoria"] }
