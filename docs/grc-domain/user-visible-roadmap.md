@@ -24,3 +24,5 @@ Este plan organiza capacidades que las personas podrán utilizar en VERA. Cada f
 **Inicio de la fase 2:** el catálogo privado de métodos cualitativos permite diseñar matrices, simular casos y guardar borradores inmutables por revisión. No existe todavía un método empresarial aprobado ni se aplican estas matrices a evaluaciones reales. La matriz 3×3 histórica permanece intacta. La decisión de negocio sobre escalas, evidencia y autoridad de aprobación sigue pendiente.
 
 **Respuesta al riesgo:** el registro permite proponer una estrategia de evitar, reducir, transferir o aceptar con responsable, acciones, motivo y fecha de revisión; conserva todas las revisiones. Cada registro sigue marcado `PROPOSED` hasta que exista una decisión formal de gobierno. El tipo `ACCEPT` no constituye una aceptación aprobada ni modifica la evaluación del riesgo.
+
+**Seguimiento de propuestas:** el registro agrupa las estrategias propuestas según su fecha de revisión y permite abrir la lista correspondiente en un clic. Los recuentos se calculan solo sobre los riesgos visibles para la persona y no equivalen a aprobación, cierre, cumplimiento de apetito ni tratamiento efectivo.

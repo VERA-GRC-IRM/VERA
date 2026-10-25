@@ -16,11 +16,31 @@ const levelFor = (score) => score <= 2 ? "Bajo" : score <= 4 ? "Medio" : "Alto";
 const RESPONSE_LABELS = { AVOID: "Evitar", REDUCE: "Reducir", TRANSFER: "Transferir", ACCEPT: "Aceptar" };
 const EMPTY_RESPONSE = { strategy: "REDUCE", rationale: "", actions: "", ownerId: "", reviewDate: "" };
 const dateLabel = (value) => new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
+const RESPONSE_STATES = [
+  { value: "NONE", label: "Sin propuesta" },
+  { value: "OVERDUE", label: "Revisión vencida" },
+  { value: "TODAY", label: "Revisión hoy" },
+  { value: "UPCOMING", label: "Revisión futura" },
+  { value: "UNSCHEDULED", label: "Sin fecha de revisión" }
+];
+const responseState = (risk, today) => {
+  const latest = risk.responseDecisions?.at(-1);
+  if (!latest) return "NONE";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(latest.reviewDate || "")) return "UNSCHEDULED";
+  if (latest.reviewDate < today) return "OVERDUE";
+  return latest.reviewDate === today ? "TODAY" : "UPCOMING";
+};
+const localDate = () => {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+const serverRiskFilters = ({ search, area, level }) => ({ search, area, level });
 const filtersFromQuery = (query) => {
   const params = new URLSearchParams(query);
   const level = params.get("level") || "";
   return { level: ["Bajo", "Medio", "Alto"].includes(level) ? level : "",
-    area: (params.get("area") || "").slice(0, 100), search: (params.get("search") || "").slice(0, 120) };
+    area: (params.get("area") || "").slice(0, 100), search: (params.get("search") || "").slice(0, 120),
+    response: RESPONSE_STATES.some(({ value }) => value === params.get("response")) ? params.get("response") : "" };
 };
 
 function Riesgos() {
@@ -58,7 +78,7 @@ function Riesgos() {
   const [message, setMessage] = useState("");
   const [assistantFocus, setAssistantFocus] = useState(null);
 
-  const refresh = async () => setRisks(await getRisks(filters));
+  const refresh = async () => setRisks(await getRisks(serverRiskFilters(filters)));
   const loadOrgUnits = () => {
     setOrgUnitsLoading(true);
     setOrgUnitsError("");
@@ -68,7 +88,7 @@ function Riesgos() {
       .finally(() => setOrgUnitsLoading(false));
   };
   useEffect(() => {
-    Promise.all([getRisks(filters), canManage ? getRiskOwners() : Promise.resolve([]), getPlanningAudits()])
+    Promise.all([getRisks(serverRiskFilters(filters)), canManage ? getRiskOwners() : Promise.resolve([]), getPlanningAudits()])
       .then(([allRisks, activeOwners, allAudits]) => { setRisks(allRisks); setOwners(activeOwners); setAudits(allAudits); })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -115,6 +135,10 @@ function Riesgos() {
   }, [location.hash, risks]);
 
   const summary = ["Alto", "Medio", "Bajo"].map((level) => ({ level, count: risks.filter((risk) => risk.level === level).length }));
+  const today = localDate();
+  const responseSummary = RESPONSE_STATES.map((state) => ({ ...state,
+    count: risks.filter((risk) => responseState(risk, today) === state.value).length }));
+  const visibleRisks = filters.response ? risks.filter((risk) => responseState(risk, today) === filters.response) : risks;
   const orgUnitName = (id) => orgUnits.find((unit) => unit.id === id)?.name || "Entidad asignada";
   const manageableUnits = orgUnits.filter((unit) => unit.accessLevel === "MANAGE");
   const linkedAudit = audits.find((audit) => audit.id === form.linkedAuditId);
@@ -188,13 +212,26 @@ function Riesgos() {
         <div className="risk-summary">
           {summary.map(({ level, count }) => <article key={level} className={`risk-summary-card risk-summary-${level.toLowerCase()}`}><span>Riesgo {level.toLowerCase()}</span><strong>{count}</strong><small>registros visibles</small></article>)}
         </div>
+        <section className="risk-response-overview" aria-labelledby="risk-response-overview-title">
+          <div className="risk-response-overview-heading"><h2 id="risk-response-overview-title">Seguimiento de estrategias</h2><p>Propuestas sobre los riesgos visibles. La fecha corresponde a la revisión prevista, no a una aprobación formal.</p></div>
+          <div className="risk-response-overview-grid">
+            {responseSummary.map(({ value, label, count }) => <button key={value} type="button"
+              className={`risk-response-overview-card${filters.response === value ? " is-selected" : ""}`}
+              aria-pressed={filters.response === value}
+              onClick={() => setFilters({ ...filters, response: filters.response === value ? "" : value })}>
+              <span>{label}</span><strong>{count}</strong><small>Ver riesgos</small>
+            </button>)}
+          </div>
+        </section>
         <section className="risk-filters" aria-label="Filtros de riesgos">
           <label>Buscar<input value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} placeholder="Nombre, área, responsable..." /></label>
           <label>Área exacta<input value={filters.area} onChange={(event) => setFilters({ ...filters, area: event.target.value })} maxLength={100} placeholder="Todas las áreas" /></label>
           <label>Nivel<select value={filters.level} onChange={(event) => setFilters({ ...filters, level: event.target.value })}><option value="">Todos los niveles</option><option>Bajo</option><option>Medio</option><option>Alto</option></select></label>
+          <label>Seguimiento<select value={filters.response} onChange={(event) => setFilters({ ...filters, response: event.target.value })}><option value="">Todas las estrategias</option>{RESPONSE_STATES.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}</select></label>
         </section>
-        {loading ? <div className="risk-empty">Cargando registro...</div> : risks.length === 0 ? <div className="risk-empty">No hay riesgos que coincidan con estos filtros.</div> :
-          <div className="risk-list">{risks.map((risk) => <article className="risk-record" id={`risk-${risk.id}`} key={risk.id}>
+        {!loading && <p className="risk-response-result-count" role="status">Mostrando {visibleRisks.length} de {risks.length} riesgos visibles con los filtros de búsqueda, área y nivel.</p>}
+        {loading ? <div className="risk-empty">Cargando registro...</div> : visibleRisks.length === 0 ? <div className="risk-empty">No hay riesgos que coincidan con estos filtros.</div> :
+          <div className="risk-list">{visibleRisks.map((risk) => <article className="risk-record" id={`risk-${risk.id}`} key={risk.id}>
             <div className="risk-record-icon"><ShieldAlert size={22} /></div>
             <div className="risk-record-main">
               <div className="risk-record-heading"><span className="risk-record-id">{risk.id}</span><span className={`risk-badge risk-${risk.level.toLowerCase()}`}>{risk.level}</span><span className="risk-score">P×I {risk.score} / 9</span></div>
