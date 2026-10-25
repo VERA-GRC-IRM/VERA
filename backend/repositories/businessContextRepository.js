@@ -1,5 +1,7 @@
 const records = [];
-const clone = (record) => ({ ...record, unitIds: [...record.unitIds], createdBy: { ...record.createdBy } });
+const clone = (record) => ({ ...record, unitIds: [...record.unitIds],
+  relationships: (record.relationships || []).map((link) => ({ ...link, sharedUnitIds: [...(link.sharedUnitIds || [])] })),
+  createdBy: { ...record.createdBy } });
 
 const getAll = () => records.map(clone);
 const findByCode = (kind, code) => {

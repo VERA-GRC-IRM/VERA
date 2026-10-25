@@ -5,6 +5,10 @@ const { logActivity } = require("./auditLogger");
 const { ROLES } = require("../config/roles");
 
 const KINDS = Object.freeze(["PROCESS", "SERVICE", "OBJECTIVE"]);
+const RELATIONS = Object.freeze({
+  DELIVERS_SERVICE: { source: ["PROCESS"], target: "SERVICE" },
+  SUPPORTS_OBJECTIVE: { source: ["PROCESS", "SERVICE"], target: "OBJECTIVE" }
+});
 const errorFor = (message, status) => Object.assign(new Error(message), { status });
 const validDate = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
   !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) &&
@@ -36,13 +40,46 @@ const assertAvailableUnits = async (user, unitIds) => {
   const available = new Set((await availableScopesFor(user)).map((scope) => scope.id));
   if (unitIds.some((id) => !available.has(id))) throw errorFor("Una unidad ya no está disponible.", 400);
 };
+const resolveRelationships = async (input, sourceKind, sourceId, sourceUnitIds) => {
+  if (input === undefined) return [];
+  if (!Array.isArray(input) || input.length > 12) {
+    throw errorFor("Selecciona hasta 12 relaciones del mapa del negocio.", 400);
+  }
+  if (!input.length) return [];
+  const records = await repository.getAll();
+  const chosen = new Set();
+  return input.map((link) => {
+    const rule = RELATIONS[link?.relationType];
+    const targetContextId = link?.targetContextId;
+    const targetRevision = link?.targetRevision;
+    const key = `${link?.relationType}:${targetContextId}`;
+    if (!rule || !rule.source.includes(sourceKind) ||
+        typeof targetContextId !== "string" || targetContextId === sourceId ||
+        !Number.isSafeInteger(targetRevision) || targetRevision < 1 || chosen.has(key)) {
+      throw errorFor("La relación entre conceptos no es válida o está duplicada.", 400);
+    }
+    chosen.add(key);
+    const rationale = field(link.rationale, "Justificación de la relación", 10, 500);
+    const target = records.find((record) => record.contextId === targetContextId &&
+      record.revision === targetRevision && record.kind === rule.target && record.status === "ACTIVE");
+    const sharedUnitIds = target ? sourceUnitIds.filter((id) => target.unitIds.includes(id)) : [];
+    if (!sharedUnitIds.length) throw errorFor("Los conceptos relacionados deben compartir al menos un ámbito activo.", 400);
+    return { relationType: link.relationType, targetContextId, targetRevision,
+      targetName: target.name, targetCode: target.code, rationale, sharedUnitIds };
+  });
+};
 const project = (record, visibleIds) => {
   const unitIds = record.unitIds.filter((id) => visibleIds.has(id));
   if (!unitIds.length) return null;
   const visibleRecord = { ...record };
   delete visibleRecord.createdBy;
   delete visibleRecord.storageVersion;
-  return { ...visibleRecord, unitIds, publishedBy: record.createdBy?.username || "Usuario" };
+  const relationships = (record.relationships || [])
+    .filter((link) => link.sharedUnitIds?.some((id) => visibleIds.has(id)))
+    .map(({ relationType, targetContextId, targetRevision, targetName, targetCode, rationale }) =>
+      ({ relationType, targetContextId, targetRevision, targetName, targetCode, rationale }));
+  return { ...visibleRecord, unitIds, relationships,
+    publishedBy: record.createdBy?.username || "Usuario" };
 };
 
 const listForUser = async (user) => {
@@ -109,8 +146,9 @@ const createForUser = async (user, input) => {
   await assertAvailableUnits(user, definition.unitIds);
   if (await repository.findByCode(kind, code)) throw errorFor("Ya existe ese código para el tipo elegido.", 409);
   const contextId = `CTX-${randomUUID()}`;
+  const relationships = await resolveRelationships(input.relationships, kind, contextId, definition.unitIds);
   const record = await repository.create({
-    id: `${contextId}:1`, contextId, revision: 1, kind, code, ...definition,
+    id: `${contextId}:1`, contextId, revision: 1, kind, code, ...definition, relationships,
     status: "ACTIVE", createdAt: new Date().toISOString(),
     createdBy: { id: user.id, username: user.username }
   });
@@ -135,9 +173,13 @@ const publishRevisionForUser = async (user, contextId, input) => {
   if (definition.effectiveFrom < latest.effectiveFrom) {
     throw errorFor("La nueva versión no puede iniciar antes que la anterior.", 400);
   }
+  const relationships = await resolveRelationships(input.relationships === undefined
+    ? (latest.relationships || []).map(({ relationType, targetContextId, targetRevision, rationale }) =>
+      ({ relationType, targetContextId, targetRevision, rationale })) : input.relationships,
+  latest.kind, contextId, definition.unitIds);
   const record = await repository.create({
     id: `${contextId}:${latest.revision + 1}`, contextId, revision: latest.revision + 1,
-    kind: latest.kind, code: latest.code, ...definition, changeReason: reason,
+    kind: latest.kind, code: latest.code, ...definition, relationships, changeReason: reason,
     status: "ACTIVE", createdAt: new Date().toISOString(),
     createdBy: { id: user.id, username: user.username }
   });
@@ -146,4 +188,5 @@ const publishRevisionForUser = async (user, contextId, input) => {
   return record;
 };
 
-module.exports = { KINDS, listForUser, revisionsForUser, createForUser, publishRevisionForUser, resolveReferencesForUnit };
+module.exports = { KINDS, RELATIONS, listForUser, revisionsForUser,
+  createForUser, publishRevisionForUser, resolveReferencesForUnit };
