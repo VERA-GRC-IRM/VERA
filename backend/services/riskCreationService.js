@@ -6,6 +6,7 @@ const { USER_STATUS } = require("../config/accountRules");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { parseAssessment } = require("./riskEvaluationService");
 const { assertWritableRecordScope, assertWritableRiskAuditLink } = require("./recordWriteScopeService");
+const { scopeForNewRecord } = require("./recordCreationScopeService");
 const { UNAVAILABLE_RECORD } = require("./recordScopeVisibility");
 
 const text = (value) => String(value ?? "").trim();
@@ -56,13 +57,18 @@ const createRiskForUser = async (user, input, operationId = null) => {
   const core = await parseCore(input);
   if (core.error) throw core.error === "La auditoría relacionada no existe."
     ? errorFor(UNAVAILABLE_RECORD, 404) : errorFor(core.error, 400);
-  await assertWritableRiskAuditLink(user, core.data);
+  const audit = core.data.linkedAuditId ? await planningRepository.findById(core.data.linkedAuditId) : null;
+  if (core.data.linkedAuditId && !audit) throw errorFor(UNAVAILABLE_RECORD, 404);
+  if (audit) await assertWritableRecordScope(user, audit);
+  const orgUnitId = await scopeForNewRecord(user, input.orgUnitId, audit ? [audit] : []);
+  const scopedData = { ...core.data, orgUnitId };
+  await assertWritableRiskAuditLink(user, scopedData);
   const assessment = parseAssessment(input);
   if (assessment.error) throw errorFor(assessment.error, 400);
-  if (await riskRepository.findDuplicate(core.data)) {
+  if (await riskRepository.findDuplicate(scopedData)) {
     throw errorFor("Ya existe un riesgo con el mismo nombre y área.", 409);
   }
-  const risk = await riskRepository.create({ ...core.data, ...assessment.data,
+  const risk = await riskRepository.create({ ...scopedData, ...assessment.data,
     ...(operationId ? { aiOperationId: operationId } : {}),
     createdBy: { id: user.id, name: user.username } });
   await logActivity({ actor: user, action: "RISK_REGISTERED",

@@ -250,16 +250,18 @@ test("scope read projections use direct grants and hide denied records from list
   await assert.rejects(() => evaluateControlForUser(manager, allowedControl.id,
     { rating: 2, note: "Evaluación sintética documentada." }), { status: 403 });
   await assert.rejects(() => updateCoreForUser(manager, "RISK", firstRisk.id, firstRisk), { status: 403 });
-  await assert.rejects(() => createRiskForUser(admin, {
+  const inheritedRisk = await createRiskForUser(admin, {
     title: `Riesgo sin ámbito ${stamp}`, description: "Descripción sintética válida.",
     area: "Área de prueba", ownerId: 5, linkedAuditId: audit.id,
     ...assessment
-  }), { status: 409 });
-  await assert.rejects(() => createControlForUser(admin, {
+  });
+  assert.equal(inheritedRisk.orgUnitId, first.id);
+  const inheritedControl = await createControlForUser(admin, {
     title: `Control sin ámbito ${stamp}`, description: "Descripción sintética válida.",
     type: "PREVENTIVE", frequency: "Monthly", ownerId: 5, riskIds: [firstRisk.id],
     rating: 3, note: "Evaluación sintética documentada."
-  }), { status: 409 });
+  });
+  assert.equal(inheritedControl.orgUnitId, first.id);
 
   await revokeGrantForUser(admin, grant.id, { reason: "Terminó el acceso sintético" });
   assert.ok(!(await list(3)).some((item) => item.id === firstRisk.id));

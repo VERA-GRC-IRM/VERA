@@ -5,6 +5,7 @@ const { ROLES, AUDIT_PROPOSAL_CREATE_ROLES } = require("../config/roles");
 const { USER_STATUS } = require("../config/accountRules");
 const { classifyRisk } = require("../config/riskRules");
 const { assertWritableRecordScope } = require("./recordScopeVisibility");
+const { scopeForNewRecord } = require("./recordCreationScopeService");
 
 const TYPES = ["Interna", "Externa"];
 const RISKS = ["Bajo", "Medio", "Alto"];
@@ -92,8 +93,10 @@ const createProposalForUser = async (user, input, operationId = null) => {
   }
   const { data, error } = await parseProposal(input);
   if (error) throw errorFor(error, 400);
-  if (await planningRepository.findDuplicate(data)) throw errorFor(DUPLICATE_MESSAGE, 409);
-  const proposal = await planningRepository.create({ ...data,
+  const orgUnitId = await scopeForNewRecord(user, input.orgUnitId);
+  const scopedData = { ...data, orgUnitId };
+  if (await planningRepository.findDuplicate(scopedData)) throw errorFor(DUPLICATE_MESSAGE, 409);
+  const proposal = await planningRepository.create({ ...scopedData,
     ...(operationId ? { aiOperationId: operationId } : {}),
     createdBy: { id: user.id, name: user.username } });
   await logActivity({ actor: user, action: "AUDIT_PROPOSAL_CREATED",
