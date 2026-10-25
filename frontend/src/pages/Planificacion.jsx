@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, ClipboardList, MoreHorizontal, Pencil, Plus, Trash2, X, XCircle } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import PlanningHistoryButton from "../components/PlanningHistoryButton";
+import { getAvailableOrgUnits } from "../services/orgUnitService";
 import {
   approveAuditProposal,
   createAuditProposal,
@@ -24,6 +25,7 @@ import "./Planning.css";
 const EMPTY_FORM = {
   title: "",
   area: "",
+  orgUnitId: "",
   responsibleId: "",
   type: "Interna",
   likelihood: 2,
@@ -48,6 +50,9 @@ function Planificacion() {
 
   const [items, setItems] = useState([]);
   const [auditors, setAuditors] = useState([]);
+  const [orgUnits, setOrgUnits] = useState([]);
+  const [orgUnitsLoading, setOrgUnitsLoading] = useState(true);
+  const [orgUnitsError, setOrgUnitsError] = useState("");
   const [loading, setLoading] = useState(true);
   const [quarters, setQuarters] = useState({});
   const [rejectingId, setRejectingId] = useState(null);
@@ -61,6 +66,15 @@ function Planificacion() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const loadOrgUnits = () => {
+    setOrgUnitsLoading(true);
+    setOrgUnitsError("");
+    return getAvailableOrgUnits()
+      .then(setOrgUnits)
+      .catch((err) => setOrgUnitsError(err.message))
+      .finally(() => setOrgUnitsLoading(false));
+  };
 
   const loadItems = async () => {
     try {
@@ -81,6 +95,10 @@ function Planificacion() {
     if (canCreate) {
       getAuditors().then(setAuditors).catch((err) => setError(err.message));
     }
+    getAvailableOrgUnits()
+      .then(setOrgUnits)
+      .catch((err) => setOrgUnitsError(err.message))
+      .finally(() => setOrgUnitsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -113,6 +131,8 @@ function Planificacion() {
   const rejectedProposals = items.filter((item) => item.status === "REJECTED");
 
   const updateForm = (field, value) => setForm({ ...form, [field]: value });
+  const orgUnitName = (id) => orgUnits.find((unit) => unit.id === id)?.name || "Entidad asignada";
+  const manageableUnits = orgUnits.filter((unit) => unit.accessLevel === "MANAGE");
 
   const openCreate = () => {
     setEditingId(null);
@@ -127,6 +147,7 @@ function Planificacion() {
     setForm({
       title: item.title,
       area: item.area,
+      orgUnitId: item.orgUnitId || "",
       responsibleId: item.responsibleId ?? "",
       type: item.type,
       likelihood: item.likelihood ?? 2,
@@ -165,8 +186,10 @@ function Planificacion() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
+    const payload = { ...form };
+    if (editingId) delete payload.orgUnitId;
     const ok = await run(
-      () => (editingId ? updateAuditProposal(editingId, form) : createAuditProposal(form)),
+      () => (editingId ? updateAuditProposal(editingId, payload) : createAuditProposal(payload)),
       editingId ? "La propuesta fue actualizada." : "La propuesta fue creada y quedó abierta para revisión."
     );
     setSaving(false);
@@ -300,6 +323,7 @@ function Planificacion() {
                     <div className="proposal-meta">
                       <span><b>Tipo:</b> {item.type}</span>
                       <span><b>Área:</b> {item.area || "Sin definir"}</span>
+                      {item.orgUnitId && <span><b>Entidad:</b> {orgUnitName(item.orgUnitId)}</span>}
                       <span><b>Responsable:</b> {item.responsible || "Sin asignar"}</span>
                       <span><b>Periodo:</b> {formatDate(item.startDate) || "—"} → {formatDate(item.endDate) || "—"}</span>
                     </div>
@@ -348,6 +372,7 @@ function Planificacion() {
                     <div className="details-field details-field-wide"><span>Descripción</span><p>{detailItem.objective || "Sin descripción"}</p></div>
                     <div className="details-field"><span>Tipo</span><p>{detailItem.type || "Sin definir"}</p></div>
                     <div className="details-field"><span>Área</span><p>{detailItem.area || "Sin definir"}</p></div>
+                    {detailItem.orgUnitId && <div className="details-field"><span>Entidad</span><p>{orgUnitName(detailItem.orgUnitId)}</p></div>}
                     <div className="details-field"><span>Responsable</span><p>{detailItem.responsible || "Sin asignar"}</p></div>
                     <div className="details-field"><span>Año</span><p>{detailItem.year || "Sin definir"}</p></div>
                     <div className="details-field"><span>Periodo</span><p>{formatDate(detailItem.startDate) || "—"} → {formatDate(detailItem.endDate) || "—"}</p></div>
@@ -511,6 +536,21 @@ function Planificacion() {
                   <label>Unidad o área
                     <input required value={form.area} onChange={(event) => updateForm("area", event.target.value)} placeholder="Operaciones" />
                   </label>
+                  <label>Ámbito empresarial
+                    {editingId ? (
+                      <input readOnly value={form.orgUnitId ? orgUnitName(form.orgUnitId) : "Sin asignar"} />
+                    ) : (
+                      <select value={form.orgUnitId} onChange={(event) => updateForm("orgUnitId", event.target.value)}
+                        disabled={orgUnitsLoading || Boolean(orgUnitsError)}>
+                        <option value="">Sin asignar todavía</option>
+                        {manageableUnits.map((unit) => (
+                          <option key={unit.id} value={unit.id}>{unit.name} · {unit.code}</option>
+                        ))}
+                      </select>
+                    )}
+                    {orgUnitsError && <small role="status">No se pudieron consultar las entidades. <button type="button" onClick={loadOrgUnits}>Reintentar</button></small>}
+                    {!editingId && !orgUnitsError && <small>Solo aparecen entidades donde puedes gestionar registros. El área no asigna automáticamente una entidad.</small>}
+                  </label>
                   <label>Responsable
                     <select value={form.responsibleId} onChange={(event) => updateForm("responsibleId", event.target.value)}>
                       <option value="">Sin asignar</option>
@@ -561,7 +601,7 @@ function Planificacion() {
                 </div>
                 <div className="modal-actions">
                   <button type="button" className="secondary-action" onClick={closeModal}>Cancelar</button>
-                  <button type="submit" className="primary-action" disabled={saving}>
+                  <button type="submit" className="primary-action" disabled={saving || (!editingId && (orgUnitsLoading || Boolean(orgUnitsError)))}>
                     {saving ? "Guardando..." : editingId ? "Guardar cambios" : "Abrir propuesta"}
                   </button>
                 </div>

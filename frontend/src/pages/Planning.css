@@ -1265,6 +1265,24 @@
   font-weight: 700;
 }
 
+.proposal-form-grid label small {
+  display: block;
+  margin-top: 6px;
+  color: var(--vera-text-muted);
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.proposal-form-grid label small button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--vera-accent);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+
 .proposal-form-grid input,
 .proposal-form-grid select,
 .proposal-form-grid textarea {

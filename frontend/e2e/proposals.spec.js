@@ -1,6 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { useSession } from "./fixtures.js";
 
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/org-units/available", (route) => route.fulfill({ json: { units: [] } }));
+});
+
 test("HU-22: proposal captures scope, justification and an estimated period", async ({ page }) => {
   await useSession(page, "GERENTE", 3);
   const proposals = [];
@@ -85,4 +89,40 @@ test("HU-11: jefatura can propose and edit only its own open proposal", async ({
   const ownActions = page.getByRole("dialog", { name: "AUD-OWN · Auditoría de inventarios" });
   await expect(ownActions.getByRole("button", { name: "Editar" })).toBeVisible();
   await expect(ownActions.getByRole("button", { name: "Eliminar" })).toHaveCount(0);
+});
+
+test("planning lets a manager select only an authorized entity for a new proposal", async ({ page }) => {
+  await useSession(page, "GERENTE", 3);
+  const firstId = "ORG-11111111-1111-4111-8111-111111111111";
+  const secondId = "ORG-22222222-2222-4222-8222-222222222222";
+  await page.route("**/api/org-units/available", (route) => route.fulfill({ json: { units: [
+    { id: firstId, code: "LE_A", name: "Entidad A", accessLevel: "MANAGE" },
+    { id: secondId, code: "LE_B", name: "Entidad B", accessLevel: "VIEW" }
+  ] } }));
+  await page.route("**/api/planning/auditors", (route) => route.fulfill({ json: { auditors: [] } }));
+  let submitted;
+  await page.route("**/api/planning", (route) => {
+    if (route.request().method() === "POST") {
+      submitted = route.request().postDataJSON();
+      return route.fulfill({ status: 201, json: { proposal: { ...submitted, id: "AUD-700", status: "OPEN" } } });
+    }
+    return route.fulfill({ json: { proposals: [] } });
+  });
+
+  await page.goto("/planificacion");
+  await page.getByRole("button", { name: "Nueva propuesta" }).click();
+  const form = page.locator("form.proposal-modal");
+  const scope = form.getByLabel("Ámbito empresarial");
+  await expect(scope).toBeEnabled();
+  await expect(scope.locator("option")).toHaveCount(2);
+  await scope.selectOption(firstId);
+  await form.getByRole("textbox", { name: "Título de la propuesta" }).fill("Auditoría de entidad A");
+  await form.getByRole("textbox", { name: "Unidad o área" }).fill("Operaciones");
+  await form.getByRole("textbox", { name: "Objetivo" }).fill("Revisar control interno");
+  await form.getByRole("textbox", { name: "Alcance" }).fill("Procesos del trimestre");
+  await form.getByRole("textbox", { name: "Justificación" }).fill("Ejercicio de revisión sintética");
+  await form.getByLabel("Trimestre estimado").selectOption("Q2");
+  await form.getByRole("button", { name: "Abrir propuesta" }).click();
+  await expect(page.getByText("La propuesta fue creada y quedó abierta para revisión.")).toBeVisible();
+  expect(submitted.orgUnitId).toBe(firstId);
 });
