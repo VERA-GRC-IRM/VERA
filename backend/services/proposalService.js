@@ -6,6 +6,7 @@ const { USER_STATUS } = require("../config/accountRules");
 const { classifyRisk } = require("../config/riskRules");
 const { assertWritableRecordScope } = require("./recordScopeVisibility");
 const { scopeForNewRecord } = require("./recordCreationScopeService");
+const { resolveReferencesForUnit } = require("./businessContextService");
 
 const TYPES = ["Interna", "Externa"];
 const RISKS = ["Bajo", "Medio", "Alto"];
@@ -94,13 +95,17 @@ const createProposalForUser = async (user, input, operationId = null) => {
   const { data, error } = await parseProposal(input);
   if (error) throw errorFor(error, 400);
   const orgUnitId = await scopeForNewRecord(user, input.orgUnitId);
-  const scopedData = { ...data, orgUnitId };
+  const businessContextReferences = await resolveReferencesForUnit(user, input.businessContextReferences,
+    orgUnitId, "VERA_PLANNING_STORE");
+  const scopedData = { ...data, orgUnitId, businessContextReferences: businessContextReferences || [] };
   if (await planningRepository.findDuplicate(scopedData)) throw errorFor(DUPLICATE_MESSAGE, 409);
   const proposal = await planningRepository.create({ ...scopedData,
     ...(operationId ? { aiOperationId: operationId } : {}),
     createdBy: { id: user.id, name: user.username } });
   await logActivity({ actor: user, action: "AUDIT_PROPOSAL_CREATED",
-    details: { proposalId: proposal.id, title: proposal.title } });
+    details: { proposalId: proposal.id, title: proposal.title,
+      businessContextReferences: proposal.businessContextReferences.map(({ contextId, revision }) =>
+        ({ contextId, revision })) } });
   return proposal;
 };
 
@@ -128,13 +133,17 @@ const prepareProposalEdit = async (user, id, changes, expectedVersion, expectedV
   }
   const { data, error } = await parseProposal({ ...current, ...changes });
   if (error) throw errorFor(error, 400);
+  const references = await resolveReferencesForUnit(user, changes.businessContextReferences,
+    current.orgUnitId, "VERA_PLANNING_STORE");
   if (await planningRepository.findDuplicate({ ...data, orgUnitId: current.orgUnitId }, current.id)) {
     throw errorFor(DUPLICATE_MESSAGE, 409);
   }
-  if (!Object.keys(changes).some((key) => String(current[key] ?? "") !== String(data[key] ?? ""))) {
+  if (!Object.keys(changes).some((key) => key === "businessContextReferences"
+    ? JSON.stringify(current.businessContextReferences || []) !== JSON.stringify(references || [])
+    : String(current[key] ?? "") !== String(data[key] ?? ""))) {
     throw errorFor("No hay cambios que guardar.", 400);
   }
-  return { current, data };
+  return { current, data: references === undefined ? data : { ...data, businessContextReferences: references } };
 };
 
 const updateProposalForUser = async (user, id, changes, expectedVersion, reason = null, expectedValues = null) => {
@@ -142,7 +151,10 @@ const updateProposalForUser = async (user, id, changes, expectedVersion, reason 
   await assertWritableRecordScope(user, current);
   const proposal = await planningRepository.update(current.id, data, current.storageVersion);
   await logActivity({ actor: user, action: "AUDIT_PROPOSAL_UPDATED",
-    details: { proposalId: proposal.id, title: proposal.title, ...(reason ? { reason } : {}) } });
+    details: { proposalId: proposal.id, title: proposal.title,
+      ...(changes.businessContextReferences !== undefined ? { businessContextReferences:
+        proposal.businessContextReferences.map(({ contextId, revision }) => ({ contextId, revision })) } : {}),
+      ...(reason ? { reason } : {}) } });
   return proposal;
 };
 

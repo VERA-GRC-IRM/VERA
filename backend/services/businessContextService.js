@@ -128,16 +128,17 @@ const revisionsForUser = async (user, contextId) => {
   return visibleVersions;
 };
 
-const resolveReferencesForUnit = async (user, references, orgUnitId) => {
+const resolveReferencesForUnit = async (user, references, orgUnitId,
+  persistentRecordStore = "VERA_RISK_CONTROL_STORE") => {
   if (references === undefined) return undefined;
   if (!Array.isArray(references) || references.length > 12) {
     throw errorFor("Selecciona hasta 12 elementos del mapa del negocio.", 400);
   }
   if (!references.length) return [];
-  if (!orgUnitId) throw errorFor("Asigna primero un ámbito empresarial al riesgo.", 400);
-  if (process.env.VERA_RISK_CONTROL_STORE === "supabase" &&
+  if (!orgUnitId) throw errorFor("Asigna primero un ámbito empresarial al expediente.", 400);
+  if (process.env[persistentRecordStore] === "supabase" &&
       process.env.VERA_BUSINESS_CONTEXT_STORE !== "supabase") {
-    throw errorFor("El mapa del negocio debe tener persistencia activa para vincularlo con riesgos.", 409);
+    throw errorFor("El mapa del negocio debe tener persistencia activa para vincularlo con expedientes.", 409);
   }
   const [records, scopes] = await Promise.all([repository.getAll(), availableScopesFor(user)]);
   if (!scopes.some((scope) => scope.id === orgUnitId)) throw errorFor("El ámbito ya no está disponible.", 404);
@@ -151,7 +152,7 @@ const resolveReferencesForUnit = async (user, references, orgUnitId) => {
     selected.add(contextId);
     const record = records.find((item) => item.contextId === contextId && item.revision === revision &&
       item.status === "ACTIVE" && item.unitIds.includes(orgUnitId));
-    if (!record) throw errorFor("Un elemento del mapa no está vigente o no aplica al ámbito del riesgo.", 400);
+    if (!record) throw errorFor("Un elemento del mapa no está vigente o no aplica al ámbito del expediente.", 400);
     return { contextId, revision, kind: record.kind, code: record.code, name: record.name };
   });
 };

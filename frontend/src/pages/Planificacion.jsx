@@ -3,6 +3,7 @@ import { Check, ClipboardList, MoreHorizontal, Pencil, Plus, Trash2, X, XCircle 
 import Sidebar from "../components/Sidebar";
 import PlanningHistoryButton from "../components/PlanningHistoryButton";
 import { getAvailableOrgUnits } from "../services/orgUnitService";
+import { getBusinessContext } from "../services/businessContextService";
 import {
   approveAuditProposal,
   createAuditProposal,
@@ -26,6 +27,7 @@ const EMPTY_FORM = {
   title: "",
   area: "",
   orgUnitId: "",
+  businessContextReferences: [],
   responsibleId: "",
   type: "Interna",
   likelihood: 2,
@@ -51,6 +53,8 @@ function Planificacion() {
   const [items, setItems] = useState([]);
   const [auditors, setAuditors] = useState([]);
   const [orgUnits, setOrgUnits] = useState([]);
+  const [businessContexts, setBusinessContexts] = useState([]);
+  const [businessContextError, setBusinessContextError] = useState("");
   const [orgUnitsLoading, setOrgUnitsLoading] = useState(true);
   const [orgUnitsError, setOrgUnitsError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -74,6 +78,11 @@ function Planificacion() {
       .then(setOrgUnits)
       .catch((err) => setOrgUnitsError(err.message))
       .finally(() => setOrgUnitsLoading(false));
+  };
+  const loadBusinessContexts = () => {
+    setBusinessContextError("");
+    return getBusinessContext().then(setBusinessContexts)
+      .catch((err) => setBusinessContextError(err.message));
   };
 
   const loadItems = async () => {
@@ -99,6 +108,7 @@ function Planificacion() {
       .then(setOrgUnits)
       .catch((err) => setOrgUnitsError(err.message))
       .finally(() => setOrgUnitsLoading(false));
+    getBusinessContext().then(setBusinessContexts).catch((err) => setBusinessContextError(err.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -133,6 +143,22 @@ function Planificacion() {
   const updateForm = (field, value) => setForm({ ...form, [field]: value });
   const orgUnitName = (id) => orgUnits.find((unit) => unit.id === id)?.name || "Entidad asignada";
   const manageableUnits = orgUnits.filter((unit) => unit.accessLevel === "MANAGE");
+  const contextChoices = businessContexts.filter((record) =>
+    form.orgUnitId && record.unitIds.includes(form.orgUnitId));
+  const selectedWithoutCurrentChoice = (form.businessContextReferences || []).filter((reference) =>
+    !contextChoices.some((record) => record.contextId === reference.contextId));
+  const toggleBusinessContext = (record) => setForm((current) => {
+    const selected = current.businessContextReferences || [];
+    const already = selected.some((reference) => reference.contextId === record.contextId);
+    return { ...current, businessContextReferences: already
+      ? selected.filter((reference) => reference.contextId !== record.contextId)
+      : [...selected, { contextId: record.contextId, revision: record.revision,
+        kind: record.kind, code: record.code, name: record.name }] };
+  });
+  const updateBusinessContextVersion = (record) => setForm((current) => ({ ...current,
+    businessContextReferences: current.businessContextReferences.map((reference) =>
+      reference.contextId === record.contextId ? { contextId: record.contextId, revision: record.revision,
+        kind: record.kind, code: record.code, name: record.name } : reference) }));
 
   const openCreate = () => {
     setEditingId(null);
@@ -148,6 +174,7 @@ function Planificacion() {
       title: item.title,
       area: item.area,
       orgUnitId: item.orgUnitId || "",
+      businessContextReferences: item.businessContextReferences || [],
       responsibleId: item.responsibleId ?? "",
       type: item.type,
       likelihood: item.likelihood ?? 2,
@@ -383,6 +410,17 @@ function Planificacion() {
                 </section>
 
                 <section className="details-section">
+                  <h3>Contexto del negocio vinculado</h3>
+                  {detailItem.businessContextReferences?.length ? <ul className="planning-context-links">
+                    {detailItem.businessContextReferences.map((reference) => <li key={reference.contextId}>
+                      <a href={`/mapa-negocio?context=${encodeURIComponent(reference.contextId)}&revision=${reference.revision}`}>
+                        {reference.code} · {reference.name} · versión {reference.revision}
+                      </a>
+                    </li>)}
+                  </ul> : <p className="details-long-text">No se vinculó todavía un proceso, servicio u objetivo del mapa.</p>}
+                </section>
+
+                <section className="details-section">
                   <h3>Alcance de la auditoría</h3>
                   <p className="details-long-text">{detailItem.scope || "Sin alcance registrado."}</p>
                 </section>
@@ -540,7 +578,8 @@ function Planificacion() {
                     {editingId ? (
                       <input readOnly value={form.orgUnitId ? orgUnitName(form.orgUnitId) : "Sin asignar"} />
                     ) : (
-                      <select value={form.orgUnitId} onChange={(event) => updateForm("orgUnitId", event.target.value)}
+                      <select value={form.orgUnitId} onChange={(event) => setForm((current) => ({ ...current,
+                        orgUnitId: event.target.value, businessContextReferences: [] }))}
                         disabled={orgUnitsLoading || Boolean(orgUnitsError)}>
                         <option value="">Sin asignar todavía</option>
                         {manageableUnits.map((unit) => (
@@ -551,6 +590,29 @@ function Planificacion() {
                     {orgUnitsError && <small role="status">No se pudieron consultar las entidades. <button type="button" onClick={loadOrgUnits}>Reintentar</button></small>}
                     {!editingId && !orgUnitsError && <small>Solo aparecen entidades donde puedes gestionar registros. El área no asigna automáticamente una entidad.</small>}
                   </label>
+                  <fieldset className="full-width planning-context-fieldset">
+                    <legend>Procesos, servicios y objetivos vinculados (opcional)</legend>
+                    <p>Selecciona conceptos del mismo ámbito. La propuesta conserva la versión elegida; esto no cambia su prioridad ni aprobación.</p>
+                    {businessContextError && <p role="status">Mapa no disponible: {businessContextError} <button type="button" onClick={loadBusinessContexts}>Reintentar</button></p>}
+                    {!form.orgUnitId && <p>Selecciona primero un ámbito empresarial.</p>}
+                    {form.orgUnitId && !businessContextError && contextChoices.length === 0 && selectedWithoutCurrentChoice.length === 0 &&
+                      <p>No hay conceptos del mapa en este ámbito.</p>}
+                    {contextChoices.map((record) => {
+                      const selected = form.businessContextReferences.find((reference) => reference.contextId === record.contextId);
+                      return <div key={record.contextId} className="planning-context-choice">
+                        <label><input type="checkbox" checked={Boolean(selected)}
+                          disabled={!selected && form.businessContextReferences.length >= 12}
+                          onChange={() => toggleBusinessContext(record)} />
+                          {record.code} · {record.name} · versión {selected?.revision || record.revision}</label>
+                        {selected && selected.revision !== record.revision && <button type="button"
+                          onClick={() => updateBusinessContextVersion(record)}>Usar versión actual {record.revision}</button>}
+                      </div>;
+                    })}
+                    {selectedWithoutCurrentChoice.map((reference) => <label key={reference.contextId} className="planning-context-choice">
+                      <input type="checkbox" checked onChange={() => toggleBusinessContext(reference)} />
+                      {reference.code} · {reference.name} · versión histórica {reference.revision}
+                    </label>)}
+                  </fieldset>
                   <label>Responsable
                     <select value={form.responsibleId} onChange={(event) => updateForm("responsibleId", event.target.value)}>
                       <option value="">Sin asignar</option>

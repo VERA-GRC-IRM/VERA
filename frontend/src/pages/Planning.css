@@ -1708,3 +1708,12 @@
     grid-template-columns: 1fr;
   }
 }
+.planning-context-fieldset { grid-column: 1 / -1; display: grid; gap: .55rem; margin: 0; padding: .9rem 1rem; border: 1px solid var(--vera-border); border-radius: 10px; }
+.planning-context-fieldset legend { padding: 0 .25rem; color: var(--vera-text-strong); font-weight: 700; }
+.planning-context-fieldset p { margin: 0; color: var(--vera-text-muted); font-size: .85rem; line-height: 1.5; }
+.planning-context-choice { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; min-height: 36px; color: var(--vera-text); }
+.planning-context-choice label { display: inline-flex; align-items: center; gap: .4rem; }
+.planning-context-choice input { width: 18px; height: 18px; accent-color: var(--vera-accent); }
+.planning-context-choice button { min-height: 36px; padding: .35rem .55rem; border: 1px solid var(--vera-border); border-radius: 8px; background: var(--vera-surface); color: var(--vera-accent); font: inherit; cursor: pointer; }
+.planning-context-links { margin: .3rem 0 0; padding-left: 1.2rem; line-height: 1.8; }
+.planning-context-links a { color: var(--vera-accent); text-underline-offset: 2px; }
