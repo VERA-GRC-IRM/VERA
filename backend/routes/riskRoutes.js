@@ -3,7 +3,7 @@ const router = express.Router();
 const { verifyToken } = require("../middleware/authMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
 const { RISK_CONTROL_MANAGE_ROLES, ROLES } = require("../config/roles");
-const { listRisks, listOwners, createRisk, updateRisk, evaluateRisk } = require("../controllers/riskController");
+const { listRisks, listOwners, createRisk, updateRisk, evaluateRisk, proposeResponse } = require("../controllers/riskController");
 const { LEGACY_RISK_METHOD } = require("../config/riskMethods");
 const { previewQualitativeMethod } = require("../services/riskMethodPreviewService");
 const methodCatalog = require("../services/riskMethodCatalogService");
@@ -37,5 +37,6 @@ router.get("/owners", verifyToken, allowRoles(...RISK_CONTROL_MANAGE_ROLES), lis
 router.post("/", verifyToken, allowRoles(...RISK_CONTROL_MANAGE_ROLES), createRisk);
 router.put("/:id", verifyToken, allowRoles(...RISK_CONTROL_MANAGE_ROLES), updateRisk);
 router.post("/:id/evaluate", verifyToken, allowRoles(...RISK_CONTROL_MANAGE_ROLES), evaluateRisk);
+router.post("/:id/response", verifyToken, allowRoles(...RISK_CONTROL_MANAGE_ROLES), proposeResponse);
 
 module.exports = router;

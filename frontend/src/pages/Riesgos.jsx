@@ -4,7 +4,7 @@ import { Activity, Bot, ClipboardCheck, Pencil, Plus, ShieldAlert, X } from "luc
 import Sidebar from "../components/Sidebar";
 import AssistantDrawer from "../components/AssistantDrawer";
 import { RISK_CONTROL_MANAGE_ROLES } from "../constants/planning";
-import { createRisk, evaluateRisk, getRiskOwners, getRisks, updateRisk } from "../services/riskService";
+import { createRisk, evaluateRisk, getRiskOwners, getRisks, proposeRiskResponse, updateRisk } from "../services/riskService";
 import { getPlanningAudits } from "../services/planningService";
 import { getAvailableOrgUnits } from "../services/orgUnitService";
 import { getRiskLibrary } from "../services/riskLibraryService";
@@ -13,6 +13,8 @@ import "./Riesgos.css";
 
 const EMPTY = { title: "", description: "", area: "", orgUnitId: "", ownerId: "", responsePlan: "", linkedAuditId: "", templateId: "", templateRevision: null, businessContextReferences: [], likelihood: 2, impact: 2, note: "" };
 const levelFor = (score) => score <= 2 ? "Bajo" : score <= 4 ? "Medio" : "Alto";
+const RESPONSE_LABELS = { AVOID: "Evitar", REDUCE: "Reducir", TRANSFER: "Transferir", ACCEPT: "Aceptar" };
+const EMPTY_RESPONSE = { strategy: "REDUCE", rationale: "", actions: "", ownerId: "", reviewDate: "" };
 const dateLabel = (value) => new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
 const filtersFromQuery = (query) => {
   const params = new URLSearchParams(query);
@@ -47,6 +49,8 @@ function Riesgos() {
   const [form, setForm] = useState(EMPTY);
   const [editing, setEditing] = useState(null);
   const [assessing, setAssessing] = useState(null);
+  const [responding, setResponding] = useState(null);
+  const [responseForm, setResponseForm] = useState(EMPTY_RESPONSE);
   const [modal, setModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -158,6 +162,17 @@ function Riesgos() {
     finally { setSaving(false); }
   };
   const startAssessment = (risk) => { setAssessing(risk); setEditing(null); setForm({ likelihood: risk.likelihood, impact: risk.impact, note: "" }); setError(""); setModal(true); };
+  const startResponse = (risk) => {
+    setResponding(risk); setResponseForm({ ...EMPTY_RESPONSE, ownerId: String(risk.ownerId) }); setError("");
+  };
+  const submitResponse = async (event) => {
+    event.preventDefault(); setSaving(true); setError("");
+    try {
+      await proposeRiskResponse(responding.id, { ...responseForm, expectedRevision: responding.responseDecisions?.length || 0 });
+      await refresh(); setResponding(null); setMessage("Estrategia propuesta y registrada en el historial.");
+    } catch (cause) { setError(cause.message); }
+    finally { setSaving(false); }
+  };
   const closeModal = () => { setModal(false); setAssessing(null); setEditing(null); setError(""); };
 
   return <div className="dashboard-layout">
@@ -187,9 +202,18 @@ function Riesgos() {
               <div className="risk-record-meta"><span><b>Área:</b> {risk.area}</span>{risk.orgUnitId && <span><b>Entidad:</b> {orgUnitName(risk.orgUnitId)}</span>}<span><b>Responsable:</b> {risk.ownerName}</span><span><b>Estado:</b> Abierto</span><span><b>Evaluaciones:</b> {risk.evaluations.length}</span>{risk.templateReference && <span><b>Escenario de origen:</b> {risk.templateReference.title} · versión {risk.templateReference.revision}</span>}{risk.linkedAuditId && <span><b>Auditoría vinculada:</b> {audits.some((audit) => audit.id === risk.linkedAuditId && audit.status === "ACTIVE") ? <a href={`/auditorias-activas#audit-${encodeURIComponent(risk.linkedAuditId)}`}>{risk.linkedAuditId}</a> : risk.linkedAuditId}</span>}</div>
               {risk.businessContextReferences?.length > 0 && <div className="risk-context-references"><b>Contexto del negocio:</b> {risk.businessContextReferences.map((reference) => <a key={reference.contextId} href={`/mapa-negocio?context=${encodeURIComponent(reference.contextId)}&revision=${reference.revision}`}>{reference.name} · v{reference.revision}</a>)}</div>}
               {risk.responsePlan && <p className="risk-plan"><b>Plan de respuesta:</b> {risk.responsePlan}</p>}
+              {risk.responseDecisions?.length > 0 && <div className="risk-response-summary">
+                <p><b>Estrategia propuesta:</b> {RESPONSE_LABELS[risk.responseDecisions.at(-1).strategy]} · {risk.responseDecisions.at(-1).ownerName} · revisión {risk.responseDecisions.at(-1).reviewDate}</p>
+                <p>{risk.responseDecisions.at(-1).actions}</p>
+                <small>Propuesta pendiente de decisión formal. No equivale a aceptar riesgo ni a medir riesgo residual.</small>
+                <details><summary>Historial de estrategias ({risk.responseDecisions.length})</summary><ol>{[...risk.responseDecisions].reverse().map((decision) => <li key={decision.revision}>
+                  <b>Revisión {decision.revision} · {RESPONSE_LABELS[decision.strategy]}</b><p>{decision.rationale}</p><p>{decision.actions}</p>
+                  <small>{decision.proposedBy?.name || "Usuario"} · {dateLabel(decision.proposedAt)} · Responsable: {decision.ownerName} · Revisión: {decision.reviewDate}</small>
+                </li>)}</ol></details>
+              </div>}
               <details className="risk-history"><summary><Activity size={15} /> Historial de evaluación ({risk.evaluations.length})</summary><ol>{[...risk.evaluations].reverse().map((evaluation) => <li key={evaluation.version}><div><b>Versión {evaluation.version}</b><span className={`risk-badge risk-${evaluation.level.toLowerCase()}`}>{evaluation.level} · {evaluation.score}/9</span></div><p>{evaluation.note}</p><small>{evaluation.assessedBy?.name || "Usuario"} · {dateLabel(evaluation.assessedAt)} · Probabilidad {evaluation.likelihood}, impacto {evaluation.impact}</small></li>)}</ol></details>
             </div>
-            <div className="risk-record-actions"><button type="button" onClick={() => setAssistantFocus({ type: "risk", id: risk.id, title: risk.title })}><Bot size={15} /> Analizar con IA</button>{canManage && <><button onClick={() => startEdit(risk)}><Pencil size={15} /> Editar</button><button onClick={() => startAssessment(risk)}><ClipboardCheck size={15} /> Reevaluar</button></>}</div>
+            <div className="risk-record-actions"><button type="button" onClick={() => setAssistantFocus({ type: "risk", id: risk.id, title: risk.title })}><Bot size={15} /> Analizar con IA</button>{canManage && <><button onClick={() => startEdit(risk)}><Pencil size={15} /> Editar</button><button onClick={() => startAssessment(risk)}><ClipboardCheck size={15} /> Reevaluar</button><button onClick={() => startResponse(risk)}>Definir estrategia</button></>}</div>
           </article>)}</div>}
       </section>
     </main>
@@ -244,6 +268,28 @@ function Riesgos() {
       </div>
       <div className="modal-actions"><button type="button" className="secondary-action" onClick={closeModal}>Cancelar</button><button type="submit" className="primary-action" disabled={saving || (!editing && !assessing && (orgUnitsLoading || Boolean(orgUnitsError)))}>{saving ? "Guardando..." : assessing ? "Guardar evaluación" : editing ? "Guardar cambios" : "Crear riesgo"}</button></div>
     </form></div>}
+    {responding && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setResponding(null); }}>
+      <form className="proposal-modal risk-modal" onSubmit={submitResponse}>
+        <div className="modal-header"><div><span className="eyebrow">RESPUESTA AL RIESGO · {responding.id}</span><h2>Proponer estrategia</h2>
+          <p>Documenta una propuesta; la aprobación formal y el cálculo residual se gestionan por separado.</p></div>
+          <button type="button" className="modal-close" onClick={() => setResponding(null)} aria-label="Cerrar"><X size={20} /></button></div>
+        {error && <p className="risk-feedback error" role="alert">{error}</p>}
+        <div className="proposal-form-grid">
+          <label>Estrategia<select value={responseForm.strategy} onChange={(event) => setResponseForm({ ...responseForm, strategy: event.target.value })}>
+            {Object.entries(RESPONSE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label>Responsable de la propuesta<select required value={responseForm.ownerId} onChange={(event) => setResponseForm({ ...responseForm, ownerId: event.target.value })}>
+            <option value="">Seleccionar</option>{owners.map((owner) => <option key={owner.id} value={owner.id}>{owner.name} · {owner.role}</option>)}</select></label>
+          <label>Fecha de revisión<input required type="date" min={new Date().toISOString().slice(0, 10)} value={responseForm.reviewDate}
+            onChange={(event) => setResponseForm({ ...responseForm, reviewDate: event.target.value })} /></label>
+          <label className="full-width">Motivo<textarea required minLength="20" maxLength="1000" value={responseForm.rationale}
+            onChange={(event) => setResponseForm({ ...responseForm, rationale: event.target.value })} /></label>
+          <label className="full-width">Acciones o condiciones<textarea required minLength="10" maxLength="2000" value={responseForm.actions}
+            onChange={(event) => setResponseForm({ ...responseForm, actions: event.target.value })} /></label>
+        </div>
+        <div className="modal-actions"><button type="button" className="secondary-action" onClick={() => setResponding(null)}>Cancelar</button>
+          <button type="submit" className="primary-action" disabled={saving}>{saving ? "Guardando…" : "Guardar propuesta"}</button></div>
+      </form>
+    </div>}
   </div>;
 }
 

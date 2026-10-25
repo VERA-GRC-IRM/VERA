@@ -21,3 +21,5 @@ export const getRiskOwners = async () => (await request("/owners")).owners;
 export const createRisk = async (risk) => (await request("/", { method: "POST", body: JSON.stringify(risk) })).risk;
 export const updateRisk = async (id, risk) => (await request(`/${id}`, { method: "PUT", body: JSON.stringify(risk) })).risk;
 export const evaluateRisk = async (id, assessment) => (await request(`/${id}/evaluate`, { method: "POST", body: JSON.stringify(assessment) })).risk;
+export const proposeRiskResponse = async (id, proposal) =>
+  (await request(`/${encodeURIComponent(id)}/response`, { method: "POST", body: JSON.stringify(proposal) })).risk;

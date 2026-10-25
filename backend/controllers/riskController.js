@@ -1,6 +1,7 @@
 const riskRepository = require("../repositories/riskRepository");
 const planningRepository = require("../repositories/planningRepository");
 const { evaluateRiskForUser } = require("../services/riskEvaluationService");
+const { proposeResponseForUser } = require("../services/riskResponseService");
 const { activeUsers, createRiskForUser } = require("../services/riskCreationService");
 const { updateCoreForUser } = require("../services/recordEditService");
 const { normalizeArea } = require("../utils/normalizeArea");
@@ -48,4 +49,12 @@ const evaluateRisk = async (req, res) => {
   catch (error) { res.status(error.status || 502).json({ message: error.status ? error.message : "No se pudo evaluar el riesgo." }); }
 };
 
-module.exports = { listRisks, listOwners, createRisk, updateRisk, evaluateRisk };
+const proposeResponse = async (req, res) => {
+  try { return res.json({ risk: await proposeResponseForUser(req.user, req.params.id, req.body) }); }
+  catch (error) {
+    if ([400, 403, 404, 409].includes(error.status)) return res.status(error.status).json({ message: error.message });
+    throw error;
+  }
+};
+
+module.exports = { listRisks, listOwners, createRisk, updateRisk, evaluateRisk, proposeResponse };

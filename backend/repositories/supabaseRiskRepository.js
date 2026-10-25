@@ -51,8 +51,20 @@ const evaluate = async (id, { likelihood, impact, score, level, note,
   }, expectedVersion ?? current.storageVersion));
 };
 
+const recordResponse = async (id, proposal, expectedRevision, expectedVersion) => {
+  const current = await store.findById(id);
+  if (!current) return null;
+  if ((current.responseDecisions || []).length !== expectedRevision ||
+      current.storageVersion !== expectedVersion) {
+    throw Object.assign(new Error("La respuesta cambió. Actualiza el riesgo antes de guardar."), { status: 409 });
+  }
+  return presentRiskMethod(await store.mutate(id, {
+    responseDecisions: [...(current.responseDecisions || []), proposal]
+  }, current.storageVersion));
+};
+
 module.exports = {
   getAll: async () => (await store.getAll()).map(presentRiskMethod),
   findById: async (id) => presentRiskMethod(await store.findById(id)),
-  findDuplicate, create, update, evaluate
+  findDuplicate, create, update, evaluate, recordResponse
 };

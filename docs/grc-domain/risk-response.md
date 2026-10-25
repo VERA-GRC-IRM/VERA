@@ -1,0 +1,7 @@
+# Estrategia de respuesta al riesgo
+
+Una persona con permiso para gestionar el riesgo (`SUPER_ADMIN` o `GERENTE`, más acceso de escritura a su ámbito y auditoría vinculada) puede registrar una **propuesta** de estrategia: evitar, reducir, transferir o aceptar. Cada propuesta incluye motivo, acciones o condiciones, responsable activo con acceso al riesgo, fecha futura de revisión, actor y fecha de registro. La API comprueba el registro concreto; ocultar el botón en la interfaz no concede permisos.
+
+La interfaz muestra la estrategia actual y todo el historial. `POST /api/risks/:id/response` exige `expectedRevision` para rechazar una pantalla desactualizada; Supabase utiliza además la versión del documento para evitar perder una escritura concurrente. El almacén usa el JSONB del riesgo existente, por lo que no necesita una tabla ni migración nueva. Las propuestas anteriores quedan en `responseDecisions` y no se reescriben. El campo histórico de texto libre `responsePlan` permanece compatible y visible.
+
+El estado de cada decisión es `PROPOSED`. Incluso si el tipo es `ACCEPT`, **no constituye aceptación formal**, excepción aprobada, transferencia contractual, mitigación ejecutada ni cálculo de riesgo residual. Esos pasos requieren un flujo de autoridad, evidencia y criterios de negocio todavía no definidos. Una propuesta tampoco altera la clasificación histórica 3×3 ni las evaluaciones previas. No se atribuyen umbrales ni políticas a FEMSA.
