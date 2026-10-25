@@ -1,6 +1,7 @@
 const service = require("../services/businessContextService");
 
 const list = async (req, res) => res.json({ records: await service.listForUser(req.user) });
+const owners = async (req, res) => res.json({ owners: await service.listOwnersForUser(req.user) });
 const revisions = async (req, res) => {
   try { res.json({ records: await service.revisionsForUser(req.user, req.params.id) }); }
   catch (error) {
@@ -23,4 +24,4 @@ const publishRevision = async (req, res) => {
   }
 };
 
-module.exports = { list, revisions, create, publishRevision };
+module.exports = { list, owners, revisions, create, publishRevision };

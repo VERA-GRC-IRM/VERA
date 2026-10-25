@@ -3,6 +3,8 @@ const repository = require("../repositories/businessContextRepository");
 const { availableScopesFor } = require("./scopeAccessService");
 const { logActivity } = require("./auditLogger");
 const { ROLES } = require("../config/roles");
+const userRepository = require("../repositories/userRepository");
+const { USER_STATUS } = require("../config/accountRules");
 
 const KINDS = Object.freeze(["PROCESS", "SERVICE", "OBJECTIVE"]);
 const RELATIONS = Object.freeze({
@@ -35,6 +37,25 @@ const definitionFrom = (input) => {
     throw errorFor("Selecciona de 1 a 20 unidades distintas.", 400);
   }
   return { name, description, sourceNote, effectiveFrom, effectiveTo, unitIds: [...input.unitIds] };
+};
+const listOwnersForUser = async (user) => {
+  if (user.role !== ROLES.SUPER_ADMIN) throw errorFor("Tu rol no puede asignar responsables del catálogo.", 403);
+  return (await userRepository.getAll()).filter((candidate) => candidate.status === USER_STATUS.ACTIVE)
+    .map(({ id, name, role }) => ({ id, name, role }))
+    .sort((a, b) => a.name.localeCompare(b.name, "es"));
+};
+const resolveOwner = async (ownerId, unitIds) => {
+  if (ownerId === undefined || ownerId === null || ownerId === "") return { ownerId: null, ownerName: null };
+  const id = Number(ownerId);
+  if (!Number.isSafeInteger(id) || id < 1) throw errorFor("Selecciona una persona responsable activa.", 400);
+  const owner = (await userRepository.getAll()).find((candidate) =>
+    candidate.id === id && candidate.status === USER_STATUS.ACTIVE);
+  if (!owner) throw errorFor("La persona responsable ya no tiene una cuenta activa.", 400);
+  const allowed = new Set((await availableScopesFor(owner)).map((scope) => scope.id));
+  if (unitIds.some((unitId) => !allowed.has(unitId))) {
+    throw errorFor("La persona responsable debe poder consultar todas las unidades vinculadas.", 400);
+  }
+  return { ownerId: owner.id, ownerName: owner.name };
 };
 const assertAvailableUnits = async (user, unitIds) => {
   const available = new Set((await availableScopesFor(user)).map((scope) => scope.id));
@@ -144,16 +165,17 @@ const createForUser = async (user, input) => {
   if (!/^[A-Z0-9][A-Z0-9_-]{1,31}$/.test(code)) throw errorFor("El código debe tener 2 a 32 caracteres válidos.", 400);
   const definition = definitionFrom(input);
   await assertAvailableUnits(user, definition.unitIds);
+  const owner = await resolveOwner(input.ownerId, definition.unitIds);
   if (await repository.findByCode(kind, code)) throw errorFor("Ya existe ese código para el tipo elegido.", 409);
   const contextId = `CTX-${randomUUID()}`;
   const relationships = await resolveRelationships(input.relationships, kind, contextId, definition.unitIds);
   const record = await repository.create({
-    id: `${contextId}:1`, contextId, revision: 1, kind, code, ...definition, relationships,
+    id: `${contextId}:1`, contextId, revision: 1, kind, code, ...definition, ...owner, relationships,
     status: "ACTIVE", createdAt: new Date().toISOString(),
     createdBy: { id: user.id, username: user.username }
   });
   await logActivity({ actor: user, action: "BUSINESS_CONTEXT_CREATED",
-    details: { contextId, kind, code, unitIds: record.unitIds } });
+    details: { contextId, kind, code, unitIds: record.unitIds, ownerId: record.ownerId } });
   return record;
 };
 
@@ -173,20 +195,22 @@ const publishRevisionForUser = async (user, contextId, input) => {
   if (definition.effectiveFrom < latest.effectiveFrom) {
     throw errorFor("La nueva versión no puede iniciar antes que la anterior.", 400);
   }
+  const owner = await resolveOwner(input.ownerId === undefined ? latest.ownerId : input.ownerId, definition.unitIds);
   const relationships = await resolveRelationships(input.relationships === undefined
     ? (latest.relationships || []).map(({ relationType, targetContextId, targetRevision, rationale }) =>
       ({ relationType, targetContextId, targetRevision, rationale })) : input.relationships,
   latest.kind, contextId, definition.unitIds);
   const record = await repository.create({
     id: `${contextId}:${latest.revision + 1}`, contextId, revision: latest.revision + 1,
-    kind: latest.kind, code: latest.code, ...definition, relationships, changeReason: reason,
+    kind: latest.kind, code: latest.code, ...definition, ...owner, relationships, changeReason: reason,
     status: "ACTIVE", createdAt: new Date().toISOString(),
     createdBy: { id: user.id, username: user.username }
   });
   await logActivity({ actor: user, action: "BUSINESS_CONTEXT_REVISED",
-    details: { contextId, revision: record.revision, kind: record.kind, code: record.code, changeReason: reason } });
+    details: { contextId, revision: record.revision, kind: record.kind, code: record.code,
+      ownerId: record.ownerId, changeReason: reason } });
   return record;
 };
 
-module.exports = { KINDS, RELATIONS, listForUser, revisionsForUser,
+module.exports = { KINDS, RELATIONS, listForUser, listOwnersForUser, revisionsForUser,
   createForUser, publishRevisionForUser, resolveReferencesForUnit };

@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Building2, CalendarDays, Network, Plus, Search } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import { createOrgUnit, getAvailableOrgUnits } from "../services/orgUnitService";
-import { createBusinessContext, getBusinessContext, getBusinessContextRevisions,
+import { createBusinessContext, getBusinessContext, getBusinessContextOwners, getBusinessContextRevisions,
   publishBusinessContextRevision } from "../services/businessContextService";
 import "./BusinessContext.css";
 
@@ -15,7 +15,7 @@ const RELATION_LABELS = { DELIVERS_SERVICE: "Entrega servicio", SUPPORTS_OBJECTI
 const UNIT_LABELS = { GROUP: "Grupo", LEGAL_ENTITY: "Empresa", BUSINESS_UNIT: "Unidad", SITE: "Sitio" };
 const PARENTS = { GROUP: [], LEGAL_ENTITY: ["GROUP", "LEGAL_ENTITY"], BUSINESS_UNIT: ["LEGAL_ENTITY", "BUSINESS_UNIT"], SITE: ["LEGAL_ENTITY", "BUSINESS_UNIT"] };
 const today = () => new Date().toISOString().slice(0, 10);
-const newRecord = () => ({ kind: "PROCESS", code: "", name: "", description: "", sourceNote: "", effectiveFrom: today(), effectiveTo: "", unitIds: [], relationships: [] });
+const newRecord = () => ({ kind: "PROCESS", code: "", name: "", description: "", sourceNote: "", ownerId: "", effectiveFrom: today(), effectiveTo: "", unitIds: [], relationships: [] });
 const newUnit = () => ({ kind: "GROUP", code: "", name: "", parentId: "", effectiveFrom: today(), externalReference: "" });
 
 function BusinessContext() {
@@ -26,6 +26,7 @@ function BusinessContext() {
   const canPublish = user?.role === "SUPER_ADMIN";
   const [records, setRecords] = useState([]);
   const [units, setUnits] = useState([]);
+  const [owners, setOwners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -52,6 +53,10 @@ function BusinessContext() {
       .catch((cause) => setError(cause.message))
       .finally(() => setLoading(false));
   }, []);
+  useEffect(() => {
+    if (!canPublish) return;
+    getBusinessContextOwners().then(setOwners).catch((cause) => setError(cause.message));
+  }, [canPublish]);
   useEffect(() => {
     if (openForm === "revision") revisionHeading.current?.focus();
   }, [openForm]);
@@ -104,6 +109,7 @@ function BusinessContext() {
     setRevisionTarget(record);
     setRecordForm({ kind: record.kind, code: record.code, name: record.name,
       description: record.description, sourceNote: record.sourceNote || "",
+      ownerId: record.ownerId ? String(record.ownerId) : "",
       effectiveFrom: record.effectiveFrom, effectiveTo: record.effectiveTo || "",
       unitIds: [...record.unitIds], relationships: [...(record.relationships || [])], changeReason: "" });
     setOpenForm("revision"); setError(""); setNotice("");
@@ -193,6 +199,10 @@ function BusinessContext() {
             <label>Código<input required maxLength={32} pattern="[A-Za-z0-9][A-Za-z0-9_-]{1,31}" readOnly={Boolean(revisionTarget)} value={recordForm.code} onChange={(event) => changeRecord("code", event.target.value)} /></label>
             <label className="wide">Nombre<input required minLength={3} maxLength={120} value={recordForm.name} onChange={(event) => changeRecord("name", event.target.value)} /></label>
             <label className="wide">Descripción<textarea required minLength={10} maxLength={2000} value={recordForm.description} onChange={(event) => changeRecord("description", event.target.value)} /></label>
+            <label className="wide">Persona responsable (opcional)<select value={recordForm.ownerId} onChange={(event) => changeRecord("ownerId", event.target.value)}>
+              <option value="">Sin asignar hasta confirmar titular</option>
+              {owners.map((owner) => <option key={owner.id} value={owner.id}>{owner.name} · {owner.role}</option>)}
+            </select><small>Si se asigna, la persona debe poder consultar todas las unidades seleccionadas. Esto no cambia sus permisos.</small></label>
             <label>Vigente desde<input required type="date" value={recordForm.effectiveFrom} onChange={(event) => changeRecord("effectiveFrom", event.target.value)} /></label>
             <label>Vigente hasta (opcional)<input type="date" min={recordForm.effectiveFrom} value={recordForm.effectiveTo} onChange={(event) => changeRecord("effectiveTo", event.target.value)} /></label>
             <label className="wide">Fuente o referencia (opcional)<input maxLength={500} value={recordForm.sourceNote} onChange={(event) => changeRecord("sourceNote", event.target.value)} /></label>
@@ -234,6 +244,7 @@ function BusinessContext() {
           : <div className="business-context-list">{visible.map((record) => <article key={record.contextId} className="business-context-card">
             <div className="business-context-card-head"><Network size={20} aria-hidden="true" /><span>{record.code} · {KIND_LABELS[record.kind].slice(0, -1)} · versión {record.revision}</span></div>
             <h2>{record.name}</h2><p>{record.description}</p>
+            <p className="business-context-owner"><strong>Responsable:</strong> {record.ownerName || "Sin asignar en esta versión"}</p>
             <div className="business-context-unit-list" aria-label="Ámbitos visibles">
               {record.unitIds.map((id) => <span key={id}>{unitNames.get(id) || "Unidad disponible"}</span>)}
             </div>
@@ -251,6 +262,7 @@ function BusinessContext() {
                 {histories[record.contextId]?.items && <ol>{histories[record.contextId].items.map((revision) => <li key={revision.id}>
                   <strong>Versión {revision.revision}</strong> · {revision.name} · {revision.effectiveFrom}
                   {revision.changeReason ? ` · Motivo: ${revision.changeReason}` : " · Publicación inicial"}
+                  {` · Responsable: ${revision.ownerName || "sin asignar"}`}
                   {revision.publishedBy ? ` · Publicó: ${revision.publishedBy}` : ""}
                 </li>)}</ol>}
               </details>
