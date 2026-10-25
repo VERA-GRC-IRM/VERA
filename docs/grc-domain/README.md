@@ -2,6 +2,8 @@
 
 Este programa amplía el alcance de negocio de VERA sin atribuirle una certificación ni una metodología corporativa todavía no aprobada. Es una secuencia de contratos, datos, permisos y pruebas. Cada incremento debe preservar los registros y flujos actuales.
 
+La [ruta de entregas visibles para usuarios](user-visible-roadmap.md) organiza las fases y los PR alrededor de decisiones y expedientes que podrán utilizarse en VERA.
+
 ## Punto de partida comprobado
 
 - VERA registra propuestas, auditorías, riesgos, controles, hallazgos, evidencias, acciones y comentarios. Hay rutas de conversación que usan estos servicios. El estado de aceptación desplegada se sigue por separado en [#226](https://github.com/VERA-GRC-IRM/VERA/issues/226).
