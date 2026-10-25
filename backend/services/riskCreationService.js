@@ -8,11 +8,34 @@ const { parseAssessment } = require("./riskEvaluationService");
 const { assertWritableRecordScope, assertWritableRiskAuditLink } = require("./recordWriteScopeService");
 const { scopeForNewRecord } = require("./recordCreationScopeService");
 const { UNAVAILABLE_RECORD } = require("./recordScopeVisibility");
+const riskLibraryService = require("./riskLibraryService");
 
 const text = (value) => String(value ?? "").trim();
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
 const activeUsers = async () => (await userRepository.getAll())
   .filter((user) => user.status === USER_STATUS.ACTIVE);
+
+const resolveTemplateReference = async (input) => {
+  const templateId = text(input?.templateId);
+  const requestedRevision = input?.templateRevision;
+  if (!templateId && (requestedRevision == null || requestedRevision === "")) return null;
+  const revision = Number(requestedRevision);
+  if (!templateId || !Number.isSafeInteger(revision) || revision < 1) {
+    throw errorFor("Selecciona una versión válida de la biblioteca de riesgos.", 400);
+  }
+  if (process.env.VERA_RISK_CONTROL_STORE === "supabase" &&
+      process.env.VERA_RISK_LIBRARY_STORE !== "supabase") {
+    throw errorFor("La biblioteca debe tener persistencia activa para vincular una plantilla con este riesgo.", 409);
+  }
+  const revisions = await riskLibraryService.listTemplateRevisions(templateId)
+    .catch((cause) => {
+      if (cause.status === 404) throw errorFor("La plantilla seleccionada ya no está disponible.", 400);
+      throw cause;
+    });
+  const template = revisions.find((item) => item.revision === revision && item.status === "PUBLISHED");
+  if (!template) throw errorFor("La versión seleccionada no está publicada.", 400);
+  return { templateId, revision, title: template.title, categoryId: template.categoryId };
+};
 
 const parseCore = async (body) => {
   const title = text(body.title);
@@ -61,7 +84,9 @@ const createRiskForUser = async (user, input, operationId = null) => {
   if (core.data.linkedAuditId && !audit) throw errorFor(UNAVAILABLE_RECORD, 404);
   if (audit) await assertWritableRecordScope(user, audit);
   const orgUnitId = await scopeForNewRecord(user, input.orgUnitId, audit ? [audit] : []);
-  const scopedData = { ...core.data, orgUnitId };
+  const templateReference = await resolveTemplateReference(input);
+  const scopedData = { ...core.data, orgUnitId,
+    ...(templateReference ? { templateReference } : {}) };
   await assertWritableRiskAuditLink(user, scopedData);
   const assessment = parseAssessment(input);
   if (assessment.error) throw errorFor(assessment.error, 400);

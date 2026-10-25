@@ -2,7 +2,7 @@
 
 La biblioteca separa una **plantilla reutilizable** de un riesgo registrado. Las categorías tienen código estable, nombre, descripción y padre opcional. Una plantilla publicada contiene categoría, título, escenario, causas, consecuencias y referencia opcional. Cada revisión es una fila nueva e inmutable: conserva autor, fecha, motivo y número. La vista principal muestra solo la revisión más reciente; el historial se puede consultar por ID.
 
-La interfaz `/biblioteca-riesgos` permite a cualquier usuario autenticado consultar la estructura de categorías, buscar plantillas, filtrar por categoría y sus descendientes, revisar causas, consecuencias, fuente y versiones. Cuando no hay catálogo aprobado, muestra un estado vacío. Un `SUPER_ADMIN` puede abrir los formularios para crear categorías, publicar plantillas y publicar una nueva versión con comparación y confirmación; la API vuelve a comprobar el rol y valida el contenido. El vínculo con expedientes será un incremento separado tras #247. Esta página no asigna categorías a riesgos ni cambia su metodología.
+La interfaz `/biblioteca-riesgos` permite a cualquier usuario autenticado consultar la estructura de categorías, buscar plantillas, filtrar por categoría y sus descendientes, revisar causas, consecuencias, fuente y versiones. Cuando no hay catálogo aprobado, muestra un estado vacío. Un `SUPER_ADMIN` puede abrir los formularios para crear categorías, publicar plantillas y publicar una nueva versión con comparación y confirmación; la API vuelve a comprobar el rol y valida el contenido. Desde una plantilla publicada, quien puede registrar riesgos puede abrir el formulario con el escenario propuesto. Esta página no cambia la metodología de evaluación.
 
 No se precarga una taxonomía atribuida a FEMSA ni contenido de marcos sujeto a licencia. El responsable de riesgos debe aprobar nombres, niveles, categorías y fuentes antes de poblar la biblioteca real. Los ejemplos de pruebas son sintéticos.
 
@@ -13,7 +13,9 @@ No se precarga una taxonomía atribuida a FEMSA ni contenido de marcos sujeto a 
 - `POST /api/risk-library/templates`: solo `SUPER_ADMIN`; publica revisión 1. Exige categoría activa, título, escenario, al menos una causa y una consecuencia.
 - `POST /api/risk-library/templates/:id/revisions`: solo `SUPER_ADMIN`; exige el contenido completo nuevo y motivo. Nunca reescribe la revisión anterior.
 
-El código conserva categorías y revisiones de forma inmutable; no hay edición ni borrado. Una plantilla no se vincula todavía a los riesgos existentes o nuevos; ese vínculo, sus reglas de acceso y el comportamiento al revisar la plantilla forman otro incremento. Publicar una plantilla **no** recalcula puntuaciones ni avala su contenido como política corporativa.
+El código conserva categorías y revisiones de forma inmutable; no hay edición ni borrado. Al registrar un riesgo, el usuario puede seleccionar una versión publicada: el formulario propone el escenario como descripción y guarda una referencia con ID, revisión, título y categoría. El texto del riesgo sigue siendo editable y la evaluación conserva el método vigente. La revisión posterior de la plantilla no cambia el riesgo ni recalcula su puntuación. Los riesgos anteriores permanecen sin referencia; no se asigna ninguna por similitud de texto. La edición del riesgo no cambia su escenario de origen.
+
+Si los riesgos usan Supabase, la vinculación requiere que la biblioteca use también Supabase. De otro modo, el backend rechaza la vinculación para evitar una referencia que desaparezca tras reiniciar el servidor. El registro manual sin plantilla permanece disponible.
 
 ## Persistencia y despliegue
 

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { BookOpen, ChevronRight, History, Search } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import RiskLibraryAdmin from "../components/RiskLibraryAdmin";
 import { getRiskLibrary, getTemplateRevisions } from "../services/riskLibraryService";
+import { RISK_CONTROL_MANAGE_ROLES } from "../constants/planning";
 import "./BibliotecaRiesgos.css";
 
 const formatDate = (value) => value
@@ -29,6 +31,7 @@ const orderedCategories = (categories) => {
 function BibliotecaRiesgos() {
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const canPublish = user?.role === "SUPER_ADMIN";
+  const canRegisterRisk = RISK_CONTROL_MANAGE_ROLES.includes(user?.role);
   const [library, setLibrary] = useState({ categories: [], templates: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -129,6 +132,10 @@ function BibliotecaRiesgos() {
                   <div><h3>Consecuencias</h3><ul>{selected.consequences.map((consequence) => <li key={consequence}>{consequence}</li>)}</ul></div>
                   <p><b>Referencia:</b> {selected.sourceNote || "No se indicó una fuente externa."}</p>
                   <p><b>Publicación:</b> {formatDate(selected.createdAt)} · versión {selected.revision}</p>
+                  {canRegisterRisk && <Link className="risk-library-use-template" to="/riesgos"
+                    state={{ riskTemplateId: selected.templateId, riskTemplateRevision: selected.revision }}>
+                    Registrar un riesgo con esta plantilla
+                  </Link>}
                   <section aria-label="Historial de versiones"><h3><History size={17} aria-hidden="true" /> Versiones publicadas</h3>
                     {revisionsLoading && <p role="status">Cargando historial…</p>}
                     {revisionsError && <p role="alert">{revisionsError}</p>}

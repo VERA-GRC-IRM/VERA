@@ -25,7 +25,7 @@
 .risk-library-confirm { display: flex; align-items: flex-start; gap: .6rem; line-height: 1.5; }
 .risk-library-confirm input { margin-top: .25rem; }
 .risk-library-admin-form > button { justify-self: start; }
-.risk-library-page :is(button, input, textarea, select):focus-visible { outline: 3px solid var(--vera-focus); outline-offset: 2px; }
+.risk-library-page :is(button, input, textarea, select, a):focus-visible { outline: 3px solid var(--vera-focus); outline-offset: 2px; }
 .risk-library-status, .risk-library-empty { padding: 2rem; border: 1px solid var(--vera-border); border-radius: 16px; background: var(--vera-surface); color: var(--vera-text-muted); }
 .risk-library-error { color: var(--vera-danger); background: var(--vera-danger-soft); }
 .risk-library-overview { display: flex; flex-wrap: wrap; gap: 1.5rem; padding: 1.1rem 1.4rem; margin-bottom: 1.5rem; background: var(--vera-surface); border: 1px solid var(--vera-border); border-radius: 16px; color: var(--vera-text-muted); }
@@ -57,6 +57,8 @@
 .risk-library-detail h3 svg { vertical-align: middle; }
 .risk-library-detail ul { margin: 0; padding-left: 1.2rem; line-height: 1.6; }
 .risk-library-detail p { margin: .2rem 0; line-height: 1.55; }
+.risk-library-use-template { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; width: fit-content; padding: .65rem 1rem; border-radius: 10px; background: var(--vera-accent-strong); color: var(--vera-on-accent); font-weight: 700; text-decoration: none; }
+.risk-library-use-template:hover { background: var(--vera-accent); color: var(--vera-on-accent); }
 .risk-library-detail section { grid-column: 1 / -1; border-top: 1px solid var(--vera-border-soft); padding-top: 1rem; }
 .risk-library-detail ol { padding-left: 1.3rem; margin-bottom: 0; }
 .risk-library-detail ol li { margin: .6rem 0; }

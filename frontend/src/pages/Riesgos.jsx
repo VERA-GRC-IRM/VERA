@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Activity, Bot, ClipboardCheck, Pencil, Plus, ShieldAlert, X } from "lucide-react";
 import Sidebar from "../components/Sidebar";
@@ -7,9 +7,10 @@ import { RISK_CONTROL_MANAGE_ROLES } from "../constants/planning";
 import { createRisk, evaluateRisk, getRiskOwners, getRisks, updateRisk } from "../services/riskService";
 import { getPlanningAudits } from "../services/planningService";
 import { getAvailableOrgUnits } from "../services/orgUnitService";
+import { getRiskLibrary } from "../services/riskLibraryService";
 import "./Riesgos.css";
 
-const EMPTY = { title: "", description: "", area: "", orgUnitId: "", ownerId: "", responsePlan: "", linkedAuditId: "", likelihood: 2, impact: 2, note: "" };
+const EMPTY = { title: "", description: "", area: "", orgUnitId: "", ownerId: "", responsePlan: "", linkedAuditId: "", templateId: "", templateRevision: null, likelihood: 2, impact: 2, note: "" };
 const levelFor = (score) => score <= 2 ? "Bajo" : score <= 4 ? "Medio" : "Alto";
 const dateLabel = (value) => new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
 const filtersFromQuery = (query) => {
@@ -30,6 +31,11 @@ function Riesgos() {
   const [orgUnits, setOrgUnits] = useState([]);
   const [orgUnitsLoading, setOrgUnitsLoading] = useState(canManage);
   const [orgUnitsError, setOrgUnitsError] = useState("");
+  const [riskTemplates, setRiskTemplates] = useState([]);
+  const [riskTemplatesError, setRiskTemplatesError] = useState("");
+  const requestedTemplate = useRef(location.state?.riskTemplateId
+    ? { id: location.state.riskTemplateId, revision: location.state.riskTemplateRevision } : null);
+  const templateReturnPath = useRef(`${location.pathname}${location.search}${location.hash}`);
   const filters = useMemo(() => filtersFromQuery(location.search), [location.search]);
   const setFilters = (next) => {
     const query = new URLSearchParams(Object.entries(next).filter(([, value]) => value)).toString();
@@ -68,6 +74,29 @@ function Riesgos() {
       .finally(() => setOrgUnitsLoading(false));
   }, [canManage]);
   useEffect(() => {
+    if (!canManage) return;
+    getRiskLibrary()
+      .then((library) => {
+        setRiskTemplates(library.templates);
+        const requested = requestedTemplate.current;
+        if (!requested) return;
+        requestedTemplate.current = null;
+        const template = library.templates.find((item) =>
+          item.templateId === requested.id && item.revision === requested.revision);
+        if (!template) setError("La versión seleccionada no está disponible. Consulta de nuevo la biblioteca.");
+        else {
+          setEditing(null);
+          setForm({ ...EMPTY, templateId: template.templateId, templateRevision: template.revision,
+            description: template.scenario,
+            ...(template.title.length <= 140 ? { title: template.title } : {}) });
+          setError("");
+          setModal(true);
+        }
+        navigate(templateReturnPath.current, { replace: true, state: null });
+      })
+      .catch((cause) => setRiskTemplatesError(cause.message));
+  }, [canManage, navigate]);
+  useEffect(() => {
     try {
       const target = decodeURIComponent(location.hash.slice(1));
       if (target.startsWith("risk-")) document.getElementById(target)?.scrollIntoView({ block: "center" });
@@ -79,6 +108,13 @@ function Riesgos() {
   const manageableUnits = orgUnits.filter((unit) => unit.accessLevel === "MANAGE");
   const linkedAudit = audits.find((audit) => audit.id === form.linkedAuditId);
   const startCreate = () => { setEditing(null); setForm(EMPTY); setError(""); setModal(true); };
+  const selectTemplate = (templateId) => {
+    const template = riskTemplates.find((item) => item.templateId === templateId);
+    setForm((current) => ({ ...current, templateId: template?.templateId || "",
+      templateRevision: template?.revision || null,
+      ...(template ? { description: template.scenario,
+        ...(template.title.length <= 140 ? { title: template.title } : {}) } : {}) }));
+  };
   const startEdit = (risk) => {
     setEditing(risk);
     setForm({ title: risk.title, description: risk.description, area: risk.area, orgUnitId: risk.orgUnitId || "", ownerId: String(risk.ownerId), responsePlan: risk.responsePlan || "", linkedAuditId: risk.linkedAuditId || "" });
@@ -128,7 +164,7 @@ function Riesgos() {
             <div className="risk-record-main">
               <div className="risk-record-heading"><span className="risk-record-id">{risk.id}</span><span className={`risk-badge risk-${risk.level.toLowerCase()}`}>{risk.level}</span><span className="risk-score">P×I {risk.score} / 9</span></div>
               <h2>{risk.title}</h2><p>{risk.description}</p>
-              <div className="risk-record-meta"><span><b>Área:</b> {risk.area}</span>{risk.orgUnitId && <span><b>Entidad:</b> {orgUnitName(risk.orgUnitId)}</span>}<span><b>Responsable:</b> {risk.ownerName}</span><span><b>Estado:</b> Abierto</span><span><b>Evaluaciones:</b> {risk.evaluations.length}</span>{risk.linkedAuditId && <span><b>Auditoría vinculada:</b> {audits.some((audit) => audit.id === risk.linkedAuditId && audit.status === "ACTIVE") ? <a href={`/auditorias-activas#audit-${encodeURIComponent(risk.linkedAuditId)}`}>{risk.linkedAuditId}</a> : risk.linkedAuditId}</span>}</div>
+              <div className="risk-record-meta"><span><b>Área:</b> {risk.area}</span>{risk.orgUnitId && <span><b>Entidad:</b> {orgUnitName(risk.orgUnitId)}</span>}<span><b>Responsable:</b> {risk.ownerName}</span><span><b>Estado:</b> Abierto</span><span><b>Evaluaciones:</b> {risk.evaluations.length}</span>{risk.templateReference && <span><b>Escenario de origen:</b> {risk.templateReference.title} · versión {risk.templateReference.revision}</span>}{risk.linkedAuditId && <span><b>Auditoría vinculada:</b> {audits.some((audit) => audit.id === risk.linkedAuditId && audit.status === "ACTIVE") ? <a href={`/auditorias-activas#audit-${encodeURIComponent(risk.linkedAuditId)}`}>{risk.linkedAuditId}</a> : risk.linkedAuditId}</span>}</div>
               {risk.responsePlan && <p className="risk-plan"><b>Plan de respuesta:</b> {risk.responsePlan}</p>}
               <details className="risk-history"><summary><Activity size={15} /> Historial de evaluación ({risk.evaluations.length})</summary><ol>{[...risk.evaluations].reverse().map((evaluation) => <li key={evaluation.version}><div><b>Versión {evaluation.version}</b><span className={`risk-badge risk-${evaluation.level.toLowerCase()}`}>{evaluation.level} · {evaluation.score}/9</span></div><p>{evaluation.note}</p><small>{evaluation.assessedBy?.name || "Usuario"} · {dateLabel(evaluation.assessedAt)} · Probabilidad {evaluation.likelihood}, impacto {evaluation.impact}</small></li>)}</ol></details>
             </div>
@@ -142,6 +178,14 @@ function Riesgos() {
       {error && <p className="risk-feedback error">{error}</p>}
       <div className="proposal-form-grid">
         {!assessing && <>
+          {!editing && <label className="full-width">Escenario de biblioteca (opcional)
+            <select value={form.templateId} onChange={(event) => selectTemplate(event.target.value)} disabled={Boolean(riskTemplatesError)}>
+              <option value="">Registrar sin plantilla</option>
+              {riskTemplates.map((template) => <option key={template.templateId} value={template.templateId}>{template.title} · versión {template.revision}</option>)}
+            </select>
+          </label>}
+          {!editing && <div className="full-width"><small>El escenario propone nombre y descripción; puedes adaptarlos. VERA conservará la versión usada.</small>
+            {riskTemplatesError && <small role="status">Biblioteca no disponible: {riskTemplatesError}. Puedes registrar el riesgo sin plantilla.</small>}</div>}
           <label className="full-width">Nombre del riesgo<input required minLength="3" maxLength="140" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
           <label className="full-width">Descripción<textarea required minLength="10" maxLength="2000" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
           <label>Área<input required maxLength="100" value={form.area} onChange={(event) => setForm({ ...form, area: event.target.value })} /></label>
