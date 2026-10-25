@@ -27,6 +27,7 @@ test("response strategy is proposed, scoped, versioned and never treated as appr
     body: JSON.stringify(firstBody) })).status, 401);
   assert.equal((await fetch(url, json(5, firstBody))).status, 403);
   assert.equal((await fetch(url, json(3, { ...firstBody, ownerId: 9999 }))).status, 400);
+  assert.equal((await fetch(url, json(3, { ...firstBody, expectedRevision: undefined }))).status, 409);
   assert.equal((await fetch(url, json(3, { ...firstBody, reviewDate: "2020-01-01" }))).status, 400);
   const first = await fetch(url, json(3, firstBody));
   assert.equal(first.status, 200);

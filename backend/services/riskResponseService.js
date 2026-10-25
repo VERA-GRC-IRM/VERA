@@ -36,8 +36,8 @@ const proposeResponseForUser = async (actor, id, input) => {
   await assertWritableRiskAuditLink(actor, risk);
   if (!input || typeof input !== "object" || Array.isArray(input)) throw fail("Envía una respuesta válida.");
   if (!STRATEGIES.includes(input.strategy)) throw fail("Selecciona una estrategia válida.");
-  const expectedRevision = Number(input.expectedRevision);
-  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0 ||
+  const expectedRevision = input.expectedRevision;
+  if (typeof expectedRevision !== "number" || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0 ||
       expectedRevision !== (risk.responseDecisions || []).length) {
     throw fail("La respuesta cambió. Actualiza el riesgo antes de guardar.", 409);
   }
