@@ -7,6 +7,7 @@ const controller = require("../controllers/businessContextController");
 const router = express.Router();
 router.use(verifyToken);
 router.get("/", controller.list);
+router.get("/owners", allowRoles(ROLES.SUPER_ADMIN), controller.owners);
 router.post("/", allowRoles(ROLES.SUPER_ADMIN), controller.create);
 router.get("/:id/revisions", controller.revisions);
 router.post("/:id/revisions", allowRoles(ROLES.SUPER_ADMIN), controller.publishRevision);

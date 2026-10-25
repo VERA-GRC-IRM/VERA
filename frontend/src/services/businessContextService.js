@@ -1,7 +1,7 @@
 const API_URL = "/api/business-context";
 
-const request = async (options = {}) => {
-  const response = await fetch(API_URL, {
+const request = async (options = {}, path = "") => {
+  const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` }
   });
@@ -11,6 +11,7 @@ const request = async (options = {}) => {
 };
 
 export const getBusinessContext = async () => (await request()).records;
+export const getBusinessContextOwners = async () => (await request({}, "/owners")).owners;
 export const createBusinessContext = async (record) =>
   (await request({ method: "POST", body: JSON.stringify(record) })).record;
 export const getBusinessContextRevisions = async (id) => {
