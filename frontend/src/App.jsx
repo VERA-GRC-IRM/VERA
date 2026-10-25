@@ -22,6 +22,7 @@ import CommitteeDossier from "./pages/CommitteeDossier";
 import BuscarAuditorias from "./pages/BuscarAuditorias";
 import Riesgos from "./pages/Riesgos";
 import BibliotecaRiesgos from "./pages/BibliotecaRiesgos";
+import BusinessContext from "./pages/BusinessContext";
 import Controles from "./pages/Controles";
 import Notificaciones from "./pages/Notificaciones";
 import ActividadReciente from "./pages/ActividadReciente";
@@ -125,6 +126,7 @@ function App() {
 
         <Route path="/riesgos" element={<ProtectedRoute><Riesgos /></ProtectedRoute>} />
         <Route path="/biblioteca-riesgos" element={<ProtectedRoute><BibliotecaRiesgos /></ProtectedRoute>} />
+        <Route path="/mapa-negocio" element={<ProtectedRoute><BusinessContext /></ProtectedRoute>} />
         <Route path="/controles" element={<ProtectedRoute><Controles /></ProtectedRoute>} />
         <Route path="/notificaciones" element={<ProtectedRoute><Notificaciones /></ProtectedRoute>} />
         <Route path="/actividad" element={<ProtectedRoute><ActividadReciente /></ProtectedRoute>} />
