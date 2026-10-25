@@ -183,9 +183,9 @@ function Riesgos() {
               <option value="">Registrar sin plantilla</option>
               {riskTemplates.map((template) => <option key={template.templateId} value={template.templateId}>{template.title} · versión {template.revision}</option>)}
             </select>
-            <small>El escenario propone nombre y descripción; puedes adaptarlos. VERA conservará la versión usada.</small>
-            {riskTemplatesError && <small role="status">Biblioteca no disponible: {riskTemplatesError}. Puedes registrar el riesgo sin plantilla.</small>}
           </label>}
+          {!editing && <div className="full-width"><small>El escenario propone nombre y descripción; puedes adaptarlos. VERA conservará la versión usada.</small>
+            {riskTemplatesError && <small role="status">Biblioteca no disponible: {riskTemplatesError}. Puedes registrar el riesgo sin plantilla.</small>}</div>}
           <label className="full-width">Nombre del riesgo<input required minLength="3" maxLength="140" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
           <label className="full-width">Descripción<textarea required minLength="10" maxLength="2000" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
           <label>Área<input required maxLength="100" value={form.area} onChange={(event) => setForm({ ...form, area: event.target.value })} /></label>
