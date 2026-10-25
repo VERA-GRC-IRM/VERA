@@ -7,6 +7,9 @@ const findByCode = (kind, code) => {
   return record ? clone(record) : null;
 };
 const create = (record) => {
+  if (records.some((item) => item.id === record.id)) {
+    throw Object.assign(new Error("La ficha cambió mientras se publicaba. Actualiza y vuelve a intentar."), { status: 409 });
+  }
   const saved = { ...clone(record), storageVersion: 1 };
   records.push(saved);
   return clone(saved);

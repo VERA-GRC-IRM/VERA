@@ -35,6 +35,13 @@
 .business-context-unit-list span { padding: .3rem .55rem; border-radius: 999px; background: var(--vera-accent-soft); color: var(--vera-accent-strong); font-size: .78rem; font-weight: 650; }
 .business-context-card small { display: flex; align-items: flex-start; gap: .35rem; color: var(--vera-text-muted); line-height: 1.5; }
 .business-context-card small svg { flex: 0 0 auto; margin-top: .1rem; }
+.business-context-card-actions { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: .7rem; margin-top: 1rem; padding-top: .9rem; border-top: 1px solid var(--vera-border); }
+.business-context-card-actions details { min-width: min(100%, 270px); flex: 1; color: var(--vera-text-muted); font-size: .83rem; }
+.business-context-card-actions summary { cursor: pointer; color: var(--vera-accent); font-weight: 700; }
+.business-context-card-actions ol { margin: .6rem 0 0; padding-left: 1.2rem; line-height: 1.7; }
+.business-context-card-actions li + li { border-top: 1px solid var(--vera-border); padding-top: .35rem; margin-top: .35rem; }
+.business-context-card-actions button, .business-context-cancel { min-height: 40px; padding: .45rem .7rem; border: 1px solid var(--vera-border); border-radius: 8px; background: var(--vera-surface); color: var(--vera-accent); font: inherit; font-weight: 700; cursor: pointer; }
+.business-context-cancel { margin-left: .6rem; }
 .business-context-empty { grid-column: 1 / -1; color: var(--vera-text-muted); }
 .business-context-page :is(button, input, select, textarea):focus-visible { outline: 3px solid var(--vera-focus); outline-offset: 2px; }
 @media (max-width: 760px) { .business-context-list, .business-context-fields { grid-template-columns: 1fr; } .business-context-fields .wide { grid-column: auto; } .business-context-toolbar > label, .business-context-toolbar input { width: 100%; } }
