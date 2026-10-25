@@ -8,10 +8,14 @@ import { createBusinessContext, getBusinessContext, getBusinessContextRevisions,
 import "./BusinessContext.css";
 
 const KIND_LABELS = { PROCESS: "Procesos", SERVICE: "Servicios", OBJECTIVE: "Objetivos" };
+const RELATION_RULES = { PROCESS: [{ type: "DELIVERS_SERVICE", target: "SERVICE", label: "Entrega servicio" },
+  { type: "SUPPORTS_OBJECTIVE", target: "OBJECTIVE", label: "Apoya objetivo" }],
+SERVICE: [{ type: "SUPPORTS_OBJECTIVE", target: "OBJECTIVE", label: "Apoya objetivo" }], OBJECTIVE: [] };
+const RELATION_LABELS = { DELIVERS_SERVICE: "Entrega servicio", SUPPORTS_OBJECTIVE: "Apoya objetivo" };
 const UNIT_LABELS = { GROUP: "Grupo", LEGAL_ENTITY: "Empresa", BUSINESS_UNIT: "Unidad", SITE: "Sitio" };
 const PARENTS = { GROUP: [], LEGAL_ENTITY: ["GROUP", "LEGAL_ENTITY"], BUSINESS_UNIT: ["LEGAL_ENTITY", "BUSINESS_UNIT"], SITE: ["LEGAL_ENTITY", "BUSINESS_UNIT"] };
 const today = () => new Date().toISOString().slice(0, 10);
-const newRecord = () => ({ kind: "PROCESS", code: "", name: "", description: "", sourceNote: "", effectiveFrom: today(), effectiveTo: "", unitIds: [] });
+const newRecord = () => ({ kind: "PROCESS", code: "", name: "", description: "", sourceNote: "", effectiveFrom: today(), effectiveTo: "", unitIds: [], relationships: [] });
 const newUnit = () => ({ kind: "GROUP", code: "", name: "", parentId: "", effectiveFrom: today(), externalReference: "" });
 
 function BusinessContext() {
@@ -71,17 +75,37 @@ function BusinessContext() {
     `${record.code} ${record.name} ${record.description}`.toLocaleLowerCase("es")
       .includes(search.trim().toLocaleLowerCase("es")));
   const unitNames = new Map(units.map((unit) => [unit.id, unit.name]));
+  const relationshipChoices = (RELATION_RULES[recordForm.kind] || []).flatMap((rule) => records
+    .filter((target) => target.kind === rule.target && target.contextId !== revisionTarget?.contextId &&
+      target.unitIds.some((id) => recordForm.unitIds.includes(id)))
+    .map((target) => ({ relationType: rule.type, targetContextId: target.contextId,
+      targetRevision: target.revision, targetName: target.name, targetCode: target.code })));
+  const otherSelectedRelationships = (recordForm.relationships || []).filter((link) =>
+    !relationshipChoices.some((choice) => choice.relationType === link.relationType &&
+      choice.targetContextId === link.targetContextId && choice.targetRevision === link.targetRevision));
   const parentChoices = units.filter((unit) => PARENTS[unitForm.kind].includes(unit.kind));
   const changeRecord = (field, value) => setRecordForm((current) => ({ ...current, [field]: value }));
   const changeUnit = (field, value) => setUnitForm((current) => ({ ...current, [field]: value }));
   const toggleUnit = (id) => setRecordForm((current) => ({ ...current,
     unitIds: current.unitIds.includes(id) ? current.unitIds.filter((value) => value !== id) : [...current.unitIds, id] }));
+  const toggleRelationship = (choice) => setRecordForm((current) => {
+    const selected = current.relationships || [];
+    const already = selected.some((link) => link.relationType === choice.relationType &&
+      link.targetContextId === choice.targetContextId && link.targetRevision === choice.targetRevision);
+    return { ...current, relationships: already
+      ? selected.filter((link) => !(link.relationType === choice.relationType && link.targetContextId === choice.targetContextId))
+      : [...selected.filter((link) => !(link.relationType === choice.relationType && link.targetContextId === choice.targetContextId)), { ...choice, rationale: "" }] };
+  });
+  const changeRelationshipReason = (choice, value) => setRecordForm((current) => ({ ...current,
+    relationships: (current.relationships || []).map((link) =>
+      link.relationType === choice.relationType && link.targetContextId === choice.targetContextId &&
+      link.targetRevision === choice.targetRevision ? { ...link, rationale: value } : link) }));
   const startRevision = (record) => {
     setRevisionTarget(record);
     setRecordForm({ kind: record.kind, code: record.code, name: record.name,
       description: record.description, sourceNote: record.sourceNote || "",
       effectiveFrom: record.effectiveFrom, effectiveTo: record.effectiveTo || "",
-      unitIds: [...record.unitIds], changeReason: "" });
+      unitIds: [...record.unitIds], relationships: [...(record.relationships || [])], changeReason: "" });
     setOpenForm("revision"); setError(""); setNotice("");
   };
   const loadHistory = async (contextId) => {
@@ -163,7 +187,7 @@ function BusinessContext() {
           <h2 ref={revisionHeading} tabIndex={openForm === "revision" ? -1 : undefined}>{revisionTarget ? `Nueva versión de ${revisionTarget.name}` : "Nuevo proceso, servicio u objetivo"}</h2>
           <p>{revisionTarget ? "Publicar conserva la ficha anterior y las referencias que ya la utilizan. El código y el tipo permanecen iguales." : "La primera versión quedará conservada. Los vínculos de esta pantalla describen dónde aplica; no cambian los permisos de un expediente existente."}</p>
           <div className="business-context-fields">
-            <label>Tipo<select value={recordForm.kind} disabled={Boolean(revisionTarget)} onChange={(event) => changeRecord("kind", event.target.value)}>
+            <label>Tipo<select value={recordForm.kind} disabled={Boolean(revisionTarget)} onChange={(event) => setRecordForm({ ...recordForm, kind: event.target.value, relationships: [] })}>
               {Object.entries(KIND_LABELS).map(([value, label]) => <option key={value} value={value}>{label.slice(0, -1)}</option>)}
             </select></label>
             <label>Código<input required maxLength={32} pattern="[A-Za-z0-9][A-Za-z0-9_-]{1,31}" readOnly={Boolean(revisionTarget)} value={recordForm.code} onChange={(event) => changeRecord("code", event.target.value)} /></label>
@@ -178,6 +202,21 @@ function BusinessContext() {
                 <input type="checkbox" checked={recordForm.unitIds.includes(unit.id)} onChange={() => toggleUnit(unit.id)} /> {unit.name} · {UNIT_LABELS[unit.kind]}
               </label>)}
             </fieldset>
+            {RELATION_RULES[recordForm.kind]?.length > 0 && <fieldset className="wide"><legend>Relaciones con el mapa (opcional)</legend>
+              {[...relationshipChoices, ...otherSelectedRelationships].length === 0 ? <p>Registra primero conceptos compatibles en una unidad compartida.</p>
+                : [...relationshipChoices, ...otherSelectedRelationships].map((choice) => {
+                  const selected = (recordForm.relationships || []).find((link) => link.relationType === choice.relationType &&
+                    link.targetContextId === choice.targetContextId && link.targetRevision === choice.targetRevision);
+                  return <div key={`${choice.relationType}:${choice.targetContextId}:${choice.targetRevision}`} className="business-context-relationship-choice">
+                    <label className="business-context-check"><input type="checkbox" checked={Boolean(selected)}
+                      disabled={!selected && (recordForm.relationships || []).length >= 12} onChange={() => toggleRelationship(choice)} />
+                      {RELATION_LABELS[choice.relationType]}: {choice.targetName || "Versión anterior"} · v{choice.targetRevision}</label>
+                    {selected && <label>Justificación de esta relación<input required minLength={10} maxLength={500}
+                      value={selected.rationale || ""} onChange={(event) => changeRelationshipReason(choice, event.target.value)} /></label>}
+                  </div>;
+                })}
+              <p>Las relaciones requieren una unidad compartida. Si cambias unidades, revisa los enlaces seleccionados.</p>
+            </fieldset>}
           </div>
           <button type="submit" className="primary-action" disabled={saving || recordForm.unitIds.length === 0}>{saving ? "Guardando…" : revisionTarget ? "Publicar nueva versión" : "Publicar en el mapa"}</button>
           {revisionTarget && <button type="button" className="business-context-cancel" onClick={() => { setRevisionTarget(null); setRecordForm(newRecord()); setOpenForm(""); }}>Cancelar</button>}
@@ -198,6 +237,12 @@ function BusinessContext() {
             <div className="business-context-unit-list" aria-label="Ámbitos visibles">
               {record.unitIds.map((id) => <span key={id}>{unitNames.get(id) || "Unidad disponible"}</span>)}
             </div>
+            {record.relationships?.length > 0 && <div className="business-context-links"><strong>Relaciones</strong>
+              {record.relationships.map((link) => <span key={`${link.relationType}:${link.targetContextId}`}>
+                <a href={`/mapa-negocio?context=${encodeURIComponent(link.targetContextId)}&revision=${link.targetRevision}`}>
+                  {RELATION_LABELS[link.relationType]}: {link.targetName} · v{link.targetRevision}</a>
+                <small>{link.rationale}</small></span>)}
+            </div>}
             <small><CalendarDays size={15} aria-hidden="true" /> Vigente desde {record.effectiveFrom}{record.effectiveTo ? ` hasta ${record.effectiveTo}` : ""}{record.sourceNote ? ` · Fuente: ${record.sourceNote}` : " · Fuente no indicada"}</small>
             <div className="business-context-card-actions">
               <details onToggle={(event) => { if (event.currentTarget.open) loadHistory(record.contextId); }}><summary>Ver historial de versiones</summary>
