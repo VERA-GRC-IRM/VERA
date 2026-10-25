@@ -35,6 +35,7 @@ function Riesgos() {
   const [riskTemplatesError, setRiskTemplatesError] = useState("");
   const requestedTemplate = useRef(location.state?.riskTemplateId
     ? { id: location.state.riskTemplateId, revision: location.state.riskTemplateRevision } : null);
+  const templateReturnPath = useRef(`${location.pathname}${location.search}${location.hash}`);
   const filters = useMemo(() => filtersFromQuery(location.search), [location.search]);
   const setFilters = (next) => {
     const query = new URLSearchParams(Object.entries(next).filter(([, value]) => value)).toString();
@@ -91,10 +92,10 @@ function Riesgos() {
           setError("");
           setModal(true);
         }
-        navigate(`${location.pathname}${location.search}${location.hash}`, { replace: true, state: null });
+        navigate(templateReturnPath.current, { replace: true, state: null });
       })
       .catch((cause) => setRiskTemplatesError(cause.message));
-  }, [canManage, location.pathname, location.search, location.hash, navigate]);
+  }, [canManage, navigate]);
   useEffect(() => {
     try {
       const target = decodeURIComponent(location.hash.slice(1));
