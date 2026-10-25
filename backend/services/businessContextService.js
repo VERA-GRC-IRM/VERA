@@ -35,6 +35,34 @@ const listForUser = async (user) => {
   }).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name, "es"));
 };
 
+const resolveReferencesForUnit = async (user, references, orgUnitId) => {
+  if (references === undefined) return undefined;
+  if (!Array.isArray(references) || references.length > 12) {
+    throw errorFor("Selecciona hasta 12 elementos del mapa del negocio.", 400);
+  }
+  if (!references.length) return [];
+  if (!orgUnitId) throw errorFor("Asigna primero un ámbito empresarial al riesgo.", 400);
+  if (process.env.VERA_RISK_CONTROL_STORE === "supabase" &&
+      process.env.VERA_BUSINESS_CONTEXT_STORE !== "supabase") {
+    throw errorFor("El mapa del negocio debe tener persistencia activa para vincularlo con riesgos.", 409);
+  }
+  const [records, scopes] = await Promise.all([repository.getAll(), availableScopesFor(user)]);
+  if (!scopes.some((scope) => scope.id === orgUnitId)) throw errorFor("El ámbito ya no está disponible.", 404);
+  const selected = new Set();
+  return references.map((reference) => {
+    const contextId = reference?.contextId;
+    const revision = reference?.revision;
+    if (typeof contextId !== "string" || !Number.isSafeInteger(revision) || revision < 1 || selected.has(contextId)) {
+      throw errorFor("Selecciona versiones válidas y distintas del mapa del negocio.", 400);
+    }
+    selected.add(contextId);
+    const record = records.find((item) => item.contextId === contextId && item.revision === revision &&
+      item.status === "ACTIVE" && item.unitIds.includes(orgUnitId));
+    if (!record) throw errorFor("Un elemento del mapa no está vigente o no aplica al ámbito del riesgo.", 400);
+    return { contextId, revision, kind: record.kind, code: record.code, name: record.name };
+  });
+};
+
 const createForUser = async (user, input) => {
   if (user.role !== ROLES.SUPER_ADMIN) throw errorFor("Tu rol no puede publicar este catálogo.", 403);
   if (!input || typeof input !== "object" || Array.isArray(input)) throw errorFor("Envía un registro válido.", 400);
@@ -71,4 +99,4 @@ const createForUser = async (user, input) => {
   return record;
 };
 
-module.exports = { KINDS, listForUser, createForUser };
+module.exports = { KINDS, listForUser, createForUser, resolveReferencesForUnit };

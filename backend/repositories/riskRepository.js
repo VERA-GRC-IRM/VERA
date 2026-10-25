@@ -4,6 +4,7 @@ const { LEGACY_RISK_METHOD_ID, UNSPECIFIED_STAGE, presentRiskMethod } = require(
 const clone = (risk) => presentRiskMethod({
   ...risk,
   ...(risk.templateReference ? { templateReference: { ...risk.templateReference } } : {}),
+  ...(risk.businessContextReferences ? { businessContextReferences: risk.businessContextReferences.map((reference) => ({ ...reference })) } : {}),
   createdBy: risk.createdBy ? { ...risk.createdBy } : null,
   evaluations: risk.evaluations.map((item) => ({
     ...item,

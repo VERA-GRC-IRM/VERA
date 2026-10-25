@@ -3,6 +3,7 @@ const controlRepository = require("../repositories/controlRepository");
 const userRepository = require("../repositories/userRepository");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { parseCore: parseRiskCore } = require("./riskCreationService");
+const { resolveReferencesForUnit } = require("./businessContextService");
 const { parseCore: parseControlCore } = require("./controlCreationService");
 const { logActivity } = require("./auditLogger");
 const { assertWritableRecordScope, assertWritableRiskAuditLink,
@@ -61,6 +62,9 @@ const updateCoreForUser = async (user, type, id, input, options = {}) => {
   }
   const parsed = await parseFor(type)(input);
   if (parsed.error) throw fail(parsed.error);
+  const businessContextReferences = type === "RISK"
+    ? await resolveReferencesForUnit(user, input.businessContextReferences, current.orgUnitId)
+    : undefined;
   await assertWritable(user, type, { ...current, ...parsed.data });
   if (type === "RISK" && await riskRepository.findDuplicate({ ...parsed.data, orgUnitId: current.orgUnitId }, id)) {
     throw fail("Ya existe un riesgo con el mismo nombre y área.", 409);
@@ -72,6 +76,7 @@ const updateCoreForUser = async (user, type, id, input, options = {}) => {
   }
   await assertWritable(user, type, latest);
   const updated = await repository.update(id, { ...parsed.data,
+    ...(businessContextReferences !== undefined ? { businessContextReferences } : {}),
     ...(options.operationId ? { aiEditOperationId: options.operationId } : {}) }, latest.storageVersion);
   if (!updated) throw fail("El registro dejó de estar disponible.", 409);
   await logActivity({ actor: user, action: type === "RISK" ? "RISK_UPDATED" : "CONTROL_UPDATED",

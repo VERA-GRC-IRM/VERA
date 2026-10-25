@@ -6,7 +6,7 @@ El primer incremento de [#252](https://github.com/VERA-GRC-IRM/VERA/issues/252) 
 
 - Un concepto tiene `contextId` estable, tipo `PROCESS`, `SERVICE` u `OBJECTIVE`, código único dentro del tipo, nombre, descripción y periodo de vigencia. La primera revisión es inmutable; el modelo permite añadir revisiones posteriores sin sobrescribir la anterior.
 - Un concepto puede estar vinculado a varias unidades por sus IDs estables. La API comprueba que todas estén activas y disponibles para el actor. Al consultar, proyecta solo los IDs de unidades visibles para esa cuenta; si no hay ninguno, omite la ficha completa. Un nombre compartido no concede acceso a expedientes de otra unidad.
-- Este incremento no añade aún relaciones proceso–servicio u objetivo–proceso, titulares de negocio, historial de cambios de definición ni vínculos a riesgos/auditorías. Esos pasos siguen en [#252](https://github.com/VERA-GRC-IRM/VERA/issues/252). Tampoco asigna expedientes históricos desde el texto libre `area`.
+- El registro de riesgos puede vincular voluntariamente un concepto de la misma unidad, conservando su ID, revisión, tipo, código y nombre. La persona puede cambiar esos vínculos al editar el riesgo. El vínculo no modifica la evaluación ni reclasifica riesgos históricos. Siguen pendientes las relaciones proceso–servicio y objetivo–proceso, titulares de negocio, historial de definición y vínculos directos a auditorías en [#252](https://github.com/VERA-GRC-IRM/VERA/issues/252). Tampoco se asignan expedientes históricos desde el texto libre `area`.
 - No se precarga la estructura ni los objetivos de FEMSA. Publicar una ficha no declara que sea su catálogo oficial; la fuente maestra y el aprobador siguen pendientes de decisión empresarial.
 
 ## API y persistencia
@@ -15,6 +15,7 @@ El primer incremento de [#252](https://github.com/VERA-GRC-IRM/VERA/issues/252) 
 - `POST /api/business-context`: solo `SUPER_ADMIN`; valida tipo, código, descripción, fechas y de 1 a 20 unidades activas. Devuelve la revisión 1.
 - `VERA_BUSINESS_CONTEXT_STORE=memory` conserva datos solo durante el proceso. Para persistencia, la migración `20261025010000_create_business_context.sql` crea la tabla privada `vera_business_context` sin insertar filas. Activar `supabase` requiere `VERA_ORG_STORE=supabase` y `VERA_USER_STORE=supabase`; el backend falla al iniciar si esa combinación es incompleta. No cambiar la variable antes de aplicar y verificar la migración en el proyecto de destino.
 - Una reversión de código no elimina la tabla ni las filas. Las referencias de unidad se validan en la API y se guardan dentro de la revisión inmutable, siguiendo el almacenamiento documental que VERA ya usa para riesgos y controles. Cambiar ámbitos requerirá publicar una nueva revisión con motivo y periodo, conservando las anteriores; este incremento no admite mutaciones silenciosas.
+- Para guardar un vínculo en un riesgo persistente, `VERA_BUSINESS_CONTEXT_STORE` también debe estar en `supabase`. El servidor rechaza una referencia temporal y comprueba que la revisión existe, está activa y aplica exactamente al ámbito del riesgo. Un fallo del catálogo no se convierte en una vinculación aparentemente exitosa.
 
 ## Aceptación pendiente
 

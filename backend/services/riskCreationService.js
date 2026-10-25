@@ -9,6 +9,7 @@ const { assertWritableRecordScope, assertWritableRiskAuditLink } = require("./re
 const { scopeForNewRecord } = require("./recordCreationScopeService");
 const { UNAVAILABLE_RECORD } = require("./recordScopeVisibility");
 const riskLibraryService = require("./riskLibraryService");
+const { resolveReferencesForUnit } = require("./businessContextService");
 
 const text = (value) => String(value ?? "").trim();
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
@@ -85,8 +86,10 @@ const createRiskForUser = async (user, input, operationId = null) => {
   if (audit) await assertWritableRecordScope(user, audit);
   const orgUnitId = await scopeForNewRecord(user, input.orgUnitId, audit ? [audit] : []);
   const templateReference = await resolveTemplateReference(input);
+  const businessContextReferences = await resolveReferencesForUnit(user, input.businessContextReferences, orgUnitId);
   const scopedData = { ...core.data, orgUnitId,
-    ...(templateReference ? { templateReference } : {}) };
+    ...(templateReference ? { templateReference } : {}),
+    ...(businessContextReferences ? { businessContextReferences } : {}) };
   await assertWritableRiskAuditLink(user, scopedData);
   const assessment = parseAssessment(input);
   if (assessment.error) throw errorFor(assessment.error, 400);

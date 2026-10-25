@@ -19,4 +19,4 @@ Este plan organiza capacidades que las personas podrán utilizar en VERA. Cada f
 4. Validar con escenarios neutrales y documentar por separado la aceptación real de usuarios y despliegue. No cargar estructuras ni umbrales atribuidos a FEMSA sin aprobación.
 5. Cerrar una fase por sus criterios de uso y evidencia, no por el número de PR fusionados.
 
-**Primer incremento:** selección opcional de una plantilla publicada al registrar un riesgo. Se conserva la revisión exacta como referencia y el texto del riesgo puede adaptarse al caso concreto. No cambia la matriz histórica ni vincula automáticamente expedientes anteriores.
+**Incrementos iniciales:** selección opcional de una plantilla publicada al registrar un riesgo; mapa de ámbitos, procesos, servicios y objetivos; y relación explícita entre riesgos y conceptos de su misma unidad. Cada vínculo conserva una revisión concreta. Ninguno reclasifica automáticamente expedientes anteriores ni cambia la matriz histórica.
