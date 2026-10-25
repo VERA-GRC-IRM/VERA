@@ -64,7 +64,7 @@ function ControlFindings({ controls, risks, role }) {
 
   return <section className="control-findings" aria-labelledby="control-findings-title">
     <div className="control-section-heading"><div><span className="eyebrow">SEGUIMIENTO</span><h2 id="control-findings-title">Hallazgos de controles</h2></div><span>{findings.length} registrados</span></div>
-    <p>Una evaluación de 1 a 3 indica efectividad insuficiente y permite documentar un hallazgo ligado al control y a uno de sus riesgos.</p>
+    <p>La regla histórica permite registrar un hallazgo cuando la última calificación del control es de 1 a 3. Esa calificación no sustituye una prueba documentada de diseño u operación.</p>
     {error && !control && <p className="control-feedback error" role="alert">{error}</p>}
     {canCreate && controls.filter((item) => item.effectiveness < 4 && item.riskIds.some((id) => risks.some((risk) => risk.id === id))).map((item) =>
       <button key={item.id} type="button" className="secondary-action finding-create" onClick={() => open(item)}>

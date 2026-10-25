@@ -23,7 +23,7 @@ const factsFor = (type, item) => {
   const fields = {
     audits: [["Estado", item.status], ["Área", item.area], ["Avance", Number.isFinite(item.progress) ? `${item.progress}%` : null]],
     risks: [["Nivel", item.level], ["Puntaje", item.score]],
-    controls: [["Efectividad", item.effectiveness]],
+    controls: [["Calificación preliminar", item.effectiveness]],
     findings: [["Estado", item.status]],
     pending: [["Prioridad", item.priority], ["Detalle", item.description], ["Vence", item.dueAt]]
   }[type] || [];
@@ -142,7 +142,8 @@ const buildAssistantContext = async (user, question, focus = null) => {
     risks: risks.map((item) => ({ id: clean(item.id, 50), title: clean(item.title), level: item.level,
       score: item.score, linkedAuditId: item.linkedAuditId || null })),
     controls: controls.map((item) => ({ id: clean(item.id, 50), title: clean(item.title),
-      riskIds: item.riskIds.filter((id) => riskIds.has(id)), effectiveness: item.effectiveness })),
+      riskIds: item.riskIds.filter((id) => riskIds.has(id)), effectiveness: item.effectiveness,
+      assessmentBasis: "PRELIMINARY_LEGACY_RATING" })),
     findings: findings.map((item) => ({ id: clean(item.id, 50), title: clean(item.title),
       riskId: item.riskId, controlId: item.controlId, status: item.status })),
     pending: notifications.map((item) => ({ id: clean(item.id, 80), title: clean(item.title),

@@ -26,3 +26,5 @@ Este plan organiza capacidades que las personas podrán utilizar en VERA. Cada f
 **Respuesta al riesgo:** el registro permite proponer una estrategia de evitar, reducir, transferir o aceptar con responsable, acciones, motivo y fecha de revisión; conserva todas las revisiones. Cada registro sigue marcado `PROPOSED` hasta que exista una decisión formal de gobierno. El tipo `ACCEPT` no constituye una aceptación aprobada ni modifica la evaluación del riesgo.
 
 **Seguimiento de propuestas:** el registro agrupa las estrategias propuestas según su fecha de revisión y permite abrir la lista correspondiente en un clic. Los recuentos se calculan solo sobre los riesgos visibles para la persona y no equivalen a aprobación, cierre, cumplimiento de apetito ni tratamiento efectivo.
+
+**Inicio de la fase 3:** el [mapa de controles](control-assurance-baseline.md) distingue vínculos y valoraciones preliminares de una prueba formal. Se retiró el promedio de calificaciones ordinales de la vista ejecutiva; las reglas heredadas siguen disponibles para compatibilidad hasta implementar pruebas de diseño y operación con evidencia.

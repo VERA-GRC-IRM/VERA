@@ -2,7 +2,7 @@ const { randomUUID } = require("node:crypto");
 const userRepository = require("../repositories/userRepository");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { activeUsers, parseCore } = require("./controlCreationService");
-const { parseEvaluation, resultFor } = require("./controlEvaluationService");
+const { parseEvaluation } = require("./controlEvaluationService");
 const { visibleCollectionsForUser } = require("./recordReadAccessService");
 
 const normalize = (value) => String(value || "").normalize("NFD")
@@ -104,7 +104,7 @@ const handleControlCreate = async (user, question, thread) => {
   }
   const draft = { type: "CONTROL_CREATE", data: input, operationId: randomUUID(),
     expiresAt: new Date(Date.now() + 5 * 60_000).toISOString() };
-  return response(`Revisa antes de registrar el control:\nTítulo: ${core.data.title}\nDescripción: ${core.data.description}\nTipo: ${fields.type}\nFrecuencia: ${fields.frequency}\nRiesgos: ${core.data.riskIds.join(", ")}\nResponsable: ${core.data.ownerName}\nEfectividad inicial: ${evaluation.data.rating}/5 (${resultFor(evaluation.data.rating) === "EFFECTIVE" ? "efectivo" : "inefectivo"}).\nJustificación: ${evaluation.data.note}\nEscribe «Confirmar control nuevo» en los próximos cinco minutos; cualquier otra pregunta descarta esta vista previa.`,
+  return response(`Revisa antes de registrar el control:\nTítulo: ${core.data.title}\nDescripción: ${core.data.description}\nTipo: ${fields.type}\nFrecuencia: ${fields.frequency}\nRiesgos: ${core.data.riskIds.join(", ")}\nResponsable: ${core.data.ownerName}\nValoración preliminar inicial: ${evaluation.data.rating}/5 (sin prueba documentada de eficacia).\nJustificación: ${evaluation.data.note}\nEscribe «Confirmar control nuevo» en los próximos cinco minutos; cualquier otra pregunta descarta esta vista previa.`,
   "action-preview", { actionDraft: draft });
 };
 
