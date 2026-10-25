@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Building2, CalendarDays, Network, Plus, Search } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import { createOrgUnit, getAvailableOrgUnits } from "../services/orgUnitService";
-import { createBusinessContext, getBusinessContext } from "../services/businessContextService";
+import { createBusinessContext, getBusinessContext, getBusinessContextRevisions,
+  publishBusinessContextRevision } from "../services/businessContextService";
 import "./BusinessContext.css";
 
 const KIND_LABELS = { PROCESS: "Procesos", SERVICE: "Servicios", OBJECTIVE: "Objetivos" };
@@ -16,6 +17,7 @@ const newUnit = () => ({ kind: "GROUP", code: "", name: "", parentId: "", effect
 function BusinessContext() {
   const [searchParams, setSearchParams] = useSearchParams();
   const focusId = searchParams.get("context");
+  const requestedRevision = Number(searchParams.get("revision"));
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const canPublish = user?.role === "SUPER_ADMIN";
   const [records, setRecords] = useState([]);
@@ -26,6 +28,11 @@ function BusinessContext() {
   const [kind, setKind] = useState("PROCESS");
   const [search, setSearch] = useState("");
   const [recordForm, setRecordForm] = useState(newRecord);
+  const [revisionTarget, setRevisionTarget] = useState(null);
+  const [histories, setHistories] = useState({});
+  const [focusedVersion, setFocusedVersion] = useState(null);
+  const [focusError, setFocusError] = useState(null);
+  const revisionHeading = useRef(null);
   const [unitForm, setUnitForm] = useState(newUnit);
   const [saving, setSaving] = useState(false);
   const [openForm, setOpenForm] = useState("");
@@ -41,25 +48,64 @@ function BusinessContext() {
       .catch((cause) => setError(cause.message))
       .finally(() => setLoading(false));
   }, []);
+  useEffect(() => {
+    if (openForm === "revision") revisionHeading.current?.focus();
+  }, [openForm]);
+  useEffect(() => {
+    if (!focusId) return;
+    getBusinessContextRevisions(focusId)
+      .then((versions) => {
+        const record = versions.find((item) => item.revision === requestedRevision) ||
+          (!Number.isSafeInteger(requestedRevision) || requestedRevision < 1 ? versions[0] : null);
+        if (record) { setFocusedVersion({ contextId: focusId, requestedRevision, record }); setFocusError(null); }
+        else setFocusError({ contextId: focusId, requestedRevision, message: "La versión solicitada no está disponible para este ámbito." });
+      })
+      .catch((cause) => setFocusError({ contextId: focusId, requestedRevision, message: cause.message }));
+  }, [focusId, requestedRevision]);
 
-  const focusedRecord = records.find((record) => record.contextId === focusId);
+  const selectedHistorical = focusedVersion?.contextId === focusId &&
+    focusedVersion?.requestedRevision === requestedRevision ? focusedVersion.record : null;
+  const focusedRecord = selectedHistorical || records.find((record) => record.contextId === focusId);
   const activeKind = focusedRecord?.kind || kind;
-  const visible = useMemo(() => records.filter((record) => record.kind === activeKind && (!focusId || record.contextId === focusId) &&
+  const visible = (selectedHistorical ? [selectedHistorical] : records).filter((record) => record.kind === activeKind && (!focusId || record.contextId === focusId) &&
     `${record.code} ${record.name} ${record.description}`.toLocaleLowerCase("es")
-      .includes(search.trim().toLocaleLowerCase("es"))), [records, activeKind, search, focusId]);
+      .includes(search.trim().toLocaleLowerCase("es")));
   const unitNames = new Map(units.map((unit) => [unit.id, unit.name]));
   const parentChoices = units.filter((unit) => PARENTS[unitForm.kind].includes(unit.kind));
   const changeRecord = (field, value) => setRecordForm((current) => ({ ...current, [field]: value }));
   const changeUnit = (field, value) => setUnitForm((current) => ({ ...current, [field]: value }));
   const toggleUnit = (id) => setRecordForm((current) => ({ ...current,
     unitIds: current.unitIds.includes(id) ? current.unitIds.filter((value) => value !== id) : [...current.unitIds, id] }));
+  const startRevision = (record) => {
+    setRevisionTarget(record);
+    setRecordForm({ kind: record.kind, code: record.code, name: record.name,
+      description: record.description, sourceNote: record.sourceNote || "",
+      effectiveFrom: record.effectiveFrom, effectiveTo: record.effectiveTo || "",
+      unitIds: [...record.unitIds], changeReason: "" });
+    setOpenForm("revision"); setError(""); setNotice("");
+  };
+  const loadHistory = async (contextId) => {
+    if (histories[contextId]?.items || histories[contextId]?.loading) return;
+    setHistories((current) => ({ ...current, [contextId]: { loading: true } }));
+    try {
+      const items = await getBusinessContextRevisions(contextId);
+      setHistories((current) => ({ ...current, [contextId]: { items } }));
+    } catch (cause) {
+      setHistories((current) => ({ ...current, [contextId]: { error: cause.message } }));
+    }
+  };
   const submitRecord = async (event) => {
     event.preventDefault(); setSaving(true); setError(""); setNotice("");
     try {
-      await createBusinessContext(recordForm);
+      if (revisionTarget) {
+        const published = await publishBusinessContextRevision(revisionTarget.contextId,
+          { ...recordForm, expectedRevision: revisionTarget.revision });
+        setHistories((current) => { const next = { ...current }; delete next[revisionTarget.contextId]; return next; });
+        if (focusId === revisionTarget.contextId) setSearchParams({ context: focusId, revision: String(published.revision) });
+      } else await createBusinessContext(recordForm);
       await refresh();
-      setRecordForm(newRecord()); setOpenForm("");
-      setNotice("Registro publicado en el mapa del negocio.");
+      setRecordForm(newRecord()); setOpenForm(""); setRevisionTarget(null);
+      setNotice(revisionTarget ? "Nueva versión publicada; las referencias anteriores se conservan." : "Registro publicado en el mapa del negocio.");
     } catch (cause) { setError(cause.message); }
     finally { setSaving(false); }
   };
@@ -85,11 +131,13 @@ function BusinessContext() {
         </header>
         <p className="business-context-guidance">Este catálogo registra contexto de trabajo. Una relación con una unidad no asigna automáticamente riesgos históricos ni demuestra que un objetivo se haya cumplido.</p>
         {error && <p className="business-context-error" role="alert">{error}</p>}
+        {focusError?.contextId === focusId && focusError?.requestedRevision === requestedRevision &&
+          <p className="business-context-error" role="alert">{focusError.message}</p>}
         {notice && <p className="business-context-notice" role="status">{notice}</p>}
 
         {canPublish && <div className="business-context-actions">
           <button type="button" aria-expanded={openForm === "unit"} onClick={() => { setOpenForm(openForm === "unit" ? "" : "unit"); setError(""); }}><Building2 size={18} /> Registrar ámbito</button>
-          <button type="button" aria-expanded={openForm === "record"} onClick={() => { setOpenForm(openForm === "record" ? "" : "record"); setError(""); }}><Plus size={18} /> Añadir al mapa</button>
+          <button type="button" aria-expanded={openForm === "record"} onClick={() => { setRevisionTarget(null); setRecordForm(newRecord()); setOpenForm(openForm === "record" ? "" : "record"); setError(""); }}><Plus size={18} /> Añadir al mapa</button>
         </div>}
 
         {canPublish && openForm === "unit" && <form className="business-context-form" onSubmit={submitUnit}>
@@ -111,26 +159,28 @@ function BusinessContext() {
           <button type="submit" className="primary-action" disabled={saving || (unitForm.kind !== "GROUP" && parentChoices.length === 0)}>{saving ? "Guardando…" : "Registrar ámbito"}</button>
         </form>}
 
-        {canPublish && openForm === "record" && <form className="business-context-form" onSubmit={submitRecord}>
-          <h2>Nuevo proceso, servicio u objetivo</h2>
-          <p>La primera versión quedará conservada. Los vínculos de esta pantalla describen dónde aplica; no cambian los permisos de un expediente existente.</p>
+        {canPublish && ["record", "revision"].includes(openForm) && <form className="business-context-form" onSubmit={submitRecord}>
+          <h2 ref={revisionHeading} tabIndex={openForm === "revision" ? -1 : undefined}>{revisionTarget ? `Nueva versión de ${revisionTarget.name}` : "Nuevo proceso, servicio u objetivo"}</h2>
+          <p>{revisionTarget ? "Publicar conserva la ficha anterior y las referencias que ya la utilizan. El código y el tipo permanecen iguales." : "La primera versión quedará conservada. Los vínculos de esta pantalla describen dónde aplica; no cambian los permisos de un expediente existente."}</p>
           <div className="business-context-fields">
-            <label>Tipo<select value={recordForm.kind} onChange={(event) => changeRecord("kind", event.target.value)}>
+            <label>Tipo<select value={recordForm.kind} disabled={Boolean(revisionTarget)} onChange={(event) => changeRecord("kind", event.target.value)}>
               {Object.entries(KIND_LABELS).map(([value, label]) => <option key={value} value={value}>{label.slice(0, -1)}</option>)}
             </select></label>
-            <label>Código<input required maxLength={32} pattern="[A-Za-z0-9][A-Za-z0-9_-]{1,31}" value={recordForm.code} onChange={(event) => changeRecord("code", event.target.value)} /></label>
+            <label>Código<input required maxLength={32} pattern="[A-Za-z0-9][A-Za-z0-9_-]{1,31}" readOnly={Boolean(revisionTarget)} value={recordForm.code} onChange={(event) => changeRecord("code", event.target.value)} /></label>
             <label className="wide">Nombre<input required minLength={3} maxLength={120} value={recordForm.name} onChange={(event) => changeRecord("name", event.target.value)} /></label>
             <label className="wide">Descripción<textarea required minLength={10} maxLength={2000} value={recordForm.description} onChange={(event) => changeRecord("description", event.target.value)} /></label>
             <label>Vigente desde<input required type="date" value={recordForm.effectiveFrom} onChange={(event) => changeRecord("effectiveFrom", event.target.value)} /></label>
             <label>Vigente hasta (opcional)<input type="date" min={recordForm.effectiveFrom} value={recordForm.effectiveTo} onChange={(event) => changeRecord("effectiveTo", event.target.value)} /></label>
             <label className="wide">Fuente o referencia (opcional)<input maxLength={500} value={recordForm.sourceNote} onChange={(event) => changeRecord("sourceNote", event.target.value)} /></label>
+            {revisionTarget && <label className="wide">Motivo de la nueva versión<textarea required minLength={10} maxLength={500} value={recordForm.changeReason || ""} onChange={(event) => changeRecord("changeReason", event.target.value)} /></label>}
             <fieldset className="wide"><legend>Unidades vinculadas</legend>
               {units.length === 0 ? <p>Registra primero un ámbito empresarial.</p> : units.map((unit) => <label key={unit.id} className="business-context-check">
                 <input type="checkbox" checked={recordForm.unitIds.includes(unit.id)} onChange={() => toggleUnit(unit.id)} /> {unit.name} · {UNIT_LABELS[unit.kind]}
               </label>)}
             </fieldset>
           </div>
-          <button type="submit" className="primary-action" disabled={saving || recordForm.unitIds.length === 0}>{saving ? "Guardando…" : "Publicar en el mapa"}</button>
+          <button type="submit" className="primary-action" disabled={saving || recordForm.unitIds.length === 0}>{saving ? "Guardando…" : revisionTarget ? "Publicar nueva versión" : "Publicar en el mapa"}</button>
+          {revisionTarget && <button type="button" className="business-context-cancel" onClick={() => { setRevisionTarget(null); setRecordForm(newRecord()); setOpenForm(""); }}>Cancelar</button>}
         </form>}
 
         <div className="business-context-toolbar">
@@ -149,6 +199,19 @@ function BusinessContext() {
               {record.unitIds.map((id) => <span key={id}>{unitNames.get(id) || "Unidad disponible"}</span>)}
             </div>
             <small><CalendarDays size={15} aria-hidden="true" /> Vigente desde {record.effectiveFrom}{record.effectiveTo ? ` hasta ${record.effectiveTo}` : ""}{record.sourceNote ? ` · Fuente: ${record.sourceNote}` : " · Fuente no indicada"}</small>
+            <div className="business-context-card-actions">
+              <details onToggle={(event) => { if (event.currentTarget.open) loadHistory(record.contextId); }}><summary>Ver historial de versiones</summary>
+                {histories[record.contextId]?.loading && <p role="status">Consultando historial…</p>}
+                {histories[record.contextId]?.error && <p role="alert">{histories[record.contextId].error}</p>}
+                {histories[record.contextId]?.items && <ol>{histories[record.contextId].items.map((revision) => <li key={revision.id}>
+                  <strong>Versión {revision.revision}</strong> · {revision.name} · {revision.effectiveFrom}
+                  {revision.changeReason ? ` · Motivo: ${revision.changeReason}` : " · Publicación inicial"}
+                  {revision.publishedBy ? ` · Publicó: ${revision.publishedBy}` : ""}
+                </li>)}</ol>}
+              </details>
+              {canPublish && records.some((current) => current.contextId === record.contextId && current.revision === record.revision) &&
+                <button type="button" onClick={() => startRevision(record)}>Publicar nueva versión</button>}
+            </div>
           </article>)}</div>}
       </section>
     </main>
