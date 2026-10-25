@@ -1,0 +1,29 @@
+.method-page { max-width: 1440px; }
+.method-caution, .method-error, .method-success { padding: 1rem 1.25rem; border-radius: 12px; margin: 1rem 0; }
+.method-caution { background: var(--vera-surface-soft); border: 1px solid var(--vera-border); }
+.method-error { background: var(--vera-danger-soft); color: var(--vera-danger); }
+.method-success { background: var(--vera-success-soft); color: var(--vera-success); }
+.method-layout { display: grid; grid-template-columns: minmax(220px, 290px) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.method-catalog, .method-editor > form, .method-preview, .method-revisions { background: var(--vera-surface); border: 1px solid var(--vera-border); border-radius: 16px; padding: 1.35rem; color: var(--vera-text); }
+.method-editor { display: grid; gap: 1.25rem; }
+.method-section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.method-section-title h2, .method-preview h2, .method-revisions h2 { margin: 0; font-size: 1.2rem; }
+.method-section-title span { font-size: .84rem; opacity: .75; }
+.method-catalog ul, .method-revisions ol { list-style: none; padding: 0; margin: 0; }
+.method-catalog li + li { border-top: 1px solid var(--vera-border); }
+.method-catalog li button { width: 100%; text-align: left; background: transparent; border: 0; padding: .9rem .35rem; color: inherit; cursor: pointer; display: grid; gap: .3rem; }
+.method-catalog li button[aria-current="true"] { border-inline-start: 3px solid var(--vera-accent); padding-inline-start: .7rem; }
+.method-catalog li span, .method-revisions span { font-size: .84rem; opacity: .75; }
+.method-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 1rem 0; }
+.method-fields label { display: grid; gap: .4rem; font-weight: 600; }
+.method-fields input, .method-fields textarea, .method-fields select, .method-matrix select { width: 100%; font: inherit; color: var(--vera-text); background: var(--vera-surface); border: 1px solid var(--vera-border); border-radius: 8px; padding: .65rem; }
+.method-matrix { margin: 1.5rem 0; }
+.method-matrix h3 { margin-bottom: .2rem; }
+.method-matrix p, .method-preview p { line-height: 1.5; }
+.method-table-scroll { overflow-x: auto; }
+.method-matrix table { width: 100%; border-collapse: collapse; }
+.method-matrix th, .method-matrix td { border: 1px solid var(--vera-border); padding: .65rem; min-width: 130px; }
+.method-matrix th { text-align: left; }
+.method-revisions li { border-top: 1px solid var(--vera-border); padding: .85rem 0; display: grid; gap: .3rem; }
+.method-revisions li p { margin: 0; }
+@media (max-width: 880px) { .method-layout, .method-fields { grid-template-columns: 1fr; } }

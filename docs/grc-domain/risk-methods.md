@@ -30,3 +30,11 @@ Ejemplo sintético mínimo:
   "assumptionNote": "Ejemplo sintético sin aprobación empresarial"
 }
 ```
+
+## Catálogo privado de borradores
+
+La vista **Métodos de evaluación** (`/metodos-riesgo`) permite a `SUPER_ADMIN` crear una matriz cualitativa y guardar nuevas revisiones con versión y motivo. El formulario exige completar cada celda y la API conserva cada revisión como un registro separado e inmutable. Se puede consultar el historial y simular casos inherentes, residuales u objetivo; las notas sobre controles y tratamiento son declaraciones del usuario, no comprobaciones automáticas. Otros roles no consultan los borradores. La matriz histórica 3×3 sigue visible para usuarios autenticados en `GET /api/risks/methods`.
+
+La API de borradores usa `GET/POST /api/risks/methods/drafts` y `GET/POST /api/risks/methods/drafts/:id/revisions`. Todos los registros guardados tienen `status: DRAFT`, `approvedEnterprisePolicy: false` y `availableForAssessment: false`. La API de evaluación de riesgos **rechaza** esos IDs: crear un borrador o ejecutar una simulación no cambia registros anteriores, no aprueba una política y no calcula riesgo residual real.
+
+En producción, aplica `20261025020000_create_risk_methods.sql` al proyecto correcto y luego configura `VERA_RISK_METHOD_STORE=supabase` solo en el backend. La tabla privada solo concede lectura e inserción a la clave de servicio, con revisión única y restricciones para impedir que un borrador aparezca como activo. El modo `memory` permite demostraciones locales, pero sus borradores desaparecen al reiniciar. No se precarga ninguna escala atribuida a FEMSA. Antes de habilitar evaluaciones con un método nuevo falta definir y aprobar formalmente la política, su responsable, vigencia, horizonte, evidencia mínima y fixtures de aceptación.

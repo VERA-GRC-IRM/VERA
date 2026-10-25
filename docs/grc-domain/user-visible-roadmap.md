@@ -20,3 +20,5 @@ Este plan organiza capacidades que las personas podrán utilizar en VERA. Cada f
 5. Cerrar una fase por sus criterios de uso y evidencia, no por el número de PR fusionados.
 
 **Incrementos iniciales:** selección opcional de una plantilla publicada al registrar un riesgo; mapa de ámbitos, procesos, servicios y objetivos; relación explícita entre riesgos y conceptos de su misma unidad; historial inmutable de revisiones; relaciones declaradas entre procesos, servicios y objetivos; asignación opcional de un responsable por revisión, validado contra su acceso actual; y vínculos voluntarios desde propuestas de auditoría del mismo ámbito. Cada vínculo conserva una revisión concreta. Ninguno reclasifica automáticamente expedientes anteriores ni cambia la matriz histórica.
+
+**Inicio de la fase 2:** el catálogo privado de métodos cualitativos permite diseñar matrices, simular casos y guardar borradores inmutables por revisión. No existe todavía un método empresarial aprobado ni se aplican estas matrices a evaluaciones reales. La matriz 3×3 histórica permanece intacta. La decisión de negocio sobre escalas, evidencia y autoridad de aprobación sigue pendiente.
