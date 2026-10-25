@@ -8,9 +8,10 @@ import { createRisk, evaluateRisk, getRiskOwners, getRisks, updateRisk } from ".
 import { getPlanningAudits } from "../services/planningService";
 import { getAvailableOrgUnits } from "../services/orgUnitService";
 import { getRiskLibrary } from "../services/riskLibraryService";
+import { getBusinessContext } from "../services/businessContextService";
 import "./Riesgos.css";
 
-const EMPTY = { title: "", description: "", area: "", orgUnitId: "", ownerId: "", responsePlan: "", linkedAuditId: "", templateId: "", templateRevision: null, likelihood: 2, impact: 2, note: "" };
+const EMPTY = { title: "", description: "", area: "", orgUnitId: "", ownerId: "", responsePlan: "", linkedAuditId: "", templateId: "", templateRevision: null, businessContextReferences: [], likelihood: 2, impact: 2, note: "" };
 const levelFor = (score) => score <= 2 ? "Bajo" : score <= 4 ? "Medio" : "Alto";
 const dateLabel = (value) => new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
 const filtersFromQuery = (query) => {
@@ -33,6 +34,8 @@ function Riesgos() {
   const [orgUnitsError, setOrgUnitsError] = useState("");
   const [riskTemplates, setRiskTemplates] = useState([]);
   const [riskTemplatesError, setRiskTemplatesError] = useState("");
+  const [businessContexts, setBusinessContexts] = useState([]);
+  const [businessContextsError, setBusinessContextsError] = useState("");
   const requestedTemplate = useRef(location.state?.riskTemplateId
     ? { id: location.state.riskTemplateId, revision: location.state.riskTemplateRevision } : null);
   const templateReturnPath = useRef(`${location.pathname}${location.search}${location.hash}`);
@@ -97,6 +100,10 @@ function Riesgos() {
       .catch((cause) => setRiskTemplatesError(cause.message));
   }, [canManage, navigate]);
   useEffect(() => {
+    if (!canManage) return;
+    getBusinessContext().then(setBusinessContexts).catch((cause) => setBusinessContextsError(cause.message));
+  }, [canManage]);
+  useEffect(() => {
     try {
       const target = decodeURIComponent(location.hash.slice(1));
       if (target.startsWith("risk-")) document.getElementById(target)?.scrollIntoView({ block: "center" });
@@ -107,6 +114,18 @@ function Riesgos() {
   const orgUnitName = (id) => orgUnits.find((unit) => unit.id === id)?.name || "Entidad asignada";
   const manageableUnits = orgUnits.filter((unit) => unit.accessLevel === "MANAGE");
   const linkedAudit = audits.find((audit) => audit.id === form.linkedAuditId);
+  const selectedUnitId = editing ? form.orgUnitId : form.linkedAuditId ? linkedAudit?.orgUnitId : form.orgUnitId;
+  const applicableContexts = businessContexts.filter((record) => selectedUnitId && record.unitIds.includes(selectedUnitId));
+  const contextChoices = [...applicableContexts, ...(form.businessContextReferences || []).filter((reference) =>
+    !applicableContexts.some((record) => record.contextId === reference.contextId && record.revision === reference.revision))];
+  const toggleContext = (record) => setForm((current) => {
+    const references = current.businessContextReferences || [];
+    const alreadySelected = references.some((reference) => reference.contextId === record.contextId && reference.revision === record.revision);
+    return { ...current, businessContextReferences: alreadySelected
+      ? references.filter((reference) => reference.contextId !== record.contextId)
+      : [...references.filter((reference) => reference.contextId !== record.contextId),
+        { contextId: record.contextId, revision: record.revision }] };
+  });
   const startCreate = () => { setEditing(null); setForm(EMPTY); setError(""); setModal(true); };
   const selectTemplate = (templateId) => {
     const template = riskTemplates.find((item) => item.templateId === templateId);
@@ -117,7 +136,8 @@ function Riesgos() {
   };
   const startEdit = (risk) => {
     setEditing(risk);
-    setForm({ title: risk.title, description: risk.description, area: risk.area, orgUnitId: risk.orgUnitId || "", ownerId: String(risk.ownerId), responsePlan: risk.responsePlan || "", linkedAuditId: risk.linkedAuditId || "" });
+    setForm({ title: risk.title, description: risk.description, area: risk.area, orgUnitId: risk.orgUnitId || "", ownerId: String(risk.ownerId), responsePlan: risk.responsePlan || "", linkedAuditId: risk.linkedAuditId || "",
+      businessContextReferences: (risk.businessContextReferences || []).map(({ contextId, revision, kind, code, name }) => ({ contextId, revision, kind, code, name })) });
     setError(""); setModal(true);
   };
   const submit = async (event) => {
@@ -165,6 +185,7 @@ function Riesgos() {
               <div className="risk-record-heading"><span className="risk-record-id">{risk.id}</span><span className={`risk-badge risk-${risk.level.toLowerCase()}`}>{risk.level}</span><span className="risk-score">P×I {risk.score} / 9</span></div>
               <h2>{risk.title}</h2><p>{risk.description}</p>
               <div className="risk-record-meta"><span><b>Área:</b> {risk.area}</span>{risk.orgUnitId && <span><b>Entidad:</b> {orgUnitName(risk.orgUnitId)}</span>}<span><b>Responsable:</b> {risk.ownerName}</span><span><b>Estado:</b> Abierto</span><span><b>Evaluaciones:</b> {risk.evaluations.length}</span>{risk.templateReference && <span><b>Escenario de origen:</b> {risk.templateReference.title} · versión {risk.templateReference.revision}</span>}{risk.linkedAuditId && <span><b>Auditoría vinculada:</b> {audits.some((audit) => audit.id === risk.linkedAuditId && audit.status === "ACTIVE") ? <a href={`/auditorias-activas#audit-${encodeURIComponent(risk.linkedAuditId)}`}>{risk.linkedAuditId}</a> : risk.linkedAuditId}</span>}</div>
+              {risk.businessContextReferences?.length > 0 && <div className="risk-context-references"><b>Contexto del negocio:</b> {risk.businessContextReferences.map((reference) => <a key={reference.contextId} href={`/mapa-negocio?context=${encodeURIComponent(reference.contextId)}`}>{reference.name} · v{reference.revision}</a>)}</div>}
               {risk.responsePlan && <p className="risk-plan"><b>Plan de respuesta:</b> {risk.responsePlan}</p>}
               <details className="risk-history"><summary><Activity size={15} /> Historial de evaluación ({risk.evaluations.length})</summary><ol>{[...risk.evaluations].reverse().map((evaluation) => <li key={evaluation.version}><div><b>Versión {evaluation.version}</b><span className={`risk-badge risk-${evaluation.level.toLowerCase()}`}>{evaluation.level} · {evaluation.score}/9</span></div><p>{evaluation.note}</p><small>{evaluation.assessedBy?.name || "Usuario"} · {dateLabel(evaluation.assessedAt)} · Probabilidad {evaluation.likelihood}, impacto {evaluation.impact}</small></li>)}</ol></details>
             </div>
@@ -193,7 +214,7 @@ function Riesgos() {
             {editing ? <input readOnly value={form.orgUnitId ? orgUnitName(form.orgUnitId) : "Sin asignar"} /> : form.linkedAuditId ? (
               <input readOnly value={linkedAudit?.orgUnitId ? orgUnitName(linkedAudit.orgUnitId) : "Sin asignar"} />
             ) : (
-              <select value={form.orgUnitId} onChange={(event) => setForm({ ...form, orgUnitId: event.target.value })}
+              <select value={form.orgUnitId} onChange={(event) => setForm({ ...form, orgUnitId: event.target.value, businessContextReferences: [] })}
                 disabled={orgUnitsLoading || Boolean(orgUnitsError)}>
                 <option value="">Sin asignar todavía</option>
                 {manageableUnits.map((unit) => <option key={unit.id} value={unit.id}>{unit.name} · {unit.code}</option>)}
@@ -203,8 +224,16 @@ function Riesgos() {
             {!editing && !orgUnitsError && <small>{form.linkedAuditId ? "El ámbito se hereda de la auditoría; la API comprueba el permiso." : "Solo aparecen entidades donde puedes gestionar riesgos. El área no asigna una entidad."}</small>}
           </label>
           <label>Responsable<select required value={form.ownerId} onChange={(event) => setForm({ ...form, ownerId: event.target.value })}><option value="">Seleccionar cuenta activa</option>{owners.map((owner) => <option key={owner.id} value={owner.id}>{owner.name} · {owner.role}</option>)}</select></label>
+          <fieldset className="full-width risk-context-selector"><legend>Procesos, servicios u objetivos relacionados (opcional)</legend>
+            {!selectedUnitId ? <p>Asigna un ámbito empresarial para ver sus elementos.</p> : businessContextsError ? <p role="status">No se pudo consultar el mapa; los vínculos ya guardados se conservan.</p> : contextChoices.length === 0 ? <p>No hay elementos del mapa para este ámbito.</p> : contextChoices.map((record) => {
+              const checked = (form.businessContextReferences || []).some((reference) => reference.contextId === record.contextId && reference.revision === record.revision);
+              return <label key={`${record.contextId}:${record.revision}`}><input type="checkbox" checked={checked}
+                disabled={!checked && (form.businessContextReferences || []).length >= 12}
+                onChange={() => toggleContext(record)} /> {record.name} · {record.code} · v{record.revision}</label>;
+            })}
+          </fieldset>
           <label className="full-width">Plan de respuesta (opcional)<textarea maxLength="2000" value={form.responsePlan} onChange={(event) => setForm({ ...form, responsePlan: event.target.value })} placeholder="Acciones para reducir probabilidad o impacto" /></label>
-          <label className="full-width">Auditoría relacionada (opcional)<select value={form.linkedAuditId} onChange={(event) => setForm({ ...form, linkedAuditId: event.target.value, orgUnitId: editing ? form.orgUnitId : "" })}><option value="">Sin auditoría relacionada</option>{audits.map((audit) => <option key={audit.id} value={audit.id}>{audit.id} · {audit.title}</option>)}</select></label>
+          <label className="full-width">Auditoría relacionada (opcional)<select value={form.linkedAuditId} onChange={(event) => setForm({ ...form, linkedAuditId: event.target.value, orgUnitId: editing ? form.orgUnitId : "", businessContextReferences: [] })}><option value="">Sin auditoría relacionada</option>{audits.map((audit) => <option key={audit.id} value={audit.id}>{audit.id} · {audit.title}</option>)}</select></label>
         </>}
         {!editing && <>
           <label>Probabilidad<select value={form.likelihood} onChange={(event) => setForm({ ...form, likelihood: Number(event.target.value) })}><option value={1}>Baja (1)</option><option value={2}>Media (2)</option><option value={3}>Alta (3)</option></select></label>

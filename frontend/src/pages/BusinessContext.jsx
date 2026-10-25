@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Building2, CalendarDays, Network, Plus, Search } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import { createOrgUnit, getAvailableOrgUnits } from "../services/orgUnitService";
@@ -13,6 +14,8 @@ const newRecord = () => ({ kind: "PROCESS", code: "", name: "", description: "",
 const newUnit = () => ({ kind: "GROUP", code: "", name: "", parentId: "", effectiveFrom: today(), externalReference: "" });
 
 function BusinessContext() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const focusId = searchParams.get("context");
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const canPublish = user?.role === "SUPER_ADMIN";
   const [records, setRecords] = useState([]);
@@ -39,9 +42,11 @@ function BusinessContext() {
       .finally(() => setLoading(false));
   }, []);
 
-  const visible = useMemo(() => records.filter((record) => record.kind === kind &&
+  const focusedRecord = records.find((record) => record.contextId === focusId);
+  const activeKind = focusedRecord?.kind || kind;
+  const visible = useMemo(() => records.filter((record) => record.kind === activeKind && (!focusId || record.contextId === focusId) &&
     `${record.code} ${record.name} ${record.description}`.toLocaleLowerCase("es")
-      .includes(search.trim().toLocaleLowerCase("es"))), [records, kind, search]);
+      .includes(search.trim().toLocaleLowerCase("es"))), [records, activeKind, search, focusId]);
   const unitNames = new Map(units.map((unit) => [unit.id, unit.name]));
   const parentChoices = units.filter((unit) => PARENTS[unitForm.kind].includes(unit.kind));
   const changeRecord = (field, value) => setRecordForm((current) => ({ ...current, [field]: value }));
@@ -129,13 +134,14 @@ function BusinessContext() {
         </form>}
 
         <div className="business-context-toolbar">
+          {focusId && <button type="button" onClick={() => { setSearchParams({}); setSearch(""); }}>Ver todo el mapa</button>}
           <div className="business-context-tabs" role="group" aria-label="Tipo de contexto">
-            {Object.entries(KIND_LABELS).map(([value, label]) => <button key={value} type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>{label}</button>)}
+            {Object.entries(KIND_LABELS).map(([value, label]) => <button key={value} type="button" aria-pressed={activeKind === value} onClick={() => { setKind(value); if (focusId) setSearchParams({}); }}>{label}</button>)}
           </div>
           <label><Search size={17} aria-hidden="true" /> Buscar<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Código, nombre o descripción" /></label>
         </div>
         {loading ? <p className="business-context-empty" role="status">Cargando mapa del negocio…</p> : visible.length === 0
-          ? <p className="business-context-empty">No hay {KIND_LABELS[kind].toLowerCase()} visibles que coincidan con la búsqueda.</p>
+          ? <p className="business-context-empty">No hay {KIND_LABELS[activeKind].toLowerCase()} visibles que coincidan con la búsqueda.</p>
           : <div className="business-context-list">{visible.map((record) => <article key={record.contextId} className="business-context-card">
             <div className="business-context-card-head"><Network size={20} aria-hidden="true" /><span>{record.code} · {KIND_LABELS[record.kind].slice(0, -1)} · versión {record.revision}</span></div>
             <h2>{record.name}</h2><p>{record.description}</p>
