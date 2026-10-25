@@ -9,6 +9,9 @@ const clone = (risk) => presentRiskMethod({
   evaluations: risk.evaluations.map((item) => ({
     ...item,
     assessedBy: item.assessedBy ? { ...item.assessedBy } : null
+  })),
+  responseDecisions: (risk.responseDecisions || []).map((item) => ({
+    ...item, proposedBy: item.proposedBy ? { ...item.proposedBy } : null
   }))
 });
 
@@ -93,7 +96,19 @@ const evaluate = (id, { likelihood, impact, score, level, note, methodId = LEGAC
   return clone(risk);
 };
 
-const memoryRepository = { getAll, findById, findDuplicate, create, update, evaluate };
+const recordResponse = (id, proposal, expectedRevision) => {
+  const risk = findMutableById(id);
+  if (!risk) return null;
+  const decisions = risk.responseDecisions || [];
+  if (decisions.length !== expectedRevision) {
+    throw Object.assign(new Error("La respuesta cambió. Actualiza el riesgo antes de guardar."), { status: 409 });
+  }
+  risk.responseDecisions = [...decisions, proposal];
+  risk.updatedAt = proposal.proposedAt;
+  return clone(risk);
+};
+
+const memoryRepository = { getAll, findById, findDuplicate, create, update, evaluate, recordResponse };
 module.exports = process.env.VERA_RISK_CONTROL_STORE === "supabase"
   ? require("./supabaseRiskRepository")
   : memoryRepository;
