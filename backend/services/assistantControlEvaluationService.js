@@ -1,7 +1,7 @@
 const controlRepository = require("../repositories/controlRepository");
 const userRepository = require("../repositories/userRepository");
 const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
-const { parseEvaluation, evaluateControlForUser, resultFor } = require("./controlEvaluationService");
+const { parseEvaluation, evaluateControlForUser } = require("./controlEvaluationService");
 const { visibleCollectionsForUser } = require("./recordReadAccessService");
 
 const normalize = (value) => String(value || "").normalize("NFD")
@@ -39,8 +39,7 @@ const handleControlEvaluation = async (user, question, thread) => {
       return response("El control cambió desde la vista previa. Revísalo antes de pedir la evaluación de nuevo.");
     }
     const control = await evaluateControlForUser(user, draft.id, draft.evaluation, draft.version);
-    const label = control.effectivenessResult === "EFFECTIVE" ? "efectivo" : "inefectivo";
-    return response(`Quedó evaluado «${control.title}»: ${label} (${control.effectiveness}/5). La justificación, responsable y fecha se registraron en la bitácora.${label === "inefectivo" ? " Puedes abrir un hallazgo vinculado al control y al riesgo desde el flujo correspondiente." : ""}`,
+    return response(`Quedó registrada la valoración preliminar de «${control.title}»: ${control.effectiveness}/5. La justificación, responsable y fecha se registraron en la bitácora. Esta calificación no demuestra eficacia sin una prueba documentada.${control.effectiveness < 4 ? " La regla histórica permite abrir un hallazgo vinculado al control y al riesgo." : ""}`,
       "action-executed", { actionOutcome: { id: control.id, result: control.effectivenessResult,
         rating: control.effectiveness } });
   }
@@ -58,12 +57,11 @@ const handleControlEvaluation = async (user, question, thread) => {
       : "No encontré ese control. Comprueba el título o identificador exacto.");
   }
   const record = matches[0];
-  const label = resultFor(command.rating) === "EFFECTIVE" ? "efectivo" : "inefectivo";
   const draft = { type: "CONTROL_EVALUATION", id: record.id, version: record.storageVersion,
     evaluationsCount: record.evaluations.length,
     evaluation: { rating: command.rating, note: evaluation.data.note },
     expiresAt: new Date(Date.now() + 5 * 60_000).toISOString() };
-  return response(`Revisa antes de ejecutar: evaluar «${record.title}» (${record.id}) con efectividad ${command.rating}/5. Resultado: ${label}. Justificación: ${evaluation.data.note}. Escribe «Confirmar control» en los próximos cinco minutos; cualquier otra pregunta descarta esta vista previa.`,
+  return response(`Revisa antes de ejecutar: registrar para «${record.title}» (${record.id}) una valoración preliminar de ${command.rating}/5. Justificación: ${evaluation.data.note}. No equivale a una prueba documentada de eficacia. Escribe «Confirmar control» en los próximos cinco minutos; cualquier otra pregunta descarta esta vista previa.`,
     "action-preview", { actionDraft: draft });
 };
 

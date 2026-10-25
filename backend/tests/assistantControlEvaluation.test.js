@@ -57,7 +57,8 @@ test("El chat evalúa un control tras confirmar y no repite la operación", asyn
   assert.equal(confirmed.status, 200, JSON.stringify(await confirmed.clone().json()));
   const answer = (await confirmed.json()).message;
   assert.equal(answer.mode, "action-executed");
-  assert.match(answer.text, /inefectivo/);
+  assert.match(answer.text, /valoración preliminar/);
+  assert.match(answer.text, /no demuestra eficacia/);
   const updated = await controlRepository.findById(control.id);
   assert.equal(updated.evaluations.length, 2);
   assert.equal(updated.effectiveness, 2);

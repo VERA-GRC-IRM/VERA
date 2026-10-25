@@ -7,7 +7,7 @@ La [ruta de entregas visibles para usuarios](user-visible-roadmap.md) organiza l
 ## Punto de partida comprobado
 
 - VERA registra propuestas, auditorías, riesgos, controles, hallazgos, evidencias, acciones y comentarios. Hay rutas de conversación que usan estos servicios. El estado de aceptación desplegada se sigue por separado en [#226](https://github.com/VERA-GRC-IRM/VERA/issues/226).
-- `backend/services/riskEvaluationService.js` acepta probabilidad e impacto enteros de 1 a 3. `backend/config/riskRules.js` clasifica el producto en Bajo, Medio o Alto. `backend/services/controlEvaluationService.js` clasifica eficacia 1 a 5 como efectiva desde 4.
+- `backend/services/riskEvaluationService.js` acepta probabilidad e impacto enteros de 1 a 3. `backend/config/riskRules.js` clasifica el producto en Bajo, Medio o Alto. La regla histórica de `backend/services/controlEvaluationService.js` clasifica calificaciones de 1 a 5 como «efectiva» desde 4; esa etiqueta no demuestra por sí sola diseño, operación ni evidencia de prueba. La interfaz presenta estas calificaciones como preliminares mientras se construye la evaluación formal.
 - El área de un riesgo es texto; no equivale a una entidad jurídica, unidad operativa o proceso con identidad y permisos propios. Los registros actuales no contienen una metodología versionada de riesgo inherente, residual y objetivo.
 - Las [brechas funcionales ya identificadas](https://github.com/VERA-GRC-IRM/VERA/issues/168) y la aceptación de producción siguen abiertas. Este programa no las cierra por asociación.
 
