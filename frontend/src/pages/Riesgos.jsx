@@ -6,9 +6,10 @@ import AssistantDrawer from "../components/AssistantDrawer";
 import { RISK_CONTROL_MANAGE_ROLES } from "../constants/planning";
 import { createRisk, evaluateRisk, getRiskOwners, getRisks, updateRisk } from "../services/riskService";
 import { getPlanningAudits } from "../services/planningService";
+import { getAvailableOrgUnits } from "../services/orgUnitService";
 import "./Riesgos.css";
 
-const EMPTY = { title: "", description: "", area: "", ownerId: "", responsePlan: "", linkedAuditId: "", likelihood: 2, impact: 2, note: "" };
+const EMPTY = { title: "", description: "", area: "", orgUnitId: "", ownerId: "", responsePlan: "", linkedAuditId: "", likelihood: 2, impact: 2, note: "" };
 const levelFor = (score) => score <= 2 ? "Bajo" : score <= 4 ? "Medio" : "Alto";
 const dateLabel = (value) => new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
 const filtersFromQuery = (query) => {
@@ -26,6 +27,9 @@ function Riesgos() {
   const [risks, setRisks] = useState([]);
   const [owners, setOwners] = useState([]);
   const [audits, setAudits] = useState([]);
+  const [orgUnits, setOrgUnits] = useState([]);
+  const [orgUnitsLoading, setOrgUnitsLoading] = useState(canManage);
+  const [orgUnitsError, setOrgUnitsError] = useState("");
   const filters = useMemo(() => filtersFromQuery(location.search), [location.search]);
   const setFilters = (next) => {
     const query = new URLSearchParams(Object.entries(next).filter(([, value]) => value)).toString();
@@ -42,12 +46,27 @@ function Riesgos() {
   const [assistantFocus, setAssistantFocus] = useState(null);
 
   const refresh = async () => setRisks(await getRisks(filters));
+  const loadOrgUnits = () => {
+    setOrgUnitsLoading(true);
+    setOrgUnitsError("");
+    return getAvailableOrgUnits()
+      .then(setOrgUnits)
+      .catch((err) => setOrgUnitsError(err.message))
+      .finally(() => setOrgUnitsLoading(false));
+  };
   useEffect(() => {
     Promise.all([getRisks(filters), canManage ? getRiskOwners() : Promise.resolve([]), getPlanningAudits()])
       .then(([allRisks, activeOwners, allAudits]) => { setRisks(allRisks); setOwners(activeOwners); setAudits(allAudits); })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [filters, canManage]);
+  useEffect(() => {
+    if (!canManage) return;
+    getAvailableOrgUnits()
+      .then(setOrgUnits)
+      .catch((err) => setOrgUnitsError(err.message))
+      .finally(() => setOrgUnitsLoading(false));
+  }, [canManage]);
   useEffect(() => {
     try {
       const target = decodeURIComponent(location.hash.slice(1));
@@ -56,18 +75,28 @@ function Riesgos() {
   }, [location.hash, risks]);
 
   const summary = ["Alto", "Medio", "Bajo"].map((level) => ({ level, count: risks.filter((risk) => risk.level === level).length }));
+  const orgUnitName = (id) => orgUnits.find((unit) => unit.id === id)?.name || "Entidad asignada";
+  const manageableUnits = orgUnits.filter((unit) => unit.accessLevel === "MANAGE");
+  const linkedAudit = audits.find((audit) => audit.id === form.linkedAuditId);
   const startCreate = () => { setEditing(null); setForm(EMPTY); setError(""); setModal(true); };
   const startEdit = (risk) => {
     setEditing(risk);
-    setForm({ title: risk.title, description: risk.description, area: risk.area, ownerId: String(risk.ownerId), responsePlan: risk.responsePlan || "", linkedAuditId: risk.linkedAuditId || "" });
+    setForm({ title: risk.title, description: risk.description, area: risk.area, orgUnitId: risk.orgUnitId || "", ownerId: String(risk.ownerId), responsePlan: risk.responsePlan || "", linkedAuditId: risk.linkedAuditId || "" });
     setError(""); setModal(true);
   };
   const submit = async (event) => {
     event.preventDefault(); setSaving(true); setError("");
     try {
       if (assessing) await evaluateRisk(assessing.id, form);
-      else if (editing) await updateRisk(editing.id, form);
-      else await createRisk(form);
+      else if (editing) {
+        const changes = { ...form };
+        delete changes.orgUnitId;
+        await updateRisk(editing.id, changes);
+      } else {
+        const changes = { ...form };
+        if (form.linkedAuditId) delete changes.orgUnitId;
+        await createRisk(changes);
+      }
       await refresh(); setModal(false); setAssessing(null); setMessage(assessing ? "Evaluación registrada en el historial." : editing ? "Riesgo actualizado." : "Riesgo registrado.");
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
@@ -99,7 +128,7 @@ function Riesgos() {
             <div className="risk-record-main">
               <div className="risk-record-heading"><span className="risk-record-id">{risk.id}</span><span className={`risk-badge risk-${risk.level.toLowerCase()}`}>{risk.level}</span><span className="risk-score">P×I {risk.score} / 9</span></div>
               <h2>{risk.title}</h2><p>{risk.description}</p>
-              <div className="risk-record-meta"><span><b>Área:</b> {risk.area}</span><span><b>Responsable:</b> {risk.ownerName}</span><span><b>Estado:</b> Abierto</span><span><b>Evaluaciones:</b> {risk.evaluations.length}</span>{risk.linkedAuditId && <span><b>Auditoría vinculada:</b> {audits.some((audit) => audit.id === risk.linkedAuditId && audit.status === "ACTIVE") ? <a href={`/auditorias-activas#audit-${encodeURIComponent(risk.linkedAuditId)}`}>{risk.linkedAuditId}</a> : risk.linkedAuditId}</span>}</div>
+              <div className="risk-record-meta"><span><b>Área:</b> {risk.area}</span>{risk.orgUnitId && <span><b>Entidad:</b> {orgUnitName(risk.orgUnitId)}</span>}<span><b>Responsable:</b> {risk.ownerName}</span><span><b>Estado:</b> Abierto</span><span><b>Evaluaciones:</b> {risk.evaluations.length}</span>{risk.linkedAuditId && <span><b>Auditoría vinculada:</b> {audits.some((audit) => audit.id === risk.linkedAuditId && audit.status === "ACTIVE") ? <a href={`/auditorias-activas#audit-${encodeURIComponent(risk.linkedAuditId)}`}>{risk.linkedAuditId}</a> : risk.linkedAuditId}</span>}</div>
               {risk.responsePlan && <p className="risk-plan"><b>Plan de respuesta:</b> {risk.responsePlan}</p>}
               <details className="risk-history"><summary><Activity size={15} /> Historial de evaluación ({risk.evaluations.length})</summary><ol>{[...risk.evaluations].reverse().map((evaluation) => <li key={evaluation.version}><div><b>Versión {evaluation.version}</b><span className={`risk-badge risk-${evaluation.level.toLowerCase()}`}>{evaluation.level} · {evaluation.score}/9</span></div><p>{evaluation.note}</p><small>{evaluation.assessedBy?.name || "Usuario"} · {dateLabel(evaluation.assessedAt)} · Probabilidad {evaluation.likelihood}, impacto {evaluation.impact}</small></li>)}</ol></details>
             </div>
@@ -116,9 +145,22 @@ function Riesgos() {
           <label className="full-width">Nombre del riesgo<input required minLength="3" maxLength="140" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
           <label className="full-width">Descripción<textarea required minLength="10" maxLength="2000" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
           <label>Área<input required maxLength="100" value={form.area} onChange={(event) => setForm({ ...form, area: event.target.value })} /></label>
+          <label>Ámbito empresarial
+            {editing ? <input readOnly value={form.orgUnitId ? orgUnitName(form.orgUnitId) : "Sin asignar"} /> : form.linkedAuditId ? (
+              <input readOnly value={linkedAudit?.orgUnitId ? orgUnitName(linkedAudit.orgUnitId) : "Sin asignar"} />
+            ) : (
+              <select value={form.orgUnitId} onChange={(event) => setForm({ ...form, orgUnitId: event.target.value })}
+                disabled={orgUnitsLoading || Boolean(orgUnitsError)}>
+                <option value="">Sin asignar todavía</option>
+                {manageableUnits.map((unit) => <option key={unit.id} value={unit.id}>{unit.name} · {unit.code}</option>)}
+              </select>
+            )}
+            {orgUnitsError && !editing && <small role="status">No se pudieron consultar las entidades. <button type="button" onClick={loadOrgUnits}>Reintentar</button></small>}
+            {!editing && !orgUnitsError && <small>{form.linkedAuditId ? "El ámbito se hereda de la auditoría; la API comprueba el permiso." : "Solo aparecen entidades donde puedes gestionar riesgos. El área no asigna una entidad."}</small>}
+          </label>
           <label>Responsable<select required value={form.ownerId} onChange={(event) => setForm({ ...form, ownerId: event.target.value })}><option value="">Seleccionar cuenta activa</option>{owners.map((owner) => <option key={owner.id} value={owner.id}>{owner.name} · {owner.role}</option>)}</select></label>
           <label className="full-width">Plan de respuesta (opcional)<textarea maxLength="2000" value={form.responsePlan} onChange={(event) => setForm({ ...form, responsePlan: event.target.value })} placeholder="Acciones para reducir probabilidad o impacto" /></label>
-          <label className="full-width">Auditoría relacionada (opcional)<select value={form.linkedAuditId} onChange={(event) => setForm({ ...form, linkedAuditId: event.target.value })}><option value="">Sin auditoría relacionada</option>{audits.map((audit) => <option key={audit.id} value={audit.id}>{audit.id} · {audit.title}</option>)}</select></label>
+          <label className="full-width">Auditoría relacionada (opcional)<select value={form.linkedAuditId} onChange={(event) => setForm({ ...form, linkedAuditId: event.target.value, orgUnitId: editing ? form.orgUnitId : "" })}><option value="">Sin auditoría relacionada</option>{audits.map((audit) => <option key={audit.id} value={audit.id}>{audit.id} · {audit.title}</option>)}</select></label>
         </>}
         {!editing && <>
           <label>Probabilidad<select value={form.likelihood} onChange={(event) => setForm({ ...form, likelihood: Number(event.target.value) })}><option value={1}>Baja (1)</option><option value={2}>Media (2)</option><option value={3}>Alta (3)</option></select></label>
@@ -127,7 +169,7 @@ function Riesgos() {
           <label className="full-width">Justificación de la evaluación<textarea required minLength="10" maxLength="1000" value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Explica la evidencia que sustenta esta calificación." /></label>
         </>}
       </div>
-      <div className="modal-actions"><button type="button" className="secondary-action" onClick={closeModal}>Cancelar</button><button type="submit" className="primary-action" disabled={saving}>{saving ? "Guardando..." : assessing ? "Guardar evaluación" : editing ? "Guardar cambios" : "Crear riesgo"}</button></div>
+      <div className="modal-actions"><button type="button" className="secondary-action" onClick={closeModal}>Cancelar</button><button type="submit" className="primary-action" disabled={saving || (!editing && !assessing && (orgUnitsLoading || Boolean(orgUnitsError)))}>{saving ? "Guardando..." : assessing ? "Guardar evaluación" : editing ? "Guardar cambios" : "Crear riesgo"}</button></div>
     </form></div>}
   </div>;
 }
