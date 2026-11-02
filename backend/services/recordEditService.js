@@ -10,7 +10,7 @@ const { assertWritableRecordScope, assertWritableRiskAuditLink,
   assertWritableControlScope } = require("./recordWriteScopeService");
 
 const fields = {
-  RISK: new Set(["title", "description", "area", "responsePlan"]),
+  RISK: new Set(["title", "description", "area", "category", "causes", "consequences", "responsePlan"]),
   CONTROL: new Set(["title", "description", "type", "frequency"])
 };
 const fail = (message, status = 400) => Object.assign(new Error(message), { status });
@@ -60,7 +60,7 @@ const updateCoreForUser = async (user, type, id, input, options = {}) => {
   if (options.expectedField && current[options.expectedField] !== options.expectedValue) {
     throw fail("El campo cambió desde la vista previa. Vuelve a revisarlo.", 409);
   }
-  const parsed = await parseFor(type)(input);
+  const parsed = await parseFor(type)(type === "RISK" ? { ...current, ...input } : input);
   if (parsed.error) throw fail(parsed.error);
   const businessContextReferences = type === "RISK"
     ? await resolveReferencesForUnit(user, input.businessContextReferences, current.orgUnitId)

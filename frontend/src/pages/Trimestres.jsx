@@ -13,6 +13,20 @@ const itemStatusLabel = (status) => ({
   CLOSED: "Cerrada"
 }[status] || status);
 
+const GOVERNANCE_STEPS = [
+  "annual", "quarterly", "start", "kickoff", "understanding",
+  "execution", "supervision", "closure", "report"
+];
+
+const workflowProgress = (audit) => {
+  if (audit.status === "CLOSED") return 100;
+  const fallbackStep = audit.status === "ACTIVE" ? "start" : "annual";
+  const step = audit.workflowStep || fallbackStep;
+  const index = GOVERNANCE_STEPS.indexOf(step);
+  if (index < 0) return audit.progress ?? 0;
+  return Math.round((index / (GOVERNANCE_STEPS.length - 1)) * 100);
+};
+
 function Trimestres() {
   const navigate = useNavigate();
   const [approvedAudits, setApprovedAudits] = useState([]);
@@ -40,7 +54,7 @@ function Trimestres() {
             {QUARTERS.map((quarter) => {
               const items = approvedAudits.filter((item) => item.quarter === quarter.value);
               const progress = items.length
-                ? Math.round(items.reduce((total, item) => total + (item.progress ?? 0), 0) / items.length)
+                ? Math.round(items.reduce((total, item) => total + workflowProgress(item), 0) / items.length)
                 : 0;
               const closed = items.filter((item) => item.status === "CLOSED").length;
               return (
@@ -141,7 +155,7 @@ export function TrimestreDetalle() {
 
           <div className="workspace-stats">
             <div><strong>{audits.length}</strong><span>Auditorías</span></div>
-            <div><strong>{audits.length ? `${Math.round(audits.reduce((total, item) => total + (item.progress ?? 0), 0) / audits.length)}%` : "0%"}</strong><span>Progreso de ejecución</span></div>
+            <div><strong>{audits.length ? `${Math.round(audits.reduce((total, item) => total + workflowProgress(item), 0) / audits.length)}%` : "0%"}</strong><span>Avance del flujo de gobierno</span></div>
             <div><strong>{audits.length ? audits.filter((item) => item.status === "CLOSED").length : 0}</strong><span>Cerradas</span></div>
           </div>
 
@@ -220,7 +234,7 @@ export function TrimestreDetalle() {
                 <span className={`status-pill status-${audit.status.toLowerCase()}`}>
                   {audit.status === "ACTIVE" ? <Activity size={14} /> : <CheckCircle2 size={14} />}{itemStatusLabel(audit.status)}
                 </span>
-                <span className="audit-progress"><i /><b>{audit.progress ?? 0}%</b></span>
+                <span className="audit-progress"><i style={{ width: `${workflowProgress(audit)}%` }} /><b>{workflowProgress(audit)}%</b></span>
                 {audit.status === "APPROVED" && canStart ? (
                   <button
                     type="button"

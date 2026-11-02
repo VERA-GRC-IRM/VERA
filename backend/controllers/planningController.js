@@ -6,6 +6,7 @@ const { applyTransition } = require("../services/planningTransitionService");
 const { parseProposal, activeAuditors, createProposalForUser, updateProposalForUser } = require("../services/proposalService");
 const { editAuditForUser } = require("../services/auditEditService");
 const { filterByVisibleScope, assertWritableRecordScope } = require("../services/recordScopeVisibility");
+const { saveAuditWorkflowStep } = require("../services/auditWorkflowService");
 
 const isTerminal = (proposal) => ["APPROVED", "ACTIVE", "CLOSED", "REJECTED"].includes(proposal.status);
 
@@ -75,6 +76,16 @@ const rejectProposal = (req, res) => respondToTransition(req, res, "reject");
 const startAudit = (req, res) => respondToTransition(req, res, "start");
 const closeAudit = (req, res) => respondToTransition(req, res, "close");
 
+const updateWorkflowStep = async (req, res) => {
+  try {
+    const audit = await saveAuditWorkflowStep(req.user, req.params.id, req.body?.step);
+    return res.json({ audit });
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(error.status)) return res.status(error.status).json({ message: error.message });
+    throw error;
+  }
+};
+
 // DELETE /api/planning/:id  (solo propuestas abiertas)
 const deleteProposal = async (req, res) => {
   const current = await planningRepository.findById(req.params.id);
@@ -120,6 +131,7 @@ module.exports = {
   approveProposal,
   startAudit,
   closeAudit,
+  updateWorkflowStep,
   rejectProposal,
   deleteProposal,
   editAudit

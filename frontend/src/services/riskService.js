@@ -23,3 +23,12 @@ export const updateRisk = async (id, risk) => (await request(`/${id}`, { method:
 export const evaluateRisk = async (id, assessment) => (await request(`/${id}/evaluate`, { method: "POST", body: JSON.stringify(assessment) })).risk;
 export const proposeRiskResponse = async (id, proposal) =>
   (await request(`/${encodeURIComponent(id)}/response`, { method: "POST", body: JSON.stringify(proposal) })).risk;
+export const getAuditRisks = async (auditId) => (await request(`/audit/${encodeURIComponent(auditId)}`)).risks;
+export const createAuditRisk = async (auditId, risk) =>
+  (await request(`/audit/${encodeURIComponent(auditId)}`, { method: "POST", body: JSON.stringify(risk) })).risk;
+export const unlinkAuditRisk = async (auditId, riskId) =>
+  (await request(`/audit/${encodeURIComponent(auditId)}/${encodeURIComponent(riskId)}`, { method: "DELETE" })).risk;
+export const updateAuditRisk = async (auditId, riskId, risk) =>
+  (await request(`/audit/${encodeURIComponent(auditId)}/${encodeURIComponent(riskId)}`, { method: "PATCH", body: JSON.stringify(risk) })).risk;
+export const evaluateAuditRisk = async (auditId, riskId, assessment) =>
+  (await request(`/audit/${encodeURIComponent(auditId)}/${encodeURIComponent(riskId)}/evaluate`, { method: "POST", body: JSON.stringify(assessment) })).risk;

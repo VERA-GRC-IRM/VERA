@@ -30,8 +30,10 @@ const parseAssessment = (body) => {
     methodId: LEGACY_RISK_METHOD_ID, assessmentStage: UNSPECIFIED_STAGE } };
 };
 
-const evaluateRiskForUser = async (user, id, body, expectedVersion) => {
-  if (!RISK_CONTROL_MANAGE_ROLES.includes(user.role)) throw errorFor("Tu rol no puede evaluar riesgos.", 403);
+const evaluateRiskForUser = async (user, id, body, expectedVersion, options = {}) => {
+  if (!RISK_CONTROL_MANAGE_ROLES.includes(user.role) && !(options.auditId && user.role === "AUDITOR")) {
+    throw errorFor("Tu rol no puede evaluar riesgos.", 403);
+  }
   if (typeof id !== "string" || !id.trim() || id.length > 80) throw errorFor("Selecciona un riesgo válido.", 400);
   const current = await riskRepository.findById(id);
   if (!current) throw errorFor("Riesgo no encontrado.", 404);

@@ -5,8 +5,9 @@ import Sidebar from "../components/Sidebar";
 import AssistantDrawer from "../components/AssistantDrawer";
 import PlanningHistoryButton from "../components/PlanningHistoryButton";
 import EditAuditModal from "../components/EditAuditModal";
+import AuditRisksPanel from "../components/AuditRisksPanel";
 import { PLANNING_APPROVE_ROLES, RISK_FACTORS } from "../constants/planning";
-import { closeAudit, getActiveAudits, getAuditContext, getPlanningAudits, startAudit } from "../services/planningService";
+import { closeAudit, getActiveAudits, getAuditContext, getPlanningAudits, startAudit, updateAuditWorkflowStep } from "../services/planningService";
 import { getRisks } from "../services/riskService";
 import { getControls } from "../services/controlService";
 import "./Planning.css";
@@ -14,6 +15,18 @@ import "./Planning.css";
 const riskFor = (likelihood, impact) => {
   const score = likelihood * impact;
   return score <= 2 ? "Bajo" : score <= 4 ? "Medio" : "Alto";
+};
+
+const GOVERNANCE_STEPS = [
+  "annual", "quarterly", "start", "kickoff", "understanding",
+  "execution", "supervision", "closure", "report"
+];
+
+const workflowProgress = (audit, step) => {
+  if (audit?.status === "CLOSED") return 100;
+  const currentStep = step || audit?.workflowStep || (audit?.status === "ACTIVE" ? "start" : "annual");
+  const index = GOVERNANCE_STEPS.indexOf(currentStep);
+  return index < 0 ? (audit?.progress ?? 0) : Math.round((index / (GOVERNANCE_STEPS.length - 1)) * 100);
 };
 
 function AuditoriasActivas() {
@@ -49,7 +62,9 @@ function AuditoriasActivas() {
       setRisks(linkedRisks);
       setControls(linkedControls);
       if (auditId) {
-        setSelectedAudit(active.find((item) => item.id === auditId) || null);
+        const auditFromRoute = [...active, ...proposals].find((item) => item.id === auditId) || null;
+        setSelectedAudit(auditFromRoute);
+        setActiveStep(auditFromRoute?.workflowStep || (auditFromRoute?.status === "CLOSED" ? "report" : "annual"));
         setAuditContext(await getAuditContext(auditId));
         setContextError(null);
       }
@@ -70,9 +85,13 @@ function AuditoriasActivas() {
         setApprovedAudits(proposals.filter((item) => item.status === "APPROVED"));
         setRisks(linkedRisks);
         setControls(linkedControls);
-        const auditFromRoute = auditId ? active.find((item) => item.id === auditId) : null;
+        const auditFromRoute = auditId
+          ? [...active, ...proposals].find((item) => item.id === auditId) || null
+          : null;
         setSelectedAudit(auditFromRoute || null);
-        if (auditFromRoute) setActiveStep("annual");
+        if (auditFromRoute) {
+          setActiveStep(auditFromRoute.workflowStep || (auditFromRoute.status === "CLOSED" ? "report" : "annual"));
+        }
         setError("");
       })
       .catch((loadError) => {
@@ -112,6 +131,7 @@ function AuditoriasActivas() {
   ];
   const currentStepIndex = governanceSteps.findIndex((step) => step.id === activeStep);
   const nextGovernanceStep = governanceSteps[currentStepIndex + 1];
+  const currentProgress = workflowProgress(selectedAudit, activeStep);
 
   const openAudit = (audit) => {
     navigate(`/auditorias-activas/${encodeURIComponent(audit.id)}`);
@@ -121,10 +141,23 @@ function AuditoriasActivas() {
     navigate("/auditorias-activas");
   };
 
-  const continueGovernance = () => {
+  const continueGovernance = async () => {
     if (!nextGovernanceStep || nextGovernanceStep.locked) return;
-    setActiveStep(nextGovernanceStep.id);
-    setActiveTab("summary");
+    if (!selectedAudit) return;
+    setBusyId(selectedAudit.id);
+    setError("");
+    setMessage("");
+    try {
+      const updatedAudit = await updateAuditWorkflowStep(selectedAudit.id, nextGovernanceStep.id);
+      setSelectedAudit(updatedAudit);
+      setActiveStep(updatedAudit.workflowStep || nextGovernanceStep.id);
+      setActiveTab("summary");
+      setMessage(`Paso guardado: ${nextGovernanceStep.label}.`);
+    } catch (actionError) {
+      setError(actionError.message);
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const currentContext = auditContext?.audit.id === selectedAudit?.id ? auditContext : null;
@@ -349,7 +382,7 @@ function AuditoriasActivas() {
                     </div>
                     <div className="governance-progress">
                       <span>PROGRESO GENERAL</span>
-                      <strong>{selectedAudit.progress ?? 0}%</strong>
+                      <strong>{currentProgress}%</strong>
                     </div>
                   </div>
                 </header>
@@ -376,8 +409,8 @@ function AuditoriasActivas() {
                       <h3>{activeStep === "closure" ? "Cierre y comunicación" : activeStep === "execution" ? "Ejecución y progreso" : governanceSteps.find((step) => step.id === activeStep)?.label}</h3>
                       <p>{activeStep === "execution" ? "Documenta riesgos, controles, evidencias y el avance de la auditoría." : "Completa esta etapa y continúa con el siguiente paso del flujo."}</p>
                       {nextGovernanceStep && !nextGovernanceStep.locked && (
-                        <button type="button" className="governance-continue" onClick={continueGovernance}>
-                          Continuar a {nextGovernanceStep.label}
+                        <button type="button" className="governance-continue" onClick={continueGovernance} disabled={busyId === selectedAudit?.id}>
+                          {busyId === selectedAudit?.id ? "Guardando..." : `Continuar a ${nextGovernanceStep.label}`}
                           <ArrowRight size={17} aria-hidden="true" />
                         </button>
                       )}
@@ -457,8 +490,7 @@ function AuditoriasActivas() {
                       )}
                       {activeTab === "risks" && currentContext && (
                         <>
-                          <h3>Riesgos vinculados</h3>
-                          {linkedRisks.length ? linkedRisks.map((risk) => <article className="governance-record" key={risk.id}><strong>{risk.id} · {risk.title}</strong><p>{risk.description}</p><span>Nivel {risk.level} · {risk.score}/9</span></article>) : <p>No hay riesgos registrados para esta auditoría.</p>}
+                          <AuditRisksPanel auditId={selectedAudit.id} onChanged={async () => { await refresh(); }} />
                         </>
                       )}
                       {activeTab === "controls" && currentContext && (

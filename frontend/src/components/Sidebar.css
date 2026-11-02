@@ -28,6 +28,7 @@
 
 .sidebar-brand { position: relative; padding-right: 34px; }
 .brand-copy { min-width: 0; }
+.brand-line { display: block; white-space: nowrap; }
 .sidebar-collapse-toggle {
   position: absolute;
   top: 9px;
