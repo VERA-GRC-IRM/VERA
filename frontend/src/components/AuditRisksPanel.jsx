@@ -166,7 +166,7 @@ function AuditRisksPanel({ auditId, onChanged }) {
           <table className="audit-risk-table">
             <thead><tr><th>ID</th><th>Nombre</th><th>Categoría / proceso</th><th>Responsable</th><th>P</th><th>I</th><th>Nivel</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody>{filtered.map((risk) => <tr key={risk.id}>
-              <td>{risk.id}</td><td><button type="button" className="audit-risk-link" onClick={() => setSelected(risk)}>{risk.title}</button></td>
+              <td>{risk.id}</td><td><button type="button" className="audit-risk-link" onClick={() => setSelected(risk)}>{risk.id} · {risk.title}</button></td>
               <td>{risk.category || "—"}{risk.area ? ` · ${risk.area}` : ""}</td><td>{risk.ownerName || "—"}</td>
               <td>{risk.likelihood}</td><td>{risk.impact}</td><td><strong>{risk.level}</strong> ({risk.score}/9)</td><td>{risk.status || "OPEN"}</td>
               <td className="audit-risk-actions">{canManage && <><button type="button" title="Editar riesgo" onClick={() => openEdit(risk)}><Pencil size={15} /></button><button type="button" title="Evaluar riesgo" onClick={() => openEvaluate(risk)}>Evaluar</button><button type="button" title="Desvincular riesgo" onClick={() => unlink(risk)}><Trash2 size={15} /></button></>}</td>
