@@ -42,8 +42,13 @@ def main():
     user = pr.get("user") or {}
     summary = []
 
+    assignees = pr.get("assignees") or []
+    has_copilot_assignee = any(str(assignee.get("login", "")).casefold() == "copilot" for assignee in assignees)
+
     if user.get("type") == "Bot" or str(user.get("login", "")).endswith("[bot]"):
         summary.append("PR automatizado: plantilla humana no exigida; los demás checks siguen activos.")
+    elif has_copilot_assignee:
+        summary.append("PR asistido por Copilot: revisión documental manual permitida; los demás checks siguen activos.")
     elif pr.get("draft"):
         summary.append("Borrador: la plantilla se verificará al marcar el PR listo para revisión.")
     else:
