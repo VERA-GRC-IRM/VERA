@@ -575,9 +575,13 @@
   .governance-heading {
     align-items: flex-start;
     flex-direction: column;
+    gap: 18px;
   }
 
   .governance-progress {
+    width: 100%;
+    padding-left: 0;
+    border-left: 0;
     text-align: left;
   }
 }
@@ -708,7 +712,12 @@
 .active-audit-card:target { outline: 3px solid #0a9d91; scroll-margin-top: 24px; }
 .active-audit-card { cursor: pointer; }
 .governance-route > *:not(.governance-backdrop) { display: none !important; }
-.governance-route { padding-top: 0 !important; }
+.governance-route {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 0 !important;
+}
 
 .governance-layout .sidebar {
   width: 88px;
@@ -765,9 +774,14 @@
   background: light-dark(#f5f7f8, var(--vera-canvas));
 }
 
+.governance-backdrop:has(.modal-backdrop) {
+ z-index: 20;
+}
+
 .governance-workspace {
   width: 100%;
   max-width: none;
+  box-sizing: border-box;
   overflow: auto;
   border-radius: 0;
   background: light-dark(#f5f7f8, var(--vera-canvas));
@@ -776,7 +790,7 @@
 
 .governance-header {
   position: relative;
-  padding: 22px 28px 26px;
+  padding: 24px clamp(24px, 4vw, 56px) 28px;
   background: light-dark(#fff, var(--vera-surface));
   border-bottom: 1px solid light-dark(#e6edef, var(--vera-border));
 }
@@ -797,18 +811,53 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 24px;
-  margin-top: 22px;
+  gap: 40px;
+  margin-top: 28px;
+}
+
+.governance-heading > div:first-child {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 12px;
 }
 
 .governance-heading h2 {
-  margin: 0 0 8px;
+  flex: 1 0 100%;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.governance-heading .planning-id {
+  flex: 1 1 auto;
+  min-width: 220px;
+  overflow-wrap: anywhere;
+}
+
+.governance-heading .secondary-action {
+  flex: 0 0 auto;
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+.governance-heading .secondary-action + .secondary-action {
+  margin-left: 2px;
+}
+
+.governance-heading h2 {
   color: light-dark(#202b35, var(--vera-text-strong));
   font-size: 27px;
 }
 
 .governance-progress {
-  min-width: 190px;
+  flex: 0 0 150px;
+  min-width: 150px;
+  padding-left: 24px;
+  border-left: 1px solid light-dark(#e6edef, var(--vera-border));
   color: light-dark(#586b77, var(--vera-text-muted));
   text-align: right;
   font-size: 11px;
@@ -1204,12 +1253,14 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 10;
+  z-index: 1100;
   background: rgba(20, 39, 49, .58);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 24px;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .proposal-modal {
@@ -1251,6 +1302,74 @@
   cursor: pointer;
   display: grid;
   place-items: center;
+}
+
+.audit-risks-module { color: light-dark(#344451, var(--vera-text-strong)); }
+.governance-panel-heading, .audit-risk-filters, .audit-risk-summary {
+  display: flex; align-items: center; gap: 12px;
+}
+.governance-panel-heading { justify-content: space-between; margin-bottom: 18px; }
+.governance-panel-heading h3 { margin: 0 0 5px; }
+.governance-panel-heading p { margin: 0; color: light-dark(#586b77, var(--vera-text-muted)); }
+.audit-risk-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 18px; }
+.audit-risk-summary div {
+  padding: 12px; border: 1px solid light-dark(#e0e8eb, var(--vera-border));
+  border-radius: 9px; background: light-dark(#f8fafb, var(--vera-surface-raised));
+}
+.audit-risk-summary strong, .audit-risk-summary span { display: block; }
+.audit-risk-summary strong { font-size: 20px; color: light-dark(#123f4d, var(--vera-accent)); }
+.audit-risk-summary span { font-size: 12px; color: light-dark(#586b77, var(--vera-text-muted)); }
+.audit-risk-filters { margin-bottom: 18px; flex-wrap: wrap; }
+.audit-risk-filters label, .audit-risk-form label {
+  display: grid; gap: 6px; color: light-dark(#344451, var(--vera-text-strong));
+  font-size: 12px; font-weight: 700;
+}
+.audit-risk-filters label:first-child { flex: 1 1 260px; }
+.audit-risk-filters input, .audit-risk-filters select, .audit-risk-form input,
+.audit-risk-form select, .audit-risk-form textarea {
+  min-width: 0; border: 1px solid light-dark(#dbe3e7, var(--vera-border));
+  border-radius: 8px; padding: 9px 10px; background: light-dark(#fff, var(--vera-surface));
+  color: inherit; font: inherit;
+}
+.audit-risk-form {
+  width: min(760px, 100%); max-height: calc(100dvh - 48px); overflow: auto;
+  background: light-dark(#fff, var(--vera-surface)); border-radius: 16px; padding: 28px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .2); display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px;
+}
+.audit-risk-form .modal-header, .audit-risk-form .modal-actions,
+.audit-risk-form .full-width, .audit-risk-form > strong { grid-column: 1 / -1; }
+.audit-risk-form textarea { min-height: 75px; resize: vertical; }
+.audit-risk-table-wrap { overflow-x: auto; }
+.audit-risk-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.audit-risk-table th, .audit-risk-table td {
+  padding: 11px 8px; border-bottom: 1px solid light-dark(#edf1f2, var(--vera-border));
+  text-align: left; vertical-align: middle;
+}
+.audit-risk-table th {
+  color: light-dark(#586b77, var(--vera-text-muted)); font-size: 11px; text-transform: uppercase;
+}
+.audit-risk-link {
+  padding: 0; border: 0; background: transparent; color: light-dark(#123f4d, var(--vera-accent));
+  cursor: pointer; font-weight: 700; text-align: left;
+}
+.audit-risk-actions { display: flex; gap: 5px; }
+.audit-risk-actions button {
+  border: 0; background: transparent; color: light-dark(#52636d, var(--vera-text-muted)); cursor: pointer;
+}
+.audit-risk-link-action { margin-top: 18px; }
+.risk-detail-card {
+  position: relative; margin-top: 18px; padding: 16px;
+  border: 1px solid light-dark(#dbe3e7, var(--vera-border)); border-radius: 10px;
+  background: light-dark(#f8fafb, var(--vera-surface-raised));
+}
+.risk-detail-card .modal-close { position: absolute; top: 10px; right: 10px; }
+.risk-detail-card h4 { margin: 0 32px 8px 0; }
+@media (max-width: 700px) {
+  .audit-risk-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .audit-risk-form { grid-template-columns: 1fr; }
+  .audit-risk-form .modal-header, .audit-risk-form .modal-actions,
+  .audit-risk-form .full-width, .audit-risk-form > strong { grid-column: auto; }
 }
 
 .proposal-form-grid {

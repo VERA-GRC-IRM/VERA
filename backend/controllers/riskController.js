@@ -6,6 +6,7 @@ const { activeUsers, createRiskForUser } = require("../services/riskCreationServ
 const { updateCoreForUser } = require("../services/recordEditService");
 const { normalizeArea } = require("../utils/normalizeArea");
 const { filterByVisibleScope, projectVisibleAuditLinks } = require("../services/recordScopeVisibility");
+const riskAuditService = require("../services/riskAuditService");
 
 const text = (value) => String(value ?? "").trim();
 const listRisks = async (req, res) => {
@@ -57,4 +58,49 @@ const proposeResponse = async (req, res) => {
   }
 };
 
-module.exports = { listRisks, listOwners, createRisk, updateRisk, evaluateRisk, proposeResponse };
+const auditRisks = async (req, res, next) => {
+  try { return res.json({ risks: await riskAuditService.listRisksForAudit(req.user, req.params.auditId) }); }
+  catch (error) {
+    if ([400, 403, 404, 409].includes(error.status)) return res.status(error.status).json({ message: error.message });
+    return next(error);
+  }
+};
+
+const createAuditRisk = async (req, res, next) => {
+  try {
+    if (req.body?.mode === "link") {
+      return res.status(201).json({ risk: await riskAuditService.linkRiskToAudit(req.user, req.params.auditId, req.body.riskId, req.body) });
+    }
+    return res.status(201).json({ risk: await riskAuditService.createRiskForAudit(req.user, req.params.auditId, req.body || {}) });
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(error.status)) return res.status(error.status).json({ message: error.message });
+    return next(error);
+  }
+};
+
+const unlinkAuditRisk = async (req, res, next) => {
+  try { return res.json({ risk: await riskAuditService.unlinkRiskFromAudit(req.user, req.params.auditId, req.params.riskId) }); }
+  catch (error) {
+    if ([400, 403, 404, 409].includes(error.status)) return res.status(error.status).json({ message: error.message });
+    return next(error);
+  }
+};
+
+const updateAuditRisk = async (req, res, next) => {
+  try { return res.json({ risk: await riskAuditService.updateRiskForAudit(req.user, req.params.auditId, req.params.riskId, req.body || {}) }); }
+  catch (error) {
+    if ([400, 403, 404, 409].includes(error.status)) return res.status(error.status).json({ message: error.message });
+    return next(error);
+  }
+};
+
+const evaluateAuditRisk = async (req, res, next) => {
+  try { return res.json({ risk: await riskAuditService.evaluateRiskForAudit(req.user, req.params.auditId, req.params.riskId, req.body || {}) }); }
+  catch (error) {
+    if ([400, 403, 404, 409].includes(error.status)) return res.status(error.status).json({ message: error.message });
+    return next(error);
+  }
+};
+
+module.exports = { listRisks, listOwners, createRisk, updateRisk, evaluateRisk, proposeResponse,
+  auditRisks, createAuditRisk, updateAuditRisk, unlinkAuditRisk, evaluateAuditRisk };

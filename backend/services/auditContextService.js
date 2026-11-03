@@ -8,7 +8,9 @@ const { canViewRecordScope, projectVisibleRiskRelations } = require("./recordSco
 
 // Una sola definición de las relaciones del expediente, también usada por el dossier de IA.
 const relateAudit = (auditId, { risks = [], controls = [], findings = [], evidence = [] }) => {
-  const linkedRisks = risks.filter((item) => item.linkedAuditId === auditId);
+  const linkedRisks = risks.filter((item) =>
+    item.linkedAuditId === auditId ||
+    (item.auditLinks || []).some((link) => link.auditId === auditId));
   const riskIds = new Set(linkedRisks.map((item) => item.id));
   const linkedControls = controls.filter((item) => item.riskIds?.some((id) => riskIds.has(id)));
   const controlIds = new Set(linkedControls.map((item) => item.id));
@@ -56,7 +58,17 @@ const buildAuditContext = async (user, auditId) => {
   ) : allEvidence;
   const related = relateAudit(auditId, { risks, controls, findings, evidence });
   const groups = {
-    risks: related.risks.map(({ id, title, description, level, score }) => ({ id, title, description, level, score })),
+    risks: related.risks.map((risk) => {
+      const relation = (risk.auditLinks || []).find((link) => link.auditId === auditId);
+      return {
+        id: risk.id, title: risk.title, description: risk.description, area: risk.area,
+        category: risk.category, causes: risk.causes, consequences: risk.consequences,
+        ownerId: risk.ownerId, ownerName: risk.ownerName, likelihood: relation?.likelihood ?? risk.likelihood,
+        impact: relation?.impact ?? risk.impact, level: relation?.level ?? risk.level,
+        score: relation?.score ?? risk.score, note: relation?.note ?? risk.note,
+        status: relation?.status ?? risk.status, linkedAuditId: auditId
+      };
+    }),
     controls: related.controls.map(({ id, title, description, effectiveness, riskIds }) => ({
       id, title, description, effectiveness, riskIds: (riskIds || []).filter((riskId) =>
         related.risks.some((risk) => risk.id === riskId))

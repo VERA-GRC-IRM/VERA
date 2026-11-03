@@ -14,6 +14,7 @@ const {
   approveProposal,
   startAudit,
   closeAudit,
+  updateWorkflowStep,
   rejectProposal,
   deleteProposal,
   editAudit
@@ -58,6 +59,7 @@ router.get("/:id/context", verifyToken, async (req, res, next) => {
     next(error);
   }
 });
+router.patch("/:id/workflow-step", verifyToken, updateWorkflowStep);
 router.get("/:id/history", verifyToken, getHistory);
 const { RECORD_CREATE_ROLES } = require("../config/roles");
 

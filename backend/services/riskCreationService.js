@@ -42,6 +42,9 @@ const parseCore = async (body) => {
   const title = text(body.title);
   const description = text(body.description);
   const area = text(body.area);
+  const category = text(body.category);
+  const causes = text(body.causes);
+  const consequences = text(body.consequences);
   const responsePlan = text(body.responsePlan);
   const ownerId = Number(body.ownerId);
   const owner = (await activeUsers()).find((user) => user.id === ownerId);
@@ -51,21 +54,27 @@ const parseCore = async (body) => {
     return { error: "La descripción debe tener entre 10 y 2,000 caracteres." };
   }
   if (!area || area.length > 100) return { error: "El área es obligatoria y admite hasta 100 caracteres." };
+  if (category.length > 100) return { error: "La categoría admite hasta 100 caracteres." };
+  if (causes.length > 2000 || consequences.length > 2000) {
+    return { error: "Las causas y consecuencias admiten hasta 2,000 caracteres." };
+  }
   if (!owner) return { error: "Selecciona una persona responsable con cuenta activa." };
   if (responsePlan.length > 2000) return { error: "El plan de respuesta admite hasta 2,000 caracteres." };
   if (linkedAuditId && !await planningRepository.findById(linkedAuditId)) {
     return { error: "La auditoría relacionada no existe." };
   }
-  return { data: { title, description, area, ownerId: owner.id,
+  return { data: { title, description, area, category, causes, consequences, ownerId: owner.id,
     ownerName: owner.name, responsePlan, linkedAuditId: linkedAuditId || null } };
 };
 
-const createRiskForUser = async (user, input, operationId = null) => {
+const createRiskForUser = async (user, input, operationId = null, options = {}) => {
   const currentUser = await userRepository.findById(user.id);
   if (currentUser?.status !== USER_STATUS.ACTIVE || currentUser.role !== user.role) {
     throw errorFor("Cambió tu acceso. Inicia sesión de nuevo.", 409);
   }
-  if (!RISK_CONTROL_MANAGE_ROLES.includes(user.role)) throw errorFor("Tu rol no puede registrar riesgos.", 403);
+  if (!RISK_CONTROL_MANAGE_ROLES.includes(user.role) && !(options.auditId && user.role === "AUDITOR")) {
+    throw errorFor("Tu rol no puede registrar riesgos.", 403);
+  }
   if (operationId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(operationId)) {
     throw errorFor("La operación no es válida.", 400);
   }

@@ -43,6 +43,7 @@ const EMPTY_FORM = {
 
 const formatDate = (value) =>
   value ? new Date(`${value}T00:00:00`).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "";
+const riskLabel = (value) => String(value || "Sin definir");
 
 function Planificacion() {
   const user = JSON.parse(localStorage.getItem("user") || "null");
@@ -343,7 +344,7 @@ function Planificacion() {
                   <div className="planning-card-content">
                     <div className="proposal-heading">
                       <span className="planning-id">{item.id}</span>
-                      <span className={`risk-badge risk-${item.risk.toLowerCase()}`}>{item.risk}</span>
+                      <span className={`risk-badge risk-${riskLabel(item.risk).toLowerCase()}`}>{riskLabel(item.risk)}</span>
                     </div>
                     <h2>{item.title}</h2>
                     <p className="proposal-summary">{item.objective}</p>
@@ -403,7 +404,7 @@ function Planificacion() {
                     <div className="details-field"><span>Responsable</span><p>{detailItem.responsible || "Sin asignar"}</p></div>
                     <div className="details-field"><span>Año</span><p>{detailItem.year || "Sin definir"}</p></div>
                     <div className="details-field"><span>Periodo</span><p>{formatDate(detailItem.startDate) || "—"} → {formatDate(detailItem.endDate) || "—"}</p></div>
-                    <div className="details-field"><span>Prioridad</span><p><span className={`risk-badge risk-${detailItem.risk.toLowerCase()}`}>{detailItem.risk}</span></p></div>
+                    <div className="details-field"><span>Prioridad</span><p><span className={`risk-badge risk-${riskLabel(detailItem.risk).toLowerCase()}`}>{riskLabel(detailItem.risk)}</span></p></div>
                     <div className="details-field"><span>Estado actual</span><p>{detailItem.status || "Sin definir"}</p></div>
                     <div className="details-field"><span>Creada por</span><p>{detailItem.createdBy?.name || "Sin dato"}</p></div>
                   </div>

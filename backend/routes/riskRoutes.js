@@ -3,7 +3,8 @@ const router = express.Router();
 const { verifyToken } = require("../middleware/authMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
 const { RISK_CONTROL_MANAGE_ROLES, ROLES } = require("../config/roles");
-const { listRisks, listOwners, createRisk, updateRisk, evaluateRisk, proposeResponse } = require("../controllers/riskController");
+const { listRisks, listOwners, createRisk, updateRisk, evaluateRisk, proposeResponse,
+  auditRisks, createAuditRisk, updateAuditRisk, unlinkAuditRisk, evaluateAuditRisk } = require("../controllers/riskController");
 const { LEGACY_RISK_METHOD } = require("../config/riskMethods");
 const { previewQualitativeMethod } = require("../services/riskMethodPreviewService");
 const methodCatalog = require("../services/riskMethodCatalogService");
@@ -17,6 +18,11 @@ const catalog = (operation, status = 200) => async (req, res, next) => {
 };
 
 router.get("/", verifyToken, listRisks);
+router.get("/audit/:auditId", verifyToken, auditRisks);
+router.post("/audit/:auditId", verifyToken, createAuditRisk);
+router.patch("/audit/:auditId/:riskId", verifyToken, updateAuditRisk);
+router.delete("/audit/:auditId/:riskId", verifyToken, unlinkAuditRisk);
+router.post("/audit/:auditId/:riskId/evaluate", verifyToken, evaluateAuditRisk);
 router.get("/methods", verifyToken, (_req, res) => res.json({ methods: [LEGACY_RISK_METHOD] }));
 router.get("/methods/drafts", verifyToken, allowRoles(ROLES.SUPER_ADMIN),
   catalog(async (req) => ({ methods: await methodCatalog.listDraftMethods(req.user) })));

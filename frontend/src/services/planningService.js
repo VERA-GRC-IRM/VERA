@@ -112,6 +112,14 @@ export const closeAudit = async (id) => {
   return data.audit;
 };
 
+export const updateAuditWorkflowStep = async (id, step) => {
+  const data = await request(`/${id}/workflow-step`, {
+    method: "PATCH",
+    body: JSON.stringify({ step })
+  });
+  return data.audit;
+};
+
 export const deleteAuditProposal = async (id) => {
   await request(`/${id}`, { method: "DELETE" });
 };

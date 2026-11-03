@@ -164,9 +164,8 @@ function Sidebar({ active }) {
           <div className="brand-copy">
             <h2>VERA</h2>
             <p>
-              VERIFICACIÓN · EVIDENCIA ·
-              <br />
-              RIESGO · AUDITORÍA
+              <span className="brand-line">VERIFICACIÓN · EVIDENCIA ·</span>
+              <span className="brand-line">RIESGO · AUDITORÍA</span>
             </p>
           </div>
           <button type="button" className="sidebar-collapse-toggle" onClick={() => setCollapsed((value) => !value)}
@@ -176,7 +175,7 @@ function Sidebar({ active }) {
           </button>
         </div>
         <div className="sidebar-navigation">
-          <div className="nav-title">NAVEGACIÓN</div>
+
           <nav aria-label="Módulos principales">
             {groups.map((group) => group.items.length > 0 && <section className="nav-group" key={group.label}
               aria-label={group.label}>
