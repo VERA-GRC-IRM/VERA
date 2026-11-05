@@ -19,6 +19,6 @@ SET
 
     'image/png',
     'image/jpeg',
-    'image/webp',
+    'image/webp'
   ]
 WHERE id = 'vera-evidence';
