@@ -12,6 +12,8 @@ const evidenceIndexCoverage = require("../repositories/evidenceIndexCoverage");
 const { IMAGE_MIME, extractImageText } = require("../services/azureVisionOcrService");
 const { readiness } = require("../services/azureOpenAiService");
 
+const { PLANNING_APPROVE_ROLES } = require("../config/roles");
+
 const text = (value) => String(value ?? "").trim();
 
 const listEvidence = async (req, res) => {
@@ -61,6 +63,7 @@ const uploadEvidence = async (req, res) => {
   if (description.length < 10 || description.length > 1000) return res.status(400).json({ message: "La descripción debe tener entre 10 y 1,000 caracteres." });
   if (!EVIDENCE_TYPES.includes(evidenceType)) return res.status(400).json({ message: "Selecciona un tipo de evidencia válido." });
   if (!ENTITY_TYPES.includes(entityType) || !entityId) return res.status(400).json({ message: "Selecciona un riesgo, control o auditoría." });
+  if ( entityType === "AUDIT" && !PLANNING_APPROVE_ROLES.includes(req.user.role)) return res.status(403).json({ message: "Tu rol no tiene permiso para adjuntar archivos a auditorías."});
   if (!evidenceStorage.MIME_EXTENSIONS[mime]) return res.status(415).json({ message: "Tipo de archivo no permitido." });
   const entity = await findEntity(entityType, entityId);
   if (!entity || !await canAccessEntity(entityType, entityId, req.user)) {

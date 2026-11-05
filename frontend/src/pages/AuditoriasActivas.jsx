@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Activity, ArrowLeft, ArrowRight, Bot, CheckCircle2, ClipboardCheck, FileText, Flag, GitBranch, LockKeyhole, Pencil, Play, RefreshCw, ShieldAlert, Target } from "lucide-react";
+import { Activity, ArrowLeft, ArrowRight, Bot, CheckCircle2, ClipboardCheck, Download, FileText, Flag, GitBranch, LockKeyhole, Pencil, Play, RefreshCw, ShieldAlert, Target, Upload } from "lucide-react";
+import { uploadEvidenceFile, getEvidenceDownloadUrl } from "../services/evidenceService";
 import Sidebar from "../components/Sidebar";
 import AssistantDrawer from "../components/AssistantDrawer";
 import PlanningHistoryButton from "../components/PlanningHistoryButton";
@@ -35,6 +36,7 @@ function AuditoriasActivas() {
   const isGovernanceRoute = Boolean(auditId);
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const canManage = PLANNING_APPROVE_ROLES.includes(user?.role);
+  const canAttachEvidence = PLANNING_APPROVE_ROLES.includes(user?.role);
   const [activeAudits, setActiveAudits] = useState([]);
   const [approvedAudits, setApprovedAudits] = useState([]);
   const [risks, setRisks] = useState([]);
@@ -51,6 +53,10 @@ function AuditoriasActivas() {
   const [activeTab, setActiveTab] = useState("summary");
   const [auditContext, setAuditContext] = useState(null);
   const [contextError, setContextError] = useState(null);
+  const [evidenceTitle, setEvidenceTitle] = useState("");
+  const [evidenceDescription, setEvidenceDescription] = useState("");
+  const [evidenceFile, setEvidenceFile] = useState(null);
+  const [evidenceSaving, setEvidenceSaving] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -202,6 +208,57 @@ function AuditoriasActivas() {
   const selectedAudits = selectedCell ? activeAudits.filter((audit) =>
     (audit.likelihood ?? 2) === selectedCell.likelihood && (audit.impact ?? 2) === selectedCell.impact
   ) : [];
+
+  const handleEvidenceUpload = async (event) => {
+    event.preventDefault();
+
+    if (!selectedAudit || !evidenceFile || evidenceSaving) {
+      return;
+    }
+
+    if (evidenceFile.size > 3 * 1024 * 1024) {
+      setError("El archivo supera el límite de 3 MB.");
+      return;
+    }
+
+    setEvidenceSaving(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await uploadEvidenceFile(
+        {
+          title: evidenceTitle.trim(),
+          description: evidenceDescription.trim(),
+          evidenceType: "DOCUMENT",
+          entityType: "AUDIT",
+          entityId: selectedAudit.id
+        },
+        evidenceFile
+      );
+
+      setEvidenceTitle("");
+      setEvidenceDescription("");
+      setEvidenceFile(null);
+
+      await refresh();
+
+      setMessage("Archivo adjuntado correctamente a la auditoría.");
+    } catch (cause) {
+      setError(cause.message);
+    } finally {
+      setEvidenceSaving(false);
+    }
+  };
+
+  const handleEvidenceDownload = async (item) => {
+    try {
+      const url = await getEvidenceDownloadUrl(item.id);
+      window.location.assign(url);
+    } catch (cause) {
+      setError(cause.message);
+    }
+  };
 
   return (
     <div className={`dashboard-layout ${isGovernanceRoute ? "governance-layout" : ""}`}>
@@ -502,8 +559,178 @@ function AuditoriasActivas() {
                       {activeTab === "findings" && currentContext && <><h3>Hallazgos</h3>{linkedFindings.length ? linkedFindings.map((finding) => <article className="governance-record" key={finding.id}><strong>{finding.id} · {finding.title}</strong><p>{finding.description}</p><span>{finding.status} · Riesgo {finding.riskId} · Control {finding.controlId}</span></article>) : <p>No hay hallazgos registrados para esta auditoría.</p>}</>}
                       {activeTab === "evidence" && currentContext && (
                         <>
-                          <h3>Evidencias</h3>
-                          {linkedEvidence.length ? linkedEvidence.map((item) => <article className="governance-record" key={item.id}><strong>{item.id} · {item.title}</strong><p>{item.description || "Evidencia registrada."}</p><span>Vinculada a {({ AUDIT: "auditoría", RISK: "riesgo", CONTROL: "control" })[item.entityType]} {item.entityId}</span></article>) : <p>No hay evidencias vinculadas a esta auditoría ni a sus riesgos o controles.</p>}
+                          <div className="evidence-section-header">
+                            <div>
+                              <h3>Evidencias</h3>
+                              <p>
+                                Documentos y archivos que respaldan la auditoría.
+                              </p>
+                            </div>
+
+                            {canAttachEvidence && (
+                              <span className="evidence-permission">
+                                <Upload size={14} />
+                                Permiso de carga habilitado
+                              </span>
+                            )}
+                          </div>
+
+                          {canAttachEvidence && (
+                            <form
+                              className="governance-evidence-form"
+                              onSubmit={handleEvidenceUpload}
+                            >
+                              <h4>Adjuntar nuevo documento</h4>
+
+                              <label>
+                                Nombre del documento
+
+                                <input
+                                  type="text"
+                                  required
+                                  minLength={3}
+                                  maxLength={120}
+                                  value={evidenceTitle}
+                                  onChange={(event) =>
+                                    setEvidenceTitle(event.target.value)
+                                  }
+                                  placeholder="Ej. Informe de auditoría trimestral"
+                                />
+                              </label>
+
+                              <label>
+                                Descripción
+
+                                <textarea
+                                  required
+                                  minLength={10}
+                                  maxLength={1000}
+                                  value={evidenceDescription}
+                                  onChange={(event) =>
+                                    setEvidenceDescription(event.target.value)
+                                  }
+                                  placeholder="Describe el contenido y su relación con la auditoría."
+                                />
+                              </label>
+
+                              <label>
+                                Seleccionar archivo
+
+                                <input
+                                  type="file"
+                                  required
+                                  accept=".pdf,.xls,.xlsx,.doc,.docx,.csv,.png,.jpg,.jpeg,.webp,.gif"
+                                  onChange={(event) => {
+                                    const selected =
+                                      event.target.files?.[0] || null;
+
+                                    if (selected && selected.size > 3 * 1024 * 1024) {
+                                      setError("El archivo supera el límite de 3 MB.");
+                                      setEvidenceFile(null);
+                                      event.target.value = "";
+                                      return;
+                                    }
+
+                                    setError("");
+                                    setEvidenceFile(selected);
+                                  }}
+                                />
+
+                                <small>
+                                  PDF, Excel, Word, CSV e imágenes. Máximo 3 MB.
+                                </small>
+                              </label>
+
+                              <button
+                                type="submit"
+                                className="primary-action"
+                                disabled={evidenceSaving || !evidenceFile}
+                              >
+                                <Upload size={16} />
+
+                                {evidenceSaving
+                                  ? "Cargando archivo..."
+                                  : "Adjuntar archivo"}
+                              </button>
+                            </form>
+                          )}
+
+                          {linkedEvidence.length > 0 ? (
+                            <div className="governance-evidence-list">
+                              {linkedEvidence.map((item) => (
+                                <article
+                                  className="governance-record"
+                                  key={item.id}
+                                >
+                                  <div className="evidence-record-heading">
+                                    <div>
+                                      <strong>
+                                        {item.id} · {item.title}
+                                      </strong>
+
+                                      <p>
+                                        {item.description || "Evidencia registrada."}
+                                      </p>
+                                    </div>
+
+                                    {item.file && (
+                                      <span className="evidence-file-icon">
+                                        {item.file.mime.startsWith("image/") ? (
+                                          <FileImage size={21} />
+                                        ) : item.file.mime.includes("spreadsheet") ||
+                                          item.file.mime === "application/vnd.ms-excel" ||
+                                          item.file.mime === "text/csv" ? (
+                                          <FileSpreadsheet size={21} />
+                                        ) : (
+                                          <FileText size={21} />
+                                        )}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <span>
+                                    Vinculada a{" "}
+                                    {({
+                                      AUDIT: "auditoría",
+                                      RISK: "riesgo",
+                                      CONTROL: "control"
+                                    })[item.entityType]}{" "}
+                                    {item.entityId}
+                                  </span>
+
+                                  {item.author?.name && (
+                                    <small>
+                                      Registrada por: {item.author.name}
+                                    </small>
+                                  )}
+
+                                  {item.file && (
+                                    <div className="evidence-download-row">
+                                      <small>
+                                        {(item.file.size / 1024).toFixed(1)} KB
+                                      </small>
+
+                                      <button
+                                        type="button"
+                                        className="secondary-action"
+                                        onClick={() =>
+                                          handleEvidenceDownload(item)
+                                        }
+                                      >
+                                        <Download size={15} />
+                                        Descargar archivo
+                                      </button>
+                                    </div>
+                                  )}
+                                </article>
+                              ))}
+                            </div>
+                          ) : (
+                            <p>
+                              No hay evidencias vinculadas a esta auditoría
+                              ni a sus riesgos o controles.
+                            </p>
+                          )}
                         </>
                       )}
                       {activeTab === "activity" && <><h3>Actividad del expediente</h3><PlanningHistoryButton proposal={selectedAudit} /></>}

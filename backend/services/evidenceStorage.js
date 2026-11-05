@@ -4,12 +4,15 @@ const BUCKET = "vera-evidence";
 const MAX_BYTES = 3 * 1024 * 1024;
 const MIME_EXTENSIONS = {
   "application/pdf": "pdf",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/webp": "webp",
   "text/plain": "txt",
   "text/csv": "csv",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx"
 };
 
 class EvidenceStorageError extends Error {
@@ -44,16 +47,63 @@ const pathFor = (entityType, entityId, mime) => {
 
 const hasValidSignature = (bytes, mime) => {
   const data = Buffer.from(bytes);
-  if (mime === "application/pdf") return data.subarray(0, 5).toString() === "%PDF-";
-  if (mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-    return data.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
+
+  // PDF
+  if (mime === "application/pdf") {
+    return data.subarray(0, 5).toString() === "%PDF-";
   }
-  if (mime === "image/png") return data.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-  if (mime === "image/jpeg") return data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
-  if (mime === "image/webp") return data.subarray(0, 4).toString() === "RIFF" && data.subarray(8, 12).toString() === "WEBP";
+
+  // Word DOCX y Excel XLSX (contenedores ZIP)
+  if (
+    mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  ) {
+    return data.subarray(0, 4).equals(
+      Buffer.from([0x50, 0x4b, 0x03, 0x04])
+    );
+  }
+
+  // Word DOC y Excel XLS (formato OLE)
+  if (
+    mime === "application/msword" ||
+    mime === "application/vnd.ms-excel"
+  ) {
+    return data.subarray(0, 8).equals(
+      Buffer.from([
+        0xD0, 0xCF, 0x11, 0xE0,
+        0xA1, 0xB1, 0x1A, 0xE1
+      ])
+    );
+  }
+
+  // PNG
+  if (mime === "image/png") {
+    return data.subarray(0, 8).equals(
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+    );
+  }
+
+  // JPEG
+  if (mime === "image/jpeg") {
+    return data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
+  }
+
+  // WebP
+  if (mime === "image/webp") {
+    return data.subarray(0, 4).toString() === "RIFF" &&
+      data.subarray(8, 12).toString() === "WEBP";
+  }
+
+  // Text + csv
   if (mime === "text/plain" || mime === "text/csv") {
-    try { new TextDecoder("utf-8", { fatal: true }).decode(data); return !data.includes(0); } catch { return false; }
+    try {
+      new TextDecoder("utf-8", { fatal: true }).decode(data);
+      return !data.includes(0);
+    } catch {
+      return false;
+    }
   }
+
   return false;
 };
 
@@ -91,7 +141,7 @@ const remove = async (file) => {
 };
 
 const validFile = (file) => file && file.bucket === BUCKET &&
-  /^(risk|control|audit|ai)\/[^/]+\/[0-9a-f-]{36}\.(pdf|png|jpg|webp|txt|csv|docx)$/.test(file.path) &&
+  /^(risk|control|audit|ai)\/[^/]+\/[0-9a-f-]{36}\.(pdf|xls|xlsx|doc|docx|png|jpg|webp|csv|txt)$/.test(file.path) &&
   MIME_EXTENSIONS[file.mime] && file.path.endsWith(`.${MIME_EXTENSIONS[file.mime]}`);
 
 const downloadBytes = async (file) => {

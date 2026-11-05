@@ -37,7 +37,7 @@ const buildAuditContext = async (user, auditId) => {
 
   const audit = await planningRepository.findById(auditId);
   if (!audit || !await canViewRecordScope(user, audit) ||
-      (user.role === ROLES.AUDITOR && audit.responsibleId !== user.id)) {
+    (user.role === ROLES.AUDITOR && audit.responsibleId !== user.id)) {
     const error = new Error("La auditoría no existe o no está disponible para tu cuenta.");
     error.status = 404;
     throw error;
@@ -75,8 +75,26 @@ const buildAuditContext = async (user, auditId) => {
     })),
     findings: related.findings.map(({ id, title, description, status, riskId, controlId }) =>
       ({ id, title, description, status, riskId, controlId })),
-    evidence: related.evidence.map(({ id, title, description, entityType, entityId, evidenceType, createdAt }) =>
-      ({ id, title, description, entityType, entityId, evidenceType, createdAt }))
+    evidence: related.evidence.map((item) => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      entityType: item.entityType,
+      entityId: item.entityId,
+      evidenceType: item.evidenceType,
+      createdAt: item.createdAt,
+
+      // Metadatos necesarios para mostrar y descargar el archivo.
+      file: item.file ? {
+        mime: item.file.mime,
+        size: item.file.size
+      } : null,
+
+      author: item.author ? {
+        name: item.author.name,
+        username: item.author.username
+      } : null
+    }))
   };
   return {
     audit: {
