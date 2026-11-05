@@ -1836,3 +1836,104 @@
 .planning-context-choice button { min-height: 36px; padding: .35rem .55rem; border: 1px solid var(--vera-border); border-radius: 8px; background: var(--vera-surface); color: var(--vera-accent); font: inherit; cursor: pointer; }
 .planning-context-links { margin: .3rem 0 0; padding-left: 1.2rem; line-height: 1.8; }
 .planning-context-links a { color: var(--vera-accent); text-underline-offset: 2px; }
+
+
+.evidence-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.evidence-section-header p {
+  margin: 5px 0 0;
+  color: var(--vera-text-muted);
+  font-size: 14px;
+}
+
+.evidence-permission {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--vera-success-soft);
+  color: var(--vera-success);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.governance-evidence-form {
+  display: grid;
+  gap: 15px;
+  padding: 20px;
+  margin-bottom: 22px;
+  border: 1px solid var(--vera-border);
+  border-radius: 12px;
+  background: var(--vera-surface);
+}
+
+.governance-evidence-form h4 {
+  margin: 0;
+  color: var(--vera-text-strong);
+}
+
+.governance-evidence-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--vera-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.governance-evidence-form input,
+.governance-evidence-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  border: 1px solid var(--vera-border);
+  border-radius: 8px;
+  background: var(--vera-surface);
+  color: var(--vera-text-strong);
+  font: inherit;
+}
+
+.governance-evidence-form textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.governance-evidence-form small {
+  color: var(--vera-text-muted);
+  font-weight: 400;
+}
+
+.governance-evidence-form button {
+  justify-self: start;
+}
+
+.evidence-record-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.evidence-file-icon {
+  color: var(--vera-accent);
+}
+
+.evidence-download-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.governance-evidence-list {
+  margin-top: 12px;
+}

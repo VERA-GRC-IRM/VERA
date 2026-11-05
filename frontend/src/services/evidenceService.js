@@ -18,7 +18,20 @@ export const createEvidence = async (evidence) => (await request("/", { method: 
 
 export const uploadEvidenceFile = async (details, file) => {
   const extension = file.name.split(".").pop()?.toLowerCase();
-  const mime = extension === "csv" ? "text/csv" : extension === "docx" ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document" : file.type || ({ pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", txt: "text/plain" }[extension]);
+  const MIME_TYPES = {
+    pdf: "application/pdf",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    csv: "text/csv",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+    text: "text/plain"
+  };
+  const mime = MIME_TYPES[extension] || "application/octet-stream";
   const params = new URLSearchParams({
     title: details.title, description: details.description, evidenceType: details.evidenceType,
     entityType: details.entityType, entityId: details.entityId

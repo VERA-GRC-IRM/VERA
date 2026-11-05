@@ -7,6 +7,7 @@ import { getRisks } from "../services/riskService";
 import { getControls } from "../services/controlService";
 import { getPlanningAudits } from "../services/planningService";
 import "./Evidencias.css";
+import { PLANNING_APPROVE_ROLES } from "../constants/planning";
 
 const EMPTY = { title: "", description: "", evidenceType: "DOCUMENT", reference: "", entityType: "RISK", entityId: "" };
 const ENTITY_LABELS = { RISK: "Riesgo", CONTROL: "Control", AUDIT: "Auditoría" };
@@ -20,8 +21,10 @@ const indexLabel = (index, mime) => {
     ? `Texto indexado · lectura parcial (${index.chunks} fragmentos)`
     : `Texto indexado (${index.chunks} fragmentos); revisa el original`;
   if (index?.status === "pending" && mime?.startsWith("image/")) return "Extracción con IA disponible al solicitarla";
-  return { "no-text": "Sin texto legible", pending: "Lectura pendiente",
-    unsupported: "Extracción no disponible", unknown: "Cobertura no registrada" }[index?.status] ||
+  return {
+    "no-text": "Sin texto legible", pending: "Lectura pendiente",
+    unsupported: "Extracción no disponible", unknown: "Cobertura no registrada"
+  }[index?.status] ||
     "Cobertura no registrada";
 };
 const currentUser = JSON.parse(
@@ -29,6 +32,8 @@ const currentUser = JSON.parse(
 );
 
 const canCreate = currentUser?.role !== "DIRECTOR";
+const canAttachToAudit =
+  PLANNING_APPROVE_ROLES.includes(currentUser?.role);
 
 function Evidencias() {
   const [items, setItems] = useState([]);
@@ -89,7 +94,13 @@ function Evidencias() {
     <header className="dashboard-header"><div><span className="eyebrow">EXPEDIENTE DIGITAL</span><h1>Evidencias</h1><p>Organiza archivos y referencias de respaldo vinculados con riesgos, controles o auditorías.</p></div>{canCreate && (<button className="primary-action" onClick={openCreate}><Plus size={18} /> Registrar evidencia</button>)}</header>
     {message && <p className="evidence-feedback success">{message}</p>}{error && !modal && <p className="evidence-feedback error">{error}</p>}
     <div className="evidence-summary"><article><strong>{items.length}</strong><span>referencias registradas</span></article>{counts.map(({ entityType, count }) => <article key={entityType}><strong>{count}</strong><span>vinculadas a {ENTITY_LABELS[entityType].toLowerCase()}s</span></article>)}</div>
-    <div className="evidence-notice"><FileCheck2 size={19} /><p><b>Expediente privado.</b> Puedes registrar una referencia externa o cargar un PDF, DOCX, imagen, TXT o CSV de hasta 3 MB. La consulta con IA lee texto de PDF, DOCX, TXT y CSV. Para imágenes, puedes iniciar la extracción con IA de forma explícita; los PDF escaneados aún requieren OCR de páginas. Los archivos requieren Supabase Storage configurado en el backend.</p></div>
+    <div className="evidence-notice"><FileCheck2 size={19} /><p><b>Expediente privado.</b> Puedes registrar una referencia externa o cargar un PDF, DOCX, imagen, TXT, Excel o CSV de hasta 3 MB. La consulta con IA lee texto de PDF, DOCX, TXT y CSV. Para imágenes, puedes iniciar la extracción con IA de forma explícita; los PDF escaneados aún requieren OCR de páginas. Los archivos requieren Supabase Storage configurado en el backend.</p></div>
+    {form.entityType === "AUDIT" && !canAttachToAudit && (
+      <small>
+        Tu cuenta puede consultar esta auditoría, pero no tiene
+        permisos para adjuntar archivos.
+      </small>
+    )}
     <div className="evidence-toolbar"><label className="evidence-search"><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar evidencia, entidad o referencia" /></label><div className="evidence-filter">{["ALL", "RISK", "CONTROL", "AUDIT"].map((value) => <button key={value} className={filter === value ? "selected" : ""} onClick={() => setFilter(value)}>{value === "ALL" ? "Todas" : ENTITY_LABELS[value]}</button>)}</div></div>
     {loading ? <div className="evidence-empty">Cargando expediente...</div> : visible.length === 0 ? <div className="evidence-empty"><FileCheck2 size={22} /><div><b>No hay evidencias para mostrar</b><p>Registra una referencia o carga un archivo y asígnalo a una entidad.</p></div></div> : <div className="evidence-list">{visible.map((item) =>
       <article id={`evidence-${item.id}`} className="evidence-card" key={item.id}>
@@ -105,8 +116,27 @@ function Evidencias() {
       </article>)}</div>}
     <p className="evidence-footnote">La persistencia de metadatos depende de `VERA_EVIDENCE_COMMENT_STORE`; los archivos se guardan en un bucket privado de Supabase. La activación del despliegue debe verificarse por separado.</p>
   </section></main>
-    {canCreate && modal && (<div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeModal(); }}><form className="proposal-modal evidence-modal" onSubmit={submit}><div className="modal-header"><div><span className="eyebrow">NUEVA EVIDENCIA</span><h2>Registrar evidencia</h2><p>Vincula un archivo privado o una referencia externa con el portafolio.</p></div><button type="button" className="modal-close" onClick={closeModal} aria-label="Cerrar"><X size={20} /></button></div>{error && <p className="evidence-feedback error">{error}</p>}<div className="proposal-form-grid"><label className="full-width">Nombre<input required minLength="3" maxLength="120" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Informe de revisión trimestral" /></label><label className="full-width">Descripción<textarea required minLength="10" maxLength="1000" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Qué demuestra y por qué respalda el expediente" /></label><label>Tipo<select value={form.evidenceType} onChange={(event) => setForm({ ...form, evidenceType: event.target.value })}>{Object.entries(TYPE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label>Vincular con<select value={form.entityType} onChange={(event) => { const nextType = event.target.value; const nextEntities = { RISK: risks, CONTROL: controls, AUDIT: audits }[nextType]; setForm({ ...form, entityType: nextType, entityId: nextEntities[0]?.id || "" }); }}>{Object.entries(ENTITY_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label className="full-width">Elemento relacionado<select required value={form.entityId} onChange={(event) => setForm({ ...form, entityId: event.target.value })}><option value="">Selecciona una entidad</option>{entities.map((entity) => <option value={entity.id} key={entity.id}>{labelForEntity(entity)}</option>)}</select></label><label className="full-width">Archivo privado (PDF, DOCX, PNG, JPEG, WebP, TXT o CSV; máximo 3 MB)<input type="file" accept=".pdf,.docx,.png,.jpg,.jpeg,.webp,.txt,.csv" onChange={(event) => { const selected = event.target.files?.[0] || null; if (selected?.size > 3 * 1024 * 1024) { setError("El archivo supera el límite de 3 MB."); setFile(null); } else { setError(""); setFile(selected); } }} /></label>{!file && <label className="full-width">Enlace HTTPS o identificador externo<input required minLength="3" maxLength="500" value={form.reference} onChange={(event) => setForm({ ...form, reference: event.target.value })} placeholder="https://drive.google.com/... o archivo-expediente-042" /></label>}</div><div className="modal-actions"><button type="button" className="secondary-action" onClick={closeModal}>Cancelar</button><button type="submit" className="primary-action" disabled={saving || !form.entityId}>{saving ? "Guardando..." : file ? "Cargar archivo" : "Guardar referencia"}</button></div></form></div>)}
-  {assistantEvidence && <EvidenceAssistantDialog evidence={assistantEvidence} onClose={() => setAssistantEvidence(null)} />}
+    {canCreate && modal && (<div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeModal(); }}><form className="proposal-modal evidence-modal" onSubmit={submit}><div className="modal-header"><div><span className="eyebrow">NUEVA EVIDENCIA</span><h2>Registrar evidencia</h2><p>Vincula un archivo privado o una referencia externa con el portafolio.</p></div><button type="button" className="modal-close" onClick={closeModal} aria-label="Cerrar"><X size={20} /></button></div>{error && <p className="evidence-feedback error">{error}</p>}<div className="proposal-form-grid"><label className="full-width">Nombre<input required minLength="3" maxLength="120" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Informe de revisión trimestral" /></label><label className="full-width">Descripción<textarea required minLength="10" maxLength="1000" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Qué demuestra y por qué respalda el expediente" /></label><label>Tipo<select value={form.evidenceType} onChange={(event) => setForm({ ...form, evidenceType: event.target.value })}>{Object.entries(TYPE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label>Vincular con<select value={form.entityType} onChange={(event) => { const nextType = event.target.value; const nextEntities = { RISK: risks, CONTROL: controls, AUDIT: audits }[nextType]; setForm({ ...form, entityType: nextType, entityId: nextEntities[0]?.id || "" }); }}>{Object.entries(ENTITY_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label className="full-width">Elemento relacionado<select required value={form.entityId} onChange={(event) => setForm({ ...form, entityId: event.target.value })}><option value="">Selecciona una entidad</option>{entities.map((entity) => <option value={entity.id} key={entity.id}>{labelForEntity(entity)}</option>)}</select></label>
+      <label className="full-width">
+        Archivo privado (PDF, Excel, Word, CSV o imágenes; máximo 3 MB)
+        <input
+          type="file"
+          accept=".pdf,.xls,.xlsx,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif,.csv"
+          onChange={(event) => {
+            const selected = event.target.files?.[0] || null;
+
+            if (selected?.size > 3 * 1024 * 1024) {
+              setError("El archivo supera el límite de 3 MB.");
+              setFile(null);
+              event.target.value = "";
+            } else {
+              setError("");
+              setFile(selected);
+            }
+          }}
+        />
+      </label> {!file && <label className="full-width">Enlace HTTPS o identificador externo<input required minLength="3" maxLength="500" value={form.reference} onChange={(event) => setForm({ ...form, reference: event.target.value })} placeholder="https://drive.google.com/... o archivo-expediente-042" /></label>}</div><div className="modal-actions"><button type="button" className="secondary-action" onClick={closeModal}>Cancelar</button><button type="submit" className="primary-action" disabled={form.entityType === "AUDIT" && !canAttachToAudit}>{saving ? "Guardando..." : file ? "Cargar archivo" : "Guardar referencia"}</button></div></form></div>)}
+    {assistantEvidence && <EvidenceAssistantDialog evidence={assistantEvidence} onClose={() => setAssistantEvidence(null)} />}
   </div>;
 }
 
