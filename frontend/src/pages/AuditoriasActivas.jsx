@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Activity, ArrowLeft, ArrowRight, Bot, CheckCircle2, ClipboardCheck, Download, FileText, Flag, GitBranch, LockKeyhole, Pencil, Play, RefreshCw, ShieldAlert, Target, Upload } from "lucide-react";
+import { Activity, ArrowLeft, ArrowRight, Bot, CheckCircle2, ClipboardCheck, Download, FileImage, FileSpreadsheet, FileText, Flag, GitBranch, LockKeyhole, Pencil, Play, RefreshCw, ShieldAlert, Target, Upload } from "lucide-react";
 import { uploadEvidenceFile, getEvidenceDownloadUrl } from "../services/evidenceService";
 import Sidebar from "../components/Sidebar";
 import AssistantDrawer from "../components/AssistantDrawer";
