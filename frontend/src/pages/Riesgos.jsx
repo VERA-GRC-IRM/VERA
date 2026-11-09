@@ -9,6 +9,7 @@ import { getPlanningAudits } from "../services/planningService";
 import { getAvailableOrgUnits } from "../services/orgUnitService";
 import { getRiskLibrary } from "../services/riskLibraryService";
 import { getBusinessContext } from "../services/businessContextService";
+import { displayAuditId } from "../utils/auditId";
 import "./Riesgos.css";
 
 const EMPTY = { title: "", description: "", area: "", orgUnitId: "", ownerId: "", responsePlan: "", linkedAuditId: "", templateId: "", templateRevision: null, businessContextReferences: [], likelihood: 2, impact: 2, note: "" };
@@ -294,7 +295,7 @@ function Riesgos() {
             })}
           </fieldset>
           <label className="full-width">Plan de respuesta (opcional)<textarea maxLength="2000" value={form.responsePlan} onChange={(event) => setForm({ ...form, responsePlan: event.target.value })} placeholder="Acciones para reducir probabilidad o impacto" /></label>
-          <label className="full-width">Auditoría relacionada (opcional)<select value={form.linkedAuditId} onChange={(event) => setForm({ ...form, linkedAuditId: event.target.value, orgUnitId: editing ? form.orgUnitId : "", businessContextReferences: [] })}><option value="">Sin auditoría relacionada</option>{audits.map((audit) => <option key={audit.id} value={audit.id}>{audit.id} · {audit.title}</option>)}</select></label>
+          <label className="full-width">Auditoría relacionada (opcional)<select value={form.linkedAuditId} onChange={(event) => setForm({ ...form, linkedAuditId: event.target.value, orgUnitId: editing ? form.orgUnitId : "", businessContextReferences: [] })}><option value="">Sin auditoría relacionada</option>{audits.map((audit) =>                     <option key={audit.id} value={audit.id}>{displayAuditId(audit.id, audit.auditFolio || audit.folio)} · {audit.title}</option>)}</select></label>
         </>}
         {!editing && <>
           <label>Probabilidad<select value={form.likelihood} onChange={(event) => setForm({ ...form, likelihood: Number(event.target.value) })}><option value={1}>Baja (1)</option><option value={2}>Media (2)</option><option value={3}>Alta (3)</option></select></label>

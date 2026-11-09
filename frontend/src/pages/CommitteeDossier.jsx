@@ -5,6 +5,7 @@ import Sidebar from "../components/Sidebar";
 import { getAuditContext } from "../services/planningService";
 import { getAuditActions } from "../services/actionService";
 import { localToday } from "../utils/localDate";
+import { displayAuditId } from "../utils/auditId";
 import "./CommitteeDossier.css";
 
 const STATUS = { OPEN: "Propuesta abierta", APPROVED: "Aprobada", ACTIVE: "En curso", CLOSED: "Cerrada", REJECTED: "Rechazada" };
@@ -57,9 +58,7 @@ function CommitteeDossier() {
   }, [auditId, revision]);
 
   const refresh = () => { setLoading(true); setActionsLoading(true); setError(""); setActionsError(""); setRevision((current) => current + 1); };
-  const auditPath = context?.audit.status && context.audit.status !== "ACTIVE"
-    ? `/auditorias?auditId=${encodeURIComponent(auditId)}`
-    : `/auditorias-activas/${encodeURIComponent(auditId)}`;
+  const auditPath = `/auditorias-activas/${encodeURIComponent(auditId)}`;
   const facts = context ? dossierFacts(context) : null;
   const openActions = actions.filter((item) => ["OPEN", "IN_PROGRESS"].includes(item.status));
   const overdueActions = openActions.filter((item) => item.dueDate < localToday());
@@ -86,7 +85,7 @@ function CommitteeDossier() {
           <header className="committee-cover">
             <p className="committee-overline">VERA · GOBIERNO DEL PORTAFOLIO</p>
             <div className="committee-cover-row">
-              <div><span>FICHA PARA COMITÉ</span><h1>{context.audit.title}</h1><p>{context.audit.id} · {value(context.audit.area)}</p></div>
+              <div><span>FICHA PARA COMITÉ</span><h1>{context.audit.title}</h1><p title={context.audit.id}>{displayAuditId(context.audit.id, context.audit.auditFolio || context.audit.folio)} · {value(context.audit.area)}</p></div>
               <strong>{STATUS[context.audit.status] || context.audit.status}</strong>
             </div>
             <p>Lectura del expediente en un momento concreto. Presenta hechos registrados y relaciones visibles para esta cuenta; no sustituye una decisión del comité.</p>

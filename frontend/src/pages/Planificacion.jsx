@@ -21,6 +21,7 @@ import {
   QUARTERS,
   RISK_FACTORS
 } from "../constants/planning";
+import { displayAuditId } from "../utils/auditId";
 import "./Planning.css";
 
 const EMPTY_FORM = {
@@ -343,7 +344,7 @@ function Planificacion() {
                   <div className="planning-card-icon"><ClipboardList size={22} /></div>
                   <div className="planning-card-content">
                     <div className="proposal-heading">
-                      <span className="planning-id">{item.id}</span>
+                      <span className="planning-id" title={item.id}>{displayAuditId(item.id, item.auditFolio || item.folio)}</span>
                       <span className={`risk-badge risk-${riskLabel(item.risk).toLowerCase()}`}>{riskLabel(item.risk)}</span>
                     </div>
                     <h2>{item.title}</h2>
@@ -535,7 +536,7 @@ function Planificacion() {
                   <div className="planning-card-icon"><XCircle size={22} aria-hidden="true" /></div>
                   <div className="planning-card-content">
                     <div className="proposal-heading">
-                      <span className="planning-id">{item.id}</span>
+                      <span className="planning-id" title={item.id}>{displayAuditId(item.id, item.auditFolio || item.folio)}</span>
                       <span className="rejected-badge">Rechazada</span>
                     </div>
                     <h2>{item.title}</h2>

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import {
   BrowserRouter,
+  Navigate,
   Routes,
   Route
 } from "react-router-dom";
@@ -15,14 +16,11 @@ import PublicSolutions from "./pages/PublicSolutions";
 import PublicTrust from "./pages/PublicTrust";
 import PublicTechnology from "./pages/PublicTechnology";
 import PrivacyNotice from "./pages/PrivacyNotice";
-import Auditoria from "./pages/Auditoria";
 import Planificacion from "./pages/Planificacion";
 import AuditoriasActivas from "./pages/AuditoriasActivas";
 import CommitteeDossier from "./pages/CommitteeDossier";
-import BuscarAuditorias from "./pages/BuscarAuditorias";
 import Riesgos from "./pages/Riesgos";
 import BibliotecaRiesgos from "./pages/BibliotecaRiesgos";
-import MetodosRiesgo from "./pages/MetodosRiesgo";
 import BusinessContext from "./pages/BusinessContext";
 import Controles from "./pages/Controles";
 import Notificaciones from "./pages/Notificaciones";
@@ -33,7 +31,7 @@ import Evidencias from "./pages/Evidencias";
 import Trimestres, { TrimestreDetalle } from "./pages/Trimestres";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AssistantConversationProvider from "./contexts/AssistantConversationProvider";
-import { USER_VIEW_ROLES } from "./constants/roles";
+import { ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "./constants/roles";
 
 
 function App() {
@@ -69,7 +67,7 @@ function App() {
         <Route path="/confianza" element={<PublicTrust />} />
         <Route path="/tecnologia" element={<PublicTechnology />} />
         <Route path="/privacidad" element={<PrivacyNotice />} />
-        <Route path="/mi-rol" element={<ProtectedRoute><MiRol /></ProtectedRoute>} />
+        <Route path="/mi-rol" element={<ProtectedRoute allowedRoles={ROLE_REQUEST_ROLES}><MiRol /></ProtectedRoute>} />
 
         <Route
           path="/usuarios"
@@ -80,14 +78,7 @@ function App() {
           }
         />
 
-        <Route
-          path="/auditoria"
-          element={
-            <ProtectedRoute allowedRoles={["SUPER_ADMIN"]}>
-              <Auditoria />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/auditoria" element={<Navigate to="/actividad" replace />} />
         <Route
           path="/planificacion"
           element={
@@ -114,7 +105,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/auditorias" element={<ProtectedRoute><BuscarAuditorias /></ProtectedRoute>} />
+        <Route path="/auditorias" element={<Navigate to="/auditorias-activas" replace />} />
         <Route path="/auditorias-activas/:auditId/comite" element={<ProtectedRoute><CommitteeDossier /></ProtectedRoute>} />
         <Route
           path="/auditorias-activas/:auditId"
@@ -127,7 +118,6 @@ function App() {
 
         <Route path="/riesgos" element={<ProtectedRoute><Riesgos /></ProtectedRoute>} />
         <Route path="/biblioteca-riesgos" element={<ProtectedRoute><BibliotecaRiesgos /></ProtectedRoute>} />
-        <Route path="/metodos-riesgo" element={<ProtectedRoute allowedRoles={["SUPER_ADMIN"]}><MetodosRiesgo /></ProtectedRoute>} />
         <Route path="/mapa-negocio" element={<ProtectedRoute><BusinessContext /></ProtectedRoute>} />
         <Route path="/controles" element={<ProtectedRoute><Controles /></ProtectedRoute>} />
         <Route path="/notificaciones" element={<ProtectedRoute><Notificaciones /></ProtectedRoute>} />

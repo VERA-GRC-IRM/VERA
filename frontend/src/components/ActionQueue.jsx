@@ -19,7 +19,7 @@ const actorLabel = (action, entry) => entry.actorName ||
   (entry.type === "CREATED" && action.createdBy?.id === entry.actorId ? action.createdBy.name : null) ||
   `Cuenta #${entry.actorId}`;
 const sourcePath = (action) => action.sourceType === "AUDIT"
-  ? `/auditorias?auditId=${encodeURIComponent(action.sourceId)}`
+  ? `/auditorias-activas/${encodeURIComponent(action.sourceId)}`
   : action.sourceType === "RISK" ? `/riesgos#risk-${encodeURIComponent(action.sourceId)}`
     : action.sourceType === "CONTROL" ? `/controles#control-${encodeURIComponent(action.sourceId)}` : "/auditorias-activas";
 const initialForm = { sourceKey: "", title: "", rationale: "", dueDate: "", assigneeId: "" };
