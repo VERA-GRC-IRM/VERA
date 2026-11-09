@@ -16,15 +16,13 @@ import {
   Network,
   ChevronLeft,
   ChevronRight,
-  Search,
   ShieldAlert,
-  ScrollText,
   SunMoon,
   UserCog,
   UserRoundPen,
   X
 } from "lucide-react";
-import { ROLE_LABELS, USER_VIEW_ROLES } from "../constants/roles";
+import { ROLE_LABELS, ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "../constants/roles";
 import { managedAuth } from "../services/managedAuth";
 import { clearRoleTourSession, startRoleTour } from "../services/roleTour";
 import ThemeControl from "./ThemeControl";
@@ -106,32 +104,29 @@ function Sidebar({ active }) {
 
   const canSeeUsers = USER_VIEW_ROLES.includes(user?.role);
   const canSeeAuditLog = user?.role === "SUPER_ADMIN";
+  const canSeeRoleRequests = ROLE_REQUEST_ROLES.includes(user?.role);
   const items = [
     { id: "dashboard", label: "Panel de Portafolio", Icon: LayoutDashboard, path: "/dashboard" },
     { id: "business-context", label: "Mapa del negocio", Icon: Network, path: "/mapa-negocio" },
     { id: "planificacion", label: "Planificación", Icon: ClipboardList, path: "/planificacion" },
     { id: "trimestres", label: "Trimestres", Icon: CalendarRange, path: "/trimestres" },
     { id: "auditorias-activas", label: "Auditorías activas y riesgos", Icon: Activity, path: "/auditorias-activas" },
-    { id: "auditorias", label: "Buscar auditorías", Icon: Search, path: "/auditorias" },
     { id: "riesgos", label: "Registro de riesgos", Icon: ShieldAlert, path: "/riesgos" },
     { id: "biblioteca-riesgos", label: "Biblioteca de riesgos", Icon: BookOpen, path: "/biblioteca-riesgos" },
-    ...(canSeeAuditLog ? [{ id: "metodos-riesgo", label: "Métodos de evaluación", Icon: ClipboardCheck, path: "/metodos-riesgo" }] : []),
     { id: "controles", label: "Mapa de controles", Icon: ClipboardCheck, path: "/controles" },
     { id: "notificaciones", label: "Pendientes", Icon: BellRing, path: "/notificaciones" },
     { id: "actividad", label: "Actividad reciente", Icon: Activity, path: "/actividad" },
     { id: "asistente", label: "Asistente de IA", Icon: Bot, path: "/asistente" },
     ...(canSeeAuditLog ? [{ id: "calidad-ia", label: "Calidad de IA", Icon: ChartNoAxesCombined, path: "/calidad-ia" }] : []),
     { id: "evidencias", label: "Evidencias", Icon: Files, path: "/evidencias" },
-    { id: "mi-rol", label: "Mi rol y solicitudes", Icon: UserRoundPen, path: "/mi-rol" },
+    ...(canSeeRoleRequests ? [{ id: "mi-rol", label: "Mi rol y solicitudes", Icon: UserRoundPen, path: "/mi-rol" }] : []),
     ...(canSeeUsers ? [{ id: "usuarios", label: "Usuarios", Icon: UserCog, path: "/usuarios" }] : []),
-    ...(canSeeAuditLog ? [{ id: "auditoria", label: "Registro de actividad", Icon: ScrollText, path: "/auditoria" }] : [])
   ];
   const groups = [
-    { label: "Portafolio y auditorías", ids: ["dashboard", "business-context", "planificacion", "trimestres", "auditorias-activas", "auditorias"] },
-    { label: "Riesgos y evidencia", ids: ["riesgos", "biblioteca-riesgos", "metodos-riesgo", "controles", "evidencias"] },
+    { label: "Portafolio y auditorías", ids: ["dashboard", "business-context", "planificacion", "trimestres", "auditorias-activas"] },
     { label: "Seguimiento", ids: ["notificaciones", "actividad"] },
     { label: "Asistencia", ids: ["asistente", "calidad-ia"] },
-    { label: "Cuenta y administración", ids: ["mi-rol", "usuarios", "auditoria"] }
+    { label: "Cuenta y administración", ids: ["mi-rol", "usuarios"] }
   ].map((group) => ({ ...group, items: group.ids.map((id) => items.find((item) => item.id === id)).filter(Boolean) }));
   const previewRoles = user?.role === "SUPER_ADMIN" ? PREVIEW_ROLES.map((role) => ({ role, label: ROLE_LABELS[role] })) : [];
   const goTo = (path) => { navigate(path); setMobileOpen(false); };

@@ -11,6 +11,7 @@ import { PLANNING_APPROVE_ROLES, RISK_FACTORS } from "../constants/planning";
 import { closeAudit, getActiveAudits, getAuditContext, getPlanningAudits, startAudit, updateAuditWorkflowStep } from "../services/planningService";
 import { getRisks } from "../services/riskService";
 import { getControls } from "../services/controlService";
+import { displayAuditId } from "../utils/auditId";
 import "./Planning.css";
 
 const riskFor = (likelihood, impact) => {
@@ -23,9 +24,15 @@ const GOVERNANCE_STEPS = [
   "execution", "supervision", "closure", "report"
 ];
 
+const initialWorkflowStep = (audit) => {
+  if (audit?.workflowStep) return audit.workflowStep;
+  if (audit?.status === "CLOSED") return "report";
+  return "start";
+};
+
 const workflowProgress = (audit, step) => {
   if (audit?.status === "CLOSED") return 100;
-  const currentStep = step || audit?.workflowStep || (audit?.status === "ACTIVE" ? "start" : "annual");
+  const currentStep = step || initialWorkflowStep(audit);
   const index = GOVERNANCE_STEPS.indexOf(currentStep);
   return index < 0 ? (audit?.progress ?? 0) : Math.round((index / (GOVERNANCE_STEPS.length - 1)) * 100);
 };
@@ -70,7 +77,7 @@ function AuditoriasActivas() {
       if (auditId) {
         const auditFromRoute = [...active, ...proposals].find((item) => item.id === auditId) || null;
         setSelectedAudit(auditFromRoute);
-        setActiveStep(auditFromRoute?.workflowStep || (auditFromRoute?.status === "CLOSED" ? "report" : "annual"));
+        setActiveStep(initialWorkflowStep(auditFromRoute));
         setAuditContext(await getAuditContext(auditId));
         setContextError(null);
       }
@@ -96,7 +103,7 @@ function AuditoriasActivas() {
           : null;
         setSelectedAudit(auditFromRoute || null);
         if (auditFromRoute) {
-          setActiveStep(auditFromRoute.workflowStep || (auditFromRoute.status === "CLOSED" ? "report" : "annual"));
+          setActiveStep(initialWorkflowStep(auditFromRoute));
         }
         setError("");
       })
@@ -337,7 +344,7 @@ function AuditoriasActivas() {
                 {selectedAudits.length === 0 ? <p>No hay auditorías activas en esta celda.</p> : selectedAudits.map((audit) => {
                   const linkedRisks = risks.filter((item) => item.linkedAuditId === audit.id);
                   return <article key={audit.id} className="matrix-selection-audit">
-                    <h4>{audit.id} · {audit.title}</h4>
+                    <h4 title={audit.id}>{displayAuditId(audit.id, audit.auditFolio || audit.folio)} · {audit.title}</h4>
                     <p>Riesgo de auditoría: {riskFor(audit.likelihood ?? 2, audit.impact ?? 2)} ({(audit.likelihood ?? 2) * (audit.impact ?? 2)}/9).</p>
                     {linkedRisks.length ? linkedRisks.map((item) => {
                       const relatedControls = controls.filter((control) => control.riskIds.includes(item.id));
@@ -367,7 +374,7 @@ function AuditoriasActivas() {
                   <div className="planning-card-icon"><Activity size={21} aria-hidden="true" /></div>
                   <div className="planning-card-content">
                     <div className="proposal-heading">
-                      <span className="planning-id">{audit.id}</span>
+                      <span className="planning-id" title={audit.id}>{displayAuditId(audit.id, audit.auditFolio || audit.folio)}</span>
                       <span className={`risk-badge risk-${riskFor(audit.likelihood ?? 2, audit.impact ?? 2).toLowerCase()}`}>
                         Riesgo {riskFor(audit.likelihood ?? 2, audit.impact ?? 2)}
                       </span>
@@ -405,7 +412,7 @@ function AuditoriasActivas() {
                 <article className="planning-card active-audit-card" key={audit.id}>
                   <div className="planning-card-icon"><CheckCircle2 size={21} aria-hidden="true" /></div>
                   <div className="planning-card-content">
-                    <span className="planning-id">{audit.id} · {audit.quarter} {audit.year}</span>
+                    <span className="planning-id" title={audit.id}>{displayAuditId(audit.id, audit.auditFolio || audit.folio)} · {audit.quarter} {audit.year}</span>
                     <h2>{audit.title}</h2>
                     <p>{audit.area} · Riesgo {riskFor(audit.likelihood ?? 2, audit.impact ?? 2)}</p>
                   </div>
@@ -433,7 +440,7 @@ function AuditoriasActivas() {
                   <div className="governance-heading">
                     <div>
                       <h2 id="governance-title">{selectedAudit.title}</h2>
-                      <span className="planning-id">{selectedAudit.id} · {selectedAudit.area}</span>
+                      <span className="planning-id" title={selectedAudit.id}>{displayAuditId(selectedAudit.id, selectedAudit.auditFolio || selectedAudit.folio)} · {selectedAudit.area}</span>
                       <button type="button" className="secondary-action" onClick={() => setAssistantFocus({ type: "audit", id: selectedAudit.id, title: selectedAudit.title })}><Bot size={15} aria-hidden="true" /> Analizar con IA</button>
                       <button type="button" className="secondary-action" onClick={() => navigate(`/auditorias-activas/${encodeURIComponent(selectedAudit.id)}/comite`)}><FileText size={15} aria-hidden="true" /> Ficha para comité</button>
                     </div>
@@ -465,7 +472,19 @@ function AuditoriasActivas() {
                       <span className="eyebrow">PASO {governanceSteps.findIndex((step) => step.id === activeStep) + 1} · {governanceSteps.find((step) => step.id === activeStep)?.label.toUpperCase()}</span>
                       <h3>{activeStep === "closure" ? "Cierre y comunicación" : activeStep === "execution" ? "Ejecución y progreso" : governanceSteps.find((step) => step.id === activeStep)?.label}</h3>
                       <p>{activeStep === "execution" ? "Documenta riesgos, controles, evidencias y el avance de la auditoría." : "Completa esta etapa y continúa con el siguiente paso del flujo."}</p>
-                      {nextGovernanceStep && !nextGovernanceStep.locked && (
+                      {selectedAudit.status === "APPROVED" && canManage && (
+                        <button
+                          type="button"
+                          className="governance-continue"
+                          onClick={() => runTransition(selectedAudit.id, startAudit, "Auditoría iniciada. Ya puedes continuar a Kickoff.")}
+                          disabled={busyId === selectedAudit.id}
+                        >
+                          {busyId === selectedAudit.id ? "Guardando..." : "Iniciar auditoría"}
+                          <Play size={17} aria-hidden="true" />
+                        </button>
+                      )}
+                      {nextGovernanceStep && !nextGovernanceStep.locked &&
+                        ["ACTIVE", "CLOSED"].includes(selectedAudit.status) && (
                         <button type="button" className="governance-continue" onClick={continueGovernance} disabled={busyId === selectedAudit?.id}>
                           {busyId === selectedAudit?.id ? "Guardando..." : `Continuar a ${nextGovernanceStep.label}`}
                           <ArrowRight size={17} aria-hidden="true" />
@@ -498,7 +517,7 @@ function AuditoriasActivas() {
                         <h3>Reporte del expediente</h3>
                         <p>{currentContext.audit.title} · {currentContext.audit.status} · {currentContext.audit.area}</p>
                         <p>{linkedRisks.length} riesgos · {linkedControls.length} controles · {linkedFindings.length} hallazgos · {linkedEvidence.length} evidencias vinculadas.</p>
-                        <button type="button" className="secondary-action" onClick={() => navigate(`/auditorias?auditId=${encodeURIComponent(selectedAudit.id)}`)}>Ver reporte y descargar CSV</button>
+                        <button type="button" className="secondary-action" onClick={() => navigate(`/auditorias-activas/${encodeURIComponent(selectedAudit.id)}`)}>Ver reporte y descargar CSV</button>
                       </section>}
                       {currentContextError && <p role="alert">No se pudieron cargar las relaciones: {currentContextError}</p>}
                       {activeTab !== "summary" && activeTab !== "activity" && !currentContext && !currentContextError && <p role="status">Cargando relaciones del expediente...</p>}

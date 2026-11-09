@@ -5,6 +5,7 @@ import Sidebar from "../components/Sidebar";
 import { getDashboardSummary } from "../services/dashboardService";
 import { getActions } from "../services/actionService";
 import { localDateAfter, localToday } from "../utils/localDate";
+import { displayAuditId } from "../utils/auditId";
 import "./Dashboard.css";
 
 const STATUS_LABELS = {
@@ -303,7 +304,7 @@ function Dashboard() {
                     {summary.pendingItems.map((item) => (
                       <article className="dashboard-pending-item" key={item.id}>
                         <div className="pending-item-main">
-                          <span className="planning-id">{item.id} · {STATUS_LABELS[item.status]}</span>
+                          <span className="planning-id" title={item.id}>{displayAuditId(item.id, item.auditFolio || item.folio)} · {STATUS_LABELS[item.status]}</span>
                           <h3>{item.title}</h3>
                           <p>{item.area}{item.quarter ? ` · ${item.quarter} ${item.year}` : ""}</p>
                         </div>

@@ -55,6 +55,9 @@ const nextId = () => {
   return `AUD-${String(max + 1).padStart(2, "0")}`;
 };
 
+const nextFolio = () => proposals.reduce((max, proposal) => Math.max(max,
+  Number(proposal.folio) || Number(String(proposal.id).replace("AUD-", "")) || 0), 0) + 1;
+
 // Duplicada dentro del mismo ámbito: título, área y año.
 const findDuplicate = ({ title, area, year, orgUnitId }, excludeId = null) =>
   proposals.find(
@@ -70,8 +73,10 @@ const create = (data) => {
   const proposal = {
     ...data,
     id: nextId(),
+    folio: nextFolio(),
     status: "OPEN",
     approval: 0,
+    workflowStep: "start",
     progress: 0,
     createdAt: new Date().toISOString(),
     updatedAt: null,
@@ -114,6 +119,7 @@ const start = (id, { startedBy }) => {
   if (!proposal) return null;
   Object.assign(proposal, {
     status: "ACTIVE",
+    workflowStep: "start",
     progress: 0,
     startedBy,
     startedAt: new Date().toISOString()

@@ -5,6 +5,7 @@ import Sidebar from "../components/Sidebar";
 import PlanningHistoryButton from "../components/PlanningHistoryButton";
 import { getPlanningAudits, startAudit } from "../services/planningService";
 import { PLANNING_APPROVE_ROLES, QUARTERS } from "../constants/planning";
+import { displayAuditId } from "../utils/auditId";
 import "./Planning.css";
 
 const itemStatusLabel = (status) => ({
@@ -20,7 +21,7 @@ const GOVERNANCE_STEPS = [
 
 const workflowProgress = (audit) => {
   if (audit.status === "CLOSED") return 100;
-  const fallbackStep = audit.status === "ACTIVE" ? "start" : "annual";
+  const fallbackStep = audit.status === "CLOSED" ? "report" : "start";
   const step = audit.workflowStep || fallbackStep;
   const index = GOVERNANCE_STEPS.indexOf(step);
   if (index < 0) return audit.progress ?? 0;
@@ -210,10 +211,10 @@ export function TrimestreDetalle() {
                     }}
                     aria-label={`Abrir auditoría ${audit.id}`}
                   >
-                    {audit.id}
+                    <span title={audit.id}>{displayAuditId(audit.id, audit.auditFolio || audit.folio)}</span>
                   </button>
                 ) : (
-                  <span className="planning-id">{audit.id}</span>
+                  <span className="planning-id" title={audit.id}>{displayAuditId(audit.id, audit.auditFolio || audit.folio)}</span>
                 )}
                 {audit.status === "ACTIVE" ? (
                   <button

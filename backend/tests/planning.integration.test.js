@@ -239,6 +239,7 @@ test("HU-09: risk is derived from probability and impact; approved audits follow
     const createdResponse = await fetch(`${baseUrl}/api/planning`, json(managerToken, "POST", body));
     assert.equal(createdResponse.status, 201);
     const created = (await createdResponse.json()).proposal;
+    assert.equal(created.workflowStep, "start");
     assert.equal(created.riskScore, 6);
     assert.equal(created.risk, "Alto");
 
@@ -256,6 +257,7 @@ test("HU-09: risk is derived from probability and impact; approved audits follow
     assert.equal(startResponse.status, 200);
     const active = (await startResponse.json()).audit;
     assert.equal(active.status, "ACTIVE");
+    assert.equal(active.workflowStep, "start");
     assert.equal(active.progress, 0);
     assert.ok(active.startedAt);
 

@@ -65,12 +65,12 @@ const request = async (method, query = {}, body, range) => {
   return response.status === 204 ? [] : response.json();
 };
 
-const unpack = (row) => row ? { ...row.payload, storageVersion: row.version } : null;
+const unpack = (row) => row ? { ...row.payload, auditFolio: row.folio, storageVersion: row.version } : null;
 
 const getAll = async () => {
   const proposals = [];
   for (let offset = 0; ; offset += PAGE_SIZE) {
-    const rows = await request("GET", { select: "payload,version" }, undefined, `${offset}-${offset + PAGE_SIZE - 1}`);
+    const rows = await request("GET", { select: "payload,folio,version" }, undefined, `${offset}-${offset + PAGE_SIZE - 1}`);
     proposals.push(...rows.map(unpack));
     if (rows.length < PAGE_SIZE) break;
   }
@@ -78,7 +78,7 @@ const getAll = async () => {
 };
 
 const findById = async (id) => {
-  const rows = await request("GET", { select: "payload,version", id: `eq.${id}`, limit: "1" });
+  const rows = await request("GET", { select: "payload,folio,version", id: `eq.${id}`, limit: "1" });
   return unpack(rows[0]);
 };
 
@@ -94,6 +94,7 @@ const create = async (data) => {
     id: `AUD-${randomUUID()}`,
     status: "OPEN",
     approval: 0,
+    workflowStep: "start",
     progress: 0,
     createdAt: new Date().toISOString(),
     updatedAt: null,
@@ -107,7 +108,7 @@ const create = async (data) => {
     rejectedAt: null,
     rejectionReason: null
   };
-  const rows = await request("POST", { select: "payload,version" }, { id: proposal.id, payload: proposal });
+  const rows = await request("POST", { select: "payload,folio,version" }, { id: proposal.id, payload: proposal });
   return unpack(rows[0]);
 };
 
@@ -118,7 +119,7 @@ const mutate = async (id, changes, expectedVersion) => {
   const { storageVersion, ...payload } = current;
   const next = { ...payload, ...changes, updatedAt: new Date().toISOString() };
   const rows = await request("PATCH", {
-    select: "payload,version", id: `eq.${id}`, version: `eq.${version}`
+    select: "payload,folio,version", id: `eq.${id}`, version: `eq.${version}`
   }, { payload: next, version: version + 1 });
   if (!rows.length) throw new PlanningStorageError("La propuesta cambió mientras la editabas. Actualiza y vuelve a intentar.", 409);
   return unpack(rows[0]);
@@ -129,7 +130,7 @@ const approve = (id, { quarter, approvedBy }, expectedVersion) => mutate(id, {
   status: "APPROVED", approval: 100, quarter, approvedBy, approvedAt: new Date().toISOString()
 }, expectedVersion);
 const start = (id, { startedBy }, expectedVersion) => mutate(id, {
-  status: "ACTIVE", progress: 0, startedBy, startedAt: new Date().toISOString()
+  status: "ACTIVE", workflowStep: "start", progress: 0, startedBy, startedAt: new Date().toISOString()
 }, expectedVersion);
 const close = (id, { closedBy }, expectedVersion) => mutate(id, {
   status: "CLOSED", progress: 100, closedBy, closedAt: new Date().toISOString()
@@ -142,7 +143,7 @@ const remove = async (id, expectedVersion) => {
   const current = await findById(id);
   if (!current) return null;
   const rows = await request("DELETE", {
-    select: "payload,version", id: `eq.${id}`, version: `eq.${expectedVersion ?? current.storageVersion}`
+    select: "payload,folio,version", id: `eq.${id}`, version: `eq.${expectedVersion ?? current.storageVersion}`
   });
   if (!rows.length) throw new PlanningStorageError("La propuesta cambió mientras la eliminabas. Actualiza y vuelve a intentar.", 409);
   return unpack(rows[0]);

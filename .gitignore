@@ -10,6 +10,8 @@ playwright-report/
 quality-report/
 supabase/.temp/
 
+.migrations/
+
 .vercel/
 .env*
 !.env.example

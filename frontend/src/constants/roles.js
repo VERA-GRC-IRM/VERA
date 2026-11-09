@@ -13,3 +13,5 @@ export const DEFAULT_ROLE = "AUDITOR";
 export const USER_VIEW_ROLES = ["SUPER_ADMIN", "DIRECTOR"];
 
 export const USER_ADMIN_ROLES = ["SUPER_ADMIN"];
+
+export const ROLE_REQUEST_ROLES = ["DIRECTOR", "GERENTE", "AUDITOR", "JEFATURA"];
