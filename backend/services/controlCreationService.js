@@ -3,7 +3,7 @@ const riskRepository = require("../repositories/riskRepository");
 const userRepository = require("../repositories/userRepository");
 const { logActivity } = require("./auditLogger");
 const { USER_STATUS } = require("../config/accountRules");
-const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
+const { CONTROL_MANAGE_ROLES, ROLES } = require("../config/roles");
 const { withResult, parseEvaluation } = require("./controlEvaluationService");
 const { assertWritableControlScope, assertWritableSourceScope } = require("./recordWriteScopeService");
 const { scopeForNewRecord } = require("./recordCreationScopeService");
@@ -47,7 +47,7 @@ const createControlForUser = async (user, input, operationId = null) => {
   if (currentUser?.status !== USER_STATUS.ACTIVE || currentUser.role !== user.role) {
     throw errorFor("Cambió tu acceso. Inicia sesión de nuevo.", 409);
   }
-  if (!RISK_CONTROL_MANAGE_ROLES.includes(user.role)) throw errorFor("Tu rol no puede registrar controles.", 403);
+  if (!CONTROL_MANAGE_ROLES.includes(user.role)) throw errorFor("Tu rol no puede registrar controles.", 403);
   if (operationId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(operationId)) {
     throw errorFor("La operación no es válida.", 400);
   }
@@ -61,6 +61,9 @@ const createControlForUser = async (user, input, operationId = null) => {
   }
   const core = await parseCore(input);
   if (core.error) throw errorFor(core.error, core.status || 400);
+  if (user.role === ROLES.AUDITOR && core.data.ownerId !== user.id) {
+    throw errorFor("Un Auditor solo puede asignarse controles a sí mismo.", 403);
+  }
   const risks = await Promise.all(core.data.riskIds.map((id) => riskRepository.findById(id)));
   if (risks.some((risk) => !risk)) throw errorFor(UNAVAILABLE_RECORD, 404);
   for (const risk of risks) await assertWritableSourceScope(user, "RISK", risk);
