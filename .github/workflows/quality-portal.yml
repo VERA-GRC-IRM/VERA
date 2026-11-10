@@ -6,7 +6,7 @@ on:
       - Software quality
       - Browser and accessibility tests
       - CodeQL
-      - VERA — Calidad y pruebas completas
+      - VERA — Informe integral de calidad (navegadores diferidos)
       - AI continuous evaluation
       - Preview role acceptance
       - Production smoke
