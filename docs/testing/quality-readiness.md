@@ -2,6 +2,8 @@
 
 > **Estado operativo más reciente:** consulta la [issue #113](https://github.com/VERA-GRC-IRM/VERA/issues/113) y el [portal público](https://vera-grc-irm.github.io/VERA/). La tabla inferior es un corte histórico del 17 de octubre; sus celdas no describen el estado actual.
 
+> **Excepción de calidad vigente desde el 10 de noviembre:** la [matriz E2E de navegadores y accesibilidad](browser-e2e-debt.md) está fuera de los gates obligatorios y del informe integral. La [deuda #300](https://github.com/VERA-GRC-IRM/VERA/issues/300) conserva el riesgo y la evidencia requerida para reactivarla.
+
 Después de ese corte se revocó la clave histórica y se cerró su alerta, Vercel volvió a publicar `main` automáticamente, el smoke público pasó y se añadieron pruebas de roles en Preview y un ensayo desechable de Supabase. La [corrida integral posterior](https://github.com/VERA-GRC-IRM/VERA/actions/runs/39082004375) documenta 111 pruebas backend, 20 casos de IA sin red, 186 escenarios de navegador, CodeQL y cobertura del mismo corte. Ninguna de estas evidencias acredita aceptación autenticada completa en Production.
 
 Siguen abiertas las sesiones y flujos reales por rol, la consulta de IA desde VERA desplegada, una lectura independiente de un cambio sintético después de redesplegar, la carga 150/250 en staging, una restauración de una copia real y la revisión humana de accesibilidad. El [ensayo local de Supabase](local-supabase-rehearsal.md) usa exclusivamente datos sintéticos; Supabase Free permanece sin plan de pago. El estado de cada puerta se actualiza con evidencia en la issue #113.

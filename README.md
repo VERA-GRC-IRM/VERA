@@ -6,7 +6,6 @@
 
 <p align="center">
   <img src="https://github.com/VERA-GRC-IRM/VERA/actions/workflows/quality.yml/badge.svg?branch=main" alt="Estado de calidad en main">
-  <img src="https://github.com/VERA-GRC-IRM/VERA/actions/workflows/e2e.yml/badge.svg?branch=main" alt="Estado E2E en main">
   <img src="https://github.com/VERA-GRC-IRM/VERA/actions/workflows/codeql.yml/badge.svg?branch=main" alt="Estado de CodeQL en main">
 </p>
 
@@ -78,9 +77,9 @@ El asistente combina indicadores calculados por VERA con respuestas de Azure Ope
 
 1. **Entender la solución:** recorre el [centro de conocimiento](https://github.com/VERA-GRC-IRM/VERA/wiki), que separa producto, arquitectura, permisos y estado de aceptación.
 2. **Ver resultados sin instalar nada:** abre el [portal público de calidad](https://vera-grc-irm.github.io/VERA/), que resume el commit, resultados y tiempos con enlaces a las corridas. Para ejecutar el informe integral, abre [VERA — Calidad y pruebas completas](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/classroom-quality.yml). La [guía de dos minutos](docs/testing/professor-quick-run.md) explica los límites.
-3. **Inspeccionar la ingeniería:** revisa [calidad](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/quality.yml), [navegadores](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/e2e.yml), [CodeQL](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/codeql.yml), [plan de pruebas](docs/testing/test-plan.md) y [PR fusionados](https://github.com/VERA-GRC-IRM/VERA/pulls?q=is%3Apr+is%3Amerged). Cada corrida indica el commit y la duración observada.
+3. **Inspeccionar la ingeniería:** revisa [calidad](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/quality.yml), [CodeQL](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/codeql.yml), [plan de pruebas](docs/testing/test-plan.md) y [PR fusionados](https://github.com/VERA-GRC-IRM/VERA/pulls?q=is%3Apr+is%3Amerged). La [matriz de navegadores](docs/testing/browser-e2e-debt.md) queda temporalmente fuera de los gates y disponible para ejecución manual.
 
-El workflow completo puede iniciarlo manualmente una persona con permiso de escritura; cualquier visitante puede leer las corridas públicas. La prueba de carga de 150/250 usuarios está **preparada, no acreditada como ejecutada**: requiere un staging autorizado. Los E2E usan fixtures de API y no sustituyen pruebas funcionales con cuentas reales y datos persistentes.
+El informe integral puede iniciarlo manualmente una persona con permiso de escritura; cualquier visitante puede leer las corridas públicas. Su PASS actual no incluye navegadores ni accesibilidad automatizada con Playwright; la [deuda #300](https://github.com/VERA-GRC-IRM/VERA/issues/300) registra cómo restablecerlos. La prueba de carga de 150/250 usuarios está **preparada, no acreditada como ejecutada**: requiere un staging autorizado.
 
 Los [cortes verificables](https://github.com/VERA-GRC-IRM/VERA/releases) fijan una revisión del repositorio con enlaces a la evidencia disponible y a sus límites. Para el estado más reciente de `main`, consulta siempre el portal y la issue de aceptación.
 
@@ -93,7 +92,7 @@ Los [cortes verificables](https://github.com/VERA-GRC-IRM/VERA/releases) fijan u
 | Identidad | JWT, bcryptjs y 2FA TOTP opcional; reglas de rol en [backend/config/roles.js](backend/config/roles.js). |
 | Datos | Seis almacenes configurables: memoria para demo local o Supabase tras aplicar migraciones y activar dependencias. |
 | IA | Azure OpenAI desde el backend; claves de servidor fuera del navegador y evaluación sintética reproducible. |
-| Entrega | GitHub Actions para calidad, E2E y CodeQL; despliegue web con configuración independiente. |
+| Entrega | GitHub Actions para calidad y CodeQL; E2E disponible manualmente y diferido como gate; despliegue web con configuración independiente. |
 
 La [arquitectura](docs/wiki/Arquitectura.md) y la [guía de Supabase](docs/supabase-planning.md) explican qué persiste, en qué orden se activa y cómo verificarlo. Un entorno local con `memory` no demuestra persistencia remota.
 
@@ -125,7 +124,7 @@ Vite indica la URL local de la interfaz. Los almacenes predeterminados son `memo
 | Verificación | Cómo se ejecuta | Qué demuestra |
 | --- | --- | --- |
 | Calidad de código | `npm run quality` y [workflow](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/quality.yml) | Pruebas de backend con cobertura, sintaxis/lint, build y auditoría de dependencias del commit. |
-| Interfaz | [Workflow E2E](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/e2e.yml) | Flujos automatizados en navegadores y perfiles móvil/tablet con fixtures. |
+| Interfaz | [Workflow E2E manual](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/e2e.yml) y [deuda #300](https://github.com/VERA-GRC-IRM/VERA/issues/300) | Matriz conservada, temporalmente fuera de la integración obligatoria; un PASS de calidad no acredita compatibilidad. |
 | Seguridad estática | [CodeQL](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/codeql.yml) | Análisis de JavaScript/TypeScript; no equivale a una auditoría de seguridad completa. |
 | IA | [Evaluación continua manual](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/ai-evaluation.yml) | Regresiones sintéticas del contrato y fuentes permitidas, sin llamada ni costo de Azure. |
 | Vista previa con roles | [Aceptación manual](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/preview-role-acceptance.yml) y [alcance](docs/testing/preview-acceptance.md) | Backend desplegado con datos demo: inicio de sesión, lecturas y denegaciones por cinco roles. No prueba Supabase ni Azure de producción. |

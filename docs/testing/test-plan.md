@@ -4,6 +4,8 @@
 
 Este plan convierte los 78 casos de prueba recibidos en un programa verificable. Distingue pruebas unitarias, de integración HTTP, de interfaz, de compatibilidad, de carga y verificaciones operativas. Un caso no se considera aprobado por existir en este catálogo: debe ejecutarse en el nivel indicado y conservar evidencia.
 
+**Excepción vigente desde el 10 de noviembre de 2026:** la matriz automatizada de navegadores y accesibilidad está [diferida](browser-e2e-debt.md). Los casos permanecen planeados y el workflow Playwright se puede ejecutar manualmente; ningún PASS de CI actual los acredita.
+
 La línea base del repositorio es un prototipo React/Vite y Express. La suite `node:test` incluye pruebas unitarias e integración HTTP para reglas de cuenta, autenticación, usuarios/roles, riesgos, controles, propuestas, notificaciones, historial, referencias de evidencias, carga pequeña de archivos y panel. Varias pruebas cubren solo APIs. Los datos de dominio usan memoria por defecto; los modos persistentes y el bucket privado requieren activación y verificación remota. Por eso la operación de producción no se puede declarar cubierta por pruebas simuladas.
 
 ## Secuencia propuesta de pull requests
@@ -99,7 +101,7 @@ La disponibilidad de 99.5% requiere una ventana de medición mensual; RTO de 4 h
 | TC-30 | RF-33: cerrar auditoría y evitar edición posterior | API/UI | Alta | 3 | Parcial: flujo API y rechazo de transiciones/edición posteriores; reflejo visual queda en PR-5 |
 | TC-31 | RNF-01: 150 usuarios concurrentes | Carga | Alta | 7 | Implementación preparada en k6; no ejecutada: requiere staging HTTPS y JWT de cuenta de carga activa; límite global actual de 600 solicitudes/IP/15 min puede rechazar la corrida |
 | TC-32 | RNF-01: 250 o más usuarios y umbral de respuesta | Carga | Alta | 7 | Implementación preparada en k6 con 250 VUs, error <1% y p95 <1500 ms; no ejecutada por ausencia de ambiente/token; revisar el límite global 600/IP antes de interpretar capacidad |
-| TC-33 | RNF-06: navegadores compatibles | E2E | Media | 6 | Parcial: Playwright cubre Chromium y Firefox; CI añade Chrome y Edge. La ejecución local de Firefox se limita por el runner Windows; validar el check Linux del PR antes de declarar la matriz completa |
+| TC-33 | RNF-06: navegadores compatibles | E2E | Media | 6 | Parcial: existen casos Playwright y corridas históricas, pero el gate de Chrome, Edge y Firefox está diferido desde el 10 de noviembre de 2026; requiere una nueva corrida antes de afirmar compatibilidad vigente |
 | TC-34 | RNF-06: navegador no compatible | E2E/manual | Media | 6 | Pendiente; acordar comportamiento soportado y mensaje esperado |
 | TC-35 | RNF-07: escritorio, tablet, orientación | UI/E2E/manual | Media | 6 | Parcial: flujo del panel verificado en Chromium escritorio y viewport tablet; orientación y hardware físico quedan manuales |
 | TC-36 | RNF-17: contraseña segura aceptada | Unit/API | Alta | 2 | Cubierto por unitarias de reglas y API de registro |

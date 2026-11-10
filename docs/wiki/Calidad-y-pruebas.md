@@ -17,7 +17,7 @@ El workflow integral es manual y semanal. Solo quien tiene escritura puede pulsa
 | Capa | Enlace | Alcance |
 | --- | --- | --- |
 | Backend, lint, build y dependencias | [Quality gates](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/quality.yml) | Pruebas de Node con cobertura, sintaxis, ESLint, compilación y `npm audit`. |
-| Navegadores y accesibilidad | [UI E2E](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/e2e.yml) | Chrome, Edge, Firefox y perfiles móvil/tablet; usa fixtures de API. |
+| Navegadores y accesibilidad | [UI E2E manual](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/e2e.yml) | Matriz conservada, [diferida como gate](https://github.com/VERA-GRC-IRM/VERA/issues/300); no incluida en el PASS integral vigente. |
 | Análisis estático | [CodeQL](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/codeql.yml) | JavaScript/TypeScript; no sustituye una revisión completa de seguridad. |
 | Vista unificada | [Informe integral de calidad](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/classroom-quality.yml) | Reúne fases, tiempos y evidencia en una ejecución para inspección. |
 | IA sintética | [AI continuous evaluation](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/ai-evaluation.yml) | Casos reproducibles, sin Azure real y sin costo por llamada. |
@@ -29,7 +29,7 @@ El [plan de pruebas](https://github.com/VERA-GRC-IRM/VERA/blob/main/docs/testing
 
 La [ruta de calidad y criterios de salida](https://github.com/VERA-GRC-IRM/VERA/blob/main/docs/testing/quality-readiness.md) ordena los pendientes por riesgo y especifica qué evidencia hace falta antes de afirmar preparación de producción. Una cobertura elevada o un check verde no cierran por sí solos las verificaciones del entorno real.
 
-Las pruebas E2E con fixtures comprueban la interfaz y el contrato simulado; no acreditan persistencia Supabase ni permisos con cuentas reales desplegadas. La [matriz de aceptación](https://github.com/VERA-GRC-IRM/VERA/blob/main/docs/hu-acceptance-audit.md) enumera verificaciones pendientes por HU. Si una función se corrige, se repiten los casos relacionados y se registra el resultado antes de darla por aceptada.
+Cuando se ejecutan manualmente, las pruebas E2E con fixtures comprueban la interfaz y el contrato simulado; no acreditan persistencia Supabase ni permisos con cuentas reales desplegadas. La [matriz de aceptación](https://github.com/VERA-GRC-IRM/VERA/blob/main/docs/hu-acceptance-audit.md) enumera verificaciones pendientes por HU. Si una función se corrige, se repiten los casos relacionados y se registra el resultado antes de darla por aceptada.
 
 ## Ejecutar localmente
 
