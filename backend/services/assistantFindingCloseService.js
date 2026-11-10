@@ -28,9 +28,9 @@ const handleFindingClose = async (user, question, thread) => {
     }
     if (Date.parse(draft.expiresAt) < Date.now()) return response("La vista previa venció. Solicita el cierre de nuevo.");
     try {
-      const closed = await closeFindingForUser(user, draft.id, draft.note, draft.version);
-      return response(`Quedó cerrado el hallazgo «${closed.title}» (${closed.id}). El motivo y las acciones terminadas quedaron en la bitácora.`,
-        "action-executed", { actionOutcome: { id: closed.id, status: closed.status } });
+      const finding = await closeFindingForUser(user, draft.id, draft.note, draft.version);
+      return response(`La solicitud de cierre del hallazgo «${finding.title}» (${finding.id}) quedó enviada para validación de Super Admin.`,
+        "action-executed", { actionOutcome: { id: finding.id, status: finding.status } });
     } catch (error) {
       if (error.status) return response(`${error.message} Solicita otra vista previa si corresponde.`);
       throw error;
@@ -53,7 +53,12 @@ const handleFindingClose = async (user, question, thread) => {
   catch (error) { if (error.status) return response(error.message); throw error; }
   const draft = { type: "FINDING_CLOSE", id: finding.id, version: finding.storageVersion,
     note: prepared.note, expiresAt: new Date(Date.now() + 5 * 60_000).toISOString() };
-  return response(`Revisa antes de cerrar «${finding.title}» (${finding.id}), asociado al riesgo ${finding.riskId} y al control ${finding.controlId}. Las ${prepared.actions.length} acciones vinculadas están terminadas. Motivo: ${prepared.note}. Escribe «Confirmar cierre de hallazgo» en los próximos cinco minutos; cualquier otra pregunta descarta esta vista previa.`,
+  const relations = [
+    finding.auditId && `la auditoría ${finding.auditId}`,
+    finding.riskId && `el riesgo ${finding.riskId}`,
+    finding.controlId && `el control ${finding.controlId}`
+  ].filter(Boolean).join(", ");
+  return response(`Revisa la solicitud de cierre de «${finding.title}» (${finding.id}), relacionado con ${relations || "sus registros asociados"}. Las ${prepared.actions.length} acciones vinculadas están terminadas. Motivo: ${prepared.note}. Escribe «Confirmar cierre de hallazgo» en los próximos cinco minutos; cualquier otra pregunta descarta esta vista previa.`,
     "action-preview", { actionDraft: draft });
 };
 

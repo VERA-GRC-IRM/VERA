@@ -34,7 +34,7 @@ const assertWritableRecordScope = async (user, record) => {
 
 // Keep the existing role view for legacy records. Once any relation has an
 // explicit scope, a shared control must not expose a risk in a denied scope.
-const projectVisibleRiskRelations = async (user, allRisks, allControls, allFindings = []) => {
+const projectVisibleRiskRelations = async (user, allRisks, allControls, allFindings = [], allAudits = []) => {
   const auditor = user.role === "AUDITOR";
   const scopedRisks = await filterByVisibleScope(user, allRisks);
   const risks = auditor ? scopedRisks.filter((item) => item.ownerId === user.id) : scopedRisks;
@@ -45,11 +45,28 @@ const projectVisibleRiskRelations = async (user, allRisks, allControls, allFindi
     (!auditor || item.riskIds?.some((id) => riskIds.has(id))) &&
     (!scopedRelations || (item.riskIds || []).every((id) => riskIds.has(id))));
   const controlIds = new Set(controls.map((item) => item.id));
+  const scopedAudits = await filterByVisibleScope(user, allAudits);
+  const audits = auditor ? scopedAudits.filter((item) => item.responsibleId === user.id) : scopedAudits;
+  const auditIds = new Set(audits.map((item) => item.id));
   const scopedFindings = await filterByVisibleScope(user, allFindings);
-  const findings = scopedFindings.filter((item) =>
-    (!auditor || riskIds.has(item.riskId)) &&
-    (!scopedRelations || (riskIds.has(item.riskId) && controlIds.has(item.controlId))));
-  return { risks, controls, findings };
+  const findings = scopedFindings.filter((item) => {
+    if (auditor && ((item.riskId && !riskIds.has(item.riskId)) ||
+        (item.controlId && !controlIds.has(item.controlId)))) return false;
+    const hasVisibleRelation = (item.riskId && riskIds.has(item.riskId)) ||
+      (item.controlId && controlIds.has(item.controlId)) ||
+      (item.auditId && auditIds.has(item.auditId));
+    if (!hasVisibleRelation) return false;
+    if (!scopedRelations) return true;
+    const hasRiskOrControl = Boolean(item.riskId || item.controlId);
+    return (!item.riskId || riskIds.has(item.riskId)) &&
+      (!item.controlId || controlIds.has(item.controlId)) &&
+      (hasRiskOrControl || !item.auditId || auditIds.has(item.auditId));
+  });
+  const projectedFindings = findings.map((item) =>
+    item.auditId && !auditIds.has(item.auditId)
+      ? { ...item, auditId: null, auditTitle: null, proposalId: null }
+      : item);
+  return { risks, controls, findings: projectedFindings, audits };
 };
 
 module.exports = { filterByVisibleScope, canViewRecordScope, assertWritableRecordScope,

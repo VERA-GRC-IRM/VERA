@@ -2,6 +2,7 @@ const evidenceRepository = require("../repositories/evidenceRepository");
 const riskRepository = require("../repositories/riskRepository");
 const controlRepository = require("../repositories/controlRepository");
 const planningRepository = require("../repositories/planningRepository");
+const findingRepository = require("../repositories/findingRepository");
 const userRepository = require("../repositories/userRepository");
 const { logActivity } = require("./auditLogger");
 const { RECORD_CREATE_ROLES } = require("../config/roles");
@@ -14,7 +15,7 @@ const { IMAGE_MIME } = require("./azureVisionOcrService");
 const evidenceIndexCoverage = require("../repositories/evidenceIndexCoverage");
 const { canReplayEvidence } = require("./creationReplayScope");
 
-const ENTITY_TYPES = ["RISK", "CONTROL", "AUDIT"];
+const ENTITY_TYPES = ["RISK", "CONTROL", "AUDIT", "FINDING"];
 const EVIDENCE_TYPES = ["DOCUMENT", "SCREENSHOT", "REPORT", "OTHER"];
 const text = (value) => String(value ?? "").trim();
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
@@ -23,6 +24,7 @@ const findEntity = async (type, id) => {
   if (type === "RISK") return riskRepository.findById(id);
   if (type === "CONTROL") return controlRepository.findById(id);
   if (type === "AUDIT") return planningRepository.findById(id);
+  if (type === "FINDING") return findingRepository.findById(id);
   return null;
 };
 

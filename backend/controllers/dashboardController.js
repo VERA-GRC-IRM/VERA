@@ -28,7 +28,7 @@ const getDashboard = async (req, res) => {
     planningRepository.getAll(), riskRepository.getAll(), controlRepository.getAll(), findingRepository.getAll()
   ]);
   const proposals = await filterByVisibleScope(req.user, allProposals);
-  const visibleFindings = (await projectVisibleRiskRelations(req.user, risks, controls, findings)).findings;
+  const visibleFindings = (await projectVisibleRiskRelations(req.user, risks, controls, findings, allProposals)).findings;
   res.json(getDashboardForUser(req.user, proposals, visibleFindings, selectedPeriod));
 };
 

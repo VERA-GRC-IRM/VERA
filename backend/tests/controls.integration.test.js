@@ -44,6 +44,14 @@ test("HU-15: controls link to valid risks, retain effectiveness evaluations and 
   assert.equal(control.evaluations[0].assessedBy.id, 3);
   assert.equal(control.evaluations[0].result, "EFFECTIVE");
 
+  const auditorControlResponse = await fetch(`${baseUrl}/api/controls`, json(auditor, "POST", {
+    ...body, title: `${body.title} auditor`, ownerId: 3
+  }));
+  assert.equal(auditorControlResponse.status, 201);
+  const auditorControl = (await auditorControlResponse.json()).control;
+  assert.equal(auditorControl.ownerId, 5);
+  assert.equal(auditorControl.evaluations[0].assessedBy.id, 5);
+
   const otherRiskResponse = await fetch(`${baseUrl}/api/risks`, json(manager, "POST", {
     title: `HU-15 riesgo no asignado ${Date.now()}`,
     description: "Un proceso operativo puede interrumpirse por una falla de coordinación.",
@@ -55,6 +63,13 @@ test("HU-15: controls link to valid risks, retain effectiveness evaluations and 
     ...body, title: `${body.title} otro`, riskIds: [otherRisk.id]
   }));
   const otherControl = (await otherControlResponse.json()).control;
+  const outOfScopeCreate = await fetch(`${baseUrl}/api/controls`, json(auditor, "POST", {
+    ...body, title: `${body.title} fuera de alcance`, riskIds: [otherRisk.id]
+  }));
+  assert.equal(outOfScopeCreate.status, 404);
+  const outOfScopeEvaluation = await fetch(`${baseUrl}/api/controls/${otherControl.id}/evaluate`,
+    json(auditor, "POST", { rating: 2, note: "La muestra del control presenta varias excepciones." }));
+  assert.equal(outOfScopeEvaluation.status, 404);
 
   const auditorControls = await fetch(`${baseUrl}/api/controls`, json(auditor));
   const auditorVisibleControls = (await auditorControls.json()).controls;
@@ -77,6 +92,22 @@ test("HU-15: controls link to valid risks, retain effectiveness evaluations and 
   const listedControl = (await listed.json()).controls.find((item) => item.id === control.id);
   assert.equal(listedControl.effectivenessResult, "INEFFECTIVE");
   assert.deepEqual(listedControl.evaluations.map((item) => item.result), ["EFFECTIVE", "INEFFECTIVE"]);
+
+  const auditorEvaluationResponse = await fetch(`${baseUrl}/api/controls/${auditorControl.id}/evaluate`,
+    json(auditor, "POST", { rating: 2, note: "La revisión asignada mostró excepciones en los soportes." }));
+  assert.equal(auditorEvaluationResponse.status, 200);
+  const auditorEvaluation = (await auditorEvaluationResponse.json()).control.evaluations.at(-1);
+  assert.equal(auditorEvaluation.result, "INEFFECTIVE");
+  assert.equal(auditorEvaluation.assessedBy.id, 5);
+  assert.ok(auditorEvaluation.assessedAt);
+  const auditorReload = await fetch(`${baseUrl}/api/controls`, json(auditor));
+  const persistedAuditorControl = (await auditorReload.json()).controls
+    .find((item) => item.id === auditorControl.id);
+  assert.equal(persistedAuditorControl.evaluations.at(-1).result, "INEFFECTIVE");
+  assert.equal(persistedAuditorControl.evaluations.at(-1).assessedBy.id, 5);
+  const auditorEdit = await fetch(`${baseUrl}/api/controls/${auditorControl.id}`,
+    json(auditor, "PUT", { ...body, title: `${body.title} editado` }));
+  assert.equal(auditorEdit.status, 403);
 
   const update = await fetch(`${baseUrl}/api/controls/${control.id}`, json(manager, "PUT", { ...body, title: `${body.title} revisado` }));
   assert.equal(update.status, 200);

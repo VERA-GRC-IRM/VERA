@@ -17,3 +17,8 @@ export const createFinding = async (finding) => (await request("/", {
 export const closeFinding = async (id, version, note) => (await request(`/${encodeURIComponent(id)}/close`, {
   method: "PATCH", body: JSON.stringify({ version, note })
 })).finding;
+export const decideFindingClosure = async (id, version, decision, note) => (
+  await request(`/${encodeURIComponent(id)}/closure-decision`, {
+    method: "POST", body: JSON.stringify({ version, decision, note })
+  })
+).finding;

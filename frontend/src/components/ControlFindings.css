@@ -3,7 +3,12 @@
 .finding-create { margin: 0 8px 12px 0; }
 .finding-list { display: grid; gap: 12px; margin-top: 18px; }
 .finding-card { background: light-dark(#fff, var(--vera-surface)); border-radius: 12px; padding: 18px; }
-.finding-card span { float: right; color: light-dark(#9a6600, var(--vera-warning)); }
+.finding-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.finding-card-heading strong { min-width: 0; overflow-wrap: anywhere; }
+.finding-status { flex: 0 0 auto; border-radius: 999px; padding: 4px 9px; font-size: .78rem; font-weight: 700; }
+.finding-status-open { color: light-dark(#7a4b00, var(--vera-warning)); background: light-dark(#fff3d4, #392d16); }
+.finding-status-pending_validation { color: light-dark(#174c69, #9bd8f1); background: light-dark(#e3f3fb, #173142); }
+.finding-status-closed { color: light-dark(#176346, #8ee0b9); background: light-dark(#e3f6ed, #16372b); }
 .finding-card p { margin: 10px 0; }
 .finding-card small { display: block; color: light-dark(#49606d, var(--vera-text-muted)); margin-top: 5px; }
 .finding-modal { display: grid; gap: 14px; }

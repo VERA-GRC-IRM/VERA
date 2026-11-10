@@ -141,7 +141,7 @@ const remove = async (file) => {
 };
 
 const validFile = (file) => file && file.bucket === BUCKET &&
-  /^(risk|control|audit|ai)\/[^/]+\/[0-9a-f-]{36}\.(pdf|xls|xlsx|doc|docx|png|jpg|webp|csv|txt)$/.test(file.path) &&
+  /^(risk|control|audit|finding|ai)\/[^/]+\/[0-9a-f-]{36}\.(pdf|xls|xlsx|doc|docx|png|jpg|webp|csv|txt)$/.test(file.path) &&
   MIME_EXTENSIONS[file.mime] && file.path.endsWith(`.${MIME_EXTENSIONS[file.mime]}`);
 
 const downloadBytes = async (file) => {

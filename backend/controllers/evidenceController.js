@@ -62,7 +62,7 @@ const uploadEvidence = async (req, res) => {
   if (title.length < 3 || title.length > 120) return res.status(400).json({ message: "El nombre debe tener entre 3 y 120 caracteres." });
   if (description.length < 10 || description.length > 1000) return res.status(400).json({ message: "La descripción debe tener entre 10 y 1,000 caracteres." });
   if (!EVIDENCE_TYPES.includes(evidenceType)) return res.status(400).json({ message: "Selecciona un tipo de evidencia válido." });
-  if (!ENTITY_TYPES.includes(entityType) || !entityId) return res.status(400).json({ message: "Selecciona un riesgo, control o auditoría." });
+  if (!ENTITY_TYPES.includes(entityType) || !entityId) return res.status(400).json({ message: "Selecciona un riesgo, control, auditoría o hallazgo." });
   if ( entityType === "AUDIT" && !PLANNING_APPROVE_ROLES.includes(req.user.role)) return res.status(403).json({ message: "Tu rol no tiene permiso para adjuntar archivos a auditorías."});
   if (!evidenceStorage.MIME_EXTENSIONS[mime]) return res.status(415).json({ message: "Tipo de archivo no permitido." });
   const entity = await findEntity(entityType, entityId);

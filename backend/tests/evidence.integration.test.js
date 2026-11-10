@@ -36,6 +36,13 @@ test("HU-16: evidence references can be linked to risks, controls and audits wit
     note: "La evidencia de las últimas revisiones fue completa y consistente."
   }));
   const control = (await controlResponse.json()).control;
+  const findingResponse = await fetch(`${baseUrl}/api/findings`, json(manager, "POST", {
+    title: "Seguimiento de excepciones", description: "Las diferencias de la muestra requieren una revisión adicional.",
+    rootCause: "No se asignaba a una persona responsable de verificar las excepciones.",
+    severity: "MEDIUM", assigneeId: 5, riskId: assignedRisk.id, controlId: control.id
+  }));
+  assert.equal(findingResponse.status, 201);
+  const finding = (await findingResponse.json()).finding;
 
   const register = async (entityType, entityId, suffix) => fetch(`${baseUrl}/api/evidence`, json(manager, "POST", {
     title: `Evidencia ${suffix}`,
@@ -52,8 +59,26 @@ test("HU-16: evidence references can be linked to risks, controls and audits wit
   assert.equal(otherEvidenceResponse.status, 201);
   const controlEvidenceResponse = await register("CONTROL", control.id, "de control");
   assert.equal(controlEvidenceResponse.status, 201);
+  const auditorControlEvidenceResponse = await fetch(`${baseUrl}/api/evidence`, json(auditor, "POST", {
+    title: "Evidencia del auditor",
+    description: "Referencia de respaldo vinculada al control del riesgo asignado.",
+    evidenceType: "REPORT",
+    reference: "https://drive.google.com/file/d/auditor-control-reference",
+    entityType: "CONTROL",
+    entityId: control.id
+  }));
+  assert.equal(auditorControlEvidenceResponse.status, 201);
   const auditEvidenceResponse = await register("AUDIT", "AUD-01", "de auditoría");
   assert.equal(auditEvidenceResponse.status, 201);
+  const findingEvidenceResponse = await fetch(`${baseUrl}/api/evidence`, json(auditor, "POST", {
+    title: "Respaldo del hallazgo",
+    description: "Referencia que documenta la excepción asignada al auditor.",
+    evidenceType: "REPORT",
+    reference: "https://drive.google.com/file/d/finding-reference",
+    entityType: "FINDING",
+    entityId: finding.id
+  }));
+  assert.equal(findingEvidenceResponse.status, 201);
 
   assert.equal(riskEvidence.entityTitle, assignedRisk.title);
   assert.equal(riskEvidence.author.id, 3);
@@ -63,6 +88,9 @@ test("HU-16: evidence references can be linked to risks, controls and audits wit
   const auditorItems = (await (await fetch(`${baseUrl}/api/evidence`, json(auditor))).json()).evidence;
   assert.ok(auditorItems.some((item) => item.entityId === assignedRisk.id));
   assert.ok(auditorItems.some((item) => item.entityId === control.id));
+  assert.ok(auditorItems.some((item) => item.title === "Evidencia del auditor" && item.entityId === control.id));
+  assert.ok(auditorItems.some((item) => item.title === "Respaldo del hallazgo" &&
+    item.entityType === "FINDING" && item.entityId === finding.id));
   assert.ok(!auditorItems.some((item) => item.entityId === otherRisk.id));
   assert.ok(!auditorItems.some((item) => item.entityId === "AUD-01"));
 

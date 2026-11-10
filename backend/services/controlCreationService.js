@@ -3,7 +3,7 @@ const riskRepository = require("../repositories/riskRepository");
 const userRepository = require("../repositories/userRepository");
 const { logActivity } = require("./auditLogger");
 const { USER_STATUS } = require("../config/accountRules");
-const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
+const { CONTROL_WRITE_ROLES, ROLES } = require("../config/roles");
 const { withResult, parseEvaluation } = require("./controlEvaluationService");
 const { assertWritableControlScope, assertWritableSourceScope } = require("./recordWriteScopeService");
 const { scopeForNewRecord } = require("./recordCreationScopeService");
@@ -16,12 +16,13 @@ const errorFor = (message, status) => { const error = new Error(message); error.
 const activeUsers = async () => (await userRepository.getAll())
   .filter((user) => user.status === USER_STATUS.ACTIVE);
 
-const parseCore = async (body) => {
+const parseCore = async (body, user) => {
   const title = text(body.title);
   const description = text(body.description);
   const type = text(body.type);
   const frequency = text(body.frequency);
-  const owner = (await activeUsers()).find((user) => user.id === Number(body.ownerId));
+  const ownerId = user?.role === ROLES.AUDITOR ? user.id : Number(body.ownerId);
+  const owner = (await activeUsers()).find((item) => item.id === ownerId);
   const rawRiskIds = Array.isArray(body.riskIds)
     ? [...new Set(body.riskIds.map((id) => text(id)).filter(Boolean))] : [];
   const risks = await riskRepository.getAll();
@@ -47,7 +48,7 @@ const createControlForUser = async (user, input, operationId = null) => {
   if (currentUser?.status !== USER_STATUS.ACTIVE || currentUser.role !== user.role) {
     throw errorFor("Cambió tu acceso. Inicia sesión de nuevo.", 409);
   }
-  if (!RISK_CONTROL_MANAGE_ROLES.includes(user.role)) throw errorFor("Tu rol no puede registrar controles.", 403);
+  if (!CONTROL_WRITE_ROLES.includes(user.role)) throw errorFor("Tu rol no puede registrar controles.", 403);
   if (operationId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(operationId)) {
     throw errorFor("La operación no es válida.", 400);
   }
@@ -59,7 +60,7 @@ const createControlForUser = async (user, input, operationId = null) => {
       return withResult(existing);
     }
   }
-  const core = await parseCore(input);
+  const core = await parseCore(input, user);
   if (core.error) throw errorFor(core.error, core.status || 400);
   const risks = await Promise.all(core.data.riskIds.map((id) => riskRepository.findById(id)));
   if (risks.some((risk) => !risk)) throw errorFor(UNAVAILABLE_RECORD, 404);

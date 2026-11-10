@@ -89,7 +89,7 @@ const buildAssistantContext = async (user, question, focus = null) => {
   const scopedAudits = await filterByVisibleScope(user, allAudits);
   const audits = auditor ? scopedAudits.filter((item) => item.responsibleId === user.id) : scopedAudits;
   const { risks: scopedRisks, controls, findings } = await projectVisibleRiskRelations(
-    user, allRisks, allControls, allFindings);
+    user, allRisks, allControls, allFindings, allAudits);
   const risks = projectVisibleAuditLinks(scopedRisks, audits);
   const riskIds = new Set(risks.map((item) => item.id));
   let actions = [];

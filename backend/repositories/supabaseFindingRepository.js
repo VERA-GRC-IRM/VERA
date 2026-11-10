@@ -8,6 +8,11 @@ const create = (data) => store.create({
   status: "OPEN",
   createdAt: new Date().toISOString(),
   createdBy: { ...data.createdBy }
-}, { control_id: data.controlId, risk_id: data.riskId });
+}, {
+  control_id: data.controlId || null,
+  risk_id: data.riskId || null,
+  audit_id: data.auditId || null,
+  assignee_id: data.assigneeId || null
+});
 
 module.exports = { getAll: store.getAll, findById: store.findById, create, mutate: store.mutate };

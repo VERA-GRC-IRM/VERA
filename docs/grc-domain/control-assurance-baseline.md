@@ -6,4 +6,6 @@ Cada control conserva una calificación ordinal de 1 a 5 y su historial de justi
 
 La API mantiene temporalmente la clasificación histórica `EFFECTIVE` desde 4 y `INEFFECTIVE` desde 1 a 3 para preservar clientes y flujos existentes, incluido el registro de hallazgos. Esa clasificación es una **regla heredada de calificación**, no una conclusión de aseguramiento. La interfaz y las respuestas operativas del asistente muestran la calificación como preliminar. No se recalculan ni cambian expedientes históricos.
 
+Super Admin y Gerencia pueden crear, evaluar y editar controles. Auditor puede crear controles y registrar evaluaciones solo para controles cuyos riesgos vinculados estén asignados a su cuenta; el servidor vuelve a validar esa asignación. Solo los roles de gestión pueden editar controles. Las evidencias se vinculan al registro de control desde el expediente de evidencias, y los hallazgos generados conservan los IDs del control, el riesgo y la versión evaluada.
+
 Para emitir una conclusión formal faltan pruebas separadas de diseño y operación con periodo, criterio, muestra, resultado, revisor y evidencia autorizada, además de un criterio empresarial aprobado. Ese contrato forma el siguiente incremento de [#249](https://github.com/VERA-GRC-IRM/VERA/issues/249).

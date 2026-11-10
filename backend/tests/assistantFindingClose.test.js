@@ -50,7 +50,7 @@ test("Cerrar un hallazgo requiere expediente exacto y motivo", () => {
   assert.equal(parseFindingCloseCommand("Cierra todos los hallazgos"), null);
 });
 
-test("El chat exige acciones terminadas y confirma cierre con bitácora", async (t) => {
+test("El chat exige acciones terminadas y envía la solicitud de cierre a validación", async (t) => {
   const previous = process.env.VERA_AI_CONVERSATIONS_ENABLED;
   process.env.VERA_AI_CONVERSATIONS_ENABLED = "true";
   t.after(() => { if (previous === undefined) delete process.env.VERA_AI_CONVERSATIONS_ENABLED;
@@ -67,9 +67,9 @@ test("El chat exige acciones terminadas y confirma cierre con bitácora", async 
   const confirmed = await ask(url, 5, "Confirmar cierre de hallazgo");
   assert.equal(confirmed.status, 200);
   assert.equal((await confirmed.json()).message.mode, "action-executed");
-  const closed = await findingRepository.findById(finding.id);
-  assert.equal(closed.status, "CLOSED");
-  assert.equal(closed.closedBy.id, 5);
+  const pending = await findingRepository.findById(finding.id);
+  assert.equal(pending.status, "PENDING_VALIDATION");
+  assert.equal(pending.closureRequest.requestedBy.id, 5);
   assert.equal((await (await ask(url, 5, "Confirmar cierre de hallazgo")).json()).message.mode,
     "action-guidance");
   const ephemeral = await fetch(`${base}/api/assistant/ask`, options(5, { question: command }));
