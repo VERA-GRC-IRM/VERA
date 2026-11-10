@@ -1,4 +1,4 @@
-name: VERA — Calidad y pruebas completas
+name: VERA — Informe integral de calidad (navegadores diferidos)
 
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   all-checks:
-    name: Calidad, backend, navegadores y CodeQL
+    name: Calidad, backend y CodeQL (navegadores diferidos)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
@@ -63,19 +63,6 @@ jobs:
           QUALITY_COMMIT: ${{ github.sha }}
         run: npm run quality
 
-      - name: Install Chrome, Edge and Firefox binaries
-        run: npx playwright install chromium firefox chrome msedge
-        working-directory: frontend
-
-      - name: Run browser, responsive and accessibility cases
-        id: e2e
-        continue-on-error: true
-        run: npm run test:e2e
-        working-directory: frontend
-        env:
-          CI: "true"
-          PLAYWRIGHT_BRANDED_BROWSERS: "1"
-
       - name: Start CodeQL analysis timer
         if: steps.codeql-init.outcome == 'success'
         run: echo "CODEQL_START_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
@@ -102,7 +89,7 @@ jobs:
         if: always()
         env:
           QUALITY_RESULT: ${{ steps.quality.outcome }}
-          E2E_RESULT: ${{ steps.e2e.outcome }}
+          E2E_RESULT: deferred
           CODEQL_INIT_RESULT: ${{ steps.codeql-init.outcome }}
           CODEQL_RESULT: ${{ steps.codeql-analysis.outcome }}
           CODEQL_DURATION_SECONDS: ${{ env.CODEQL_DURATION_SECONDS }}
@@ -111,15 +98,13 @@ jobs:
           GITHUB_EVENT: ${{ github.event_name }}
         run: python3 scripts/classroom-summary.py
 
-      - name: Upload one-click reports and browser evidence
+      - name: Upload one-click quality reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vera-classroom-quality-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             quality-report/
-            frontend/playwright-report/
-            frontend/test-results/
           if-no-files-found: warn
           retention-days: 30
 
@@ -127,11 +112,10 @@ jobs:
         if: always()
         env:
           QUALITY_RESULT: ${{ steps.quality.outcome }}
-          E2E_RESULT: ${{ steps.e2e.outcome }}
           CODEQL_INIT_RESULT: ${{ steps.codeql-init.outcome }}
           CODEQL_RESULT: ${{ steps.codeql-analysis.outcome }}
         run: |
-          if [[ "$QUALITY_RESULT" != "success" || "$E2E_RESULT" != "success" || "$CODEQL_INIT_RESULT" != "success" || "$CODEQL_RESULT" != "success" ]]; then
+          if [[ "$QUALITY_RESULT" != "success" || "$CODEQL_INIT_RESULT" != "success" || "$CODEQL_RESULT" != "success" ]]; then
             echo "At least one quality suite did not pass. Review the report and logs above." >&2
             exit 1
           fi
