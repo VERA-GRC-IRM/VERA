@@ -2,6 +2,14 @@
 
 La [aceptación puntual en Production del 21 de octubre de 2026](testing/production-acceptance-2026-10-21.md) registró una acción sintética, su aviso próximo, la lectura en otra sesión y el cierre; también comprobó el rechazo HTTP 404 para una cuenta sin visibilidad. El registro de prueba quedó terminado en la bitácora.
 
+## Planes de remediación de hallazgos · HU-21
+
+Una acción con origen `FINDING` funciona como plan de remediación: el título describe la acción correctiva, el motivo explica su contexto, y el hallazgo, responsable, fecha compromiso y estado están vinculados al registro persistente. El avance `progressPercent` inicia en 0 y se actualiza de 0 a 100 mediante `PATCH /api/actions/:id/progress` con la versión vigente y una explicación. `POST /api/actions/:id/comments` añade comentarios a la bitácora sin alterar el porcentaje. El responsable puede usar `POST /api/actions/:id/validation-request` cuando el avance llega a 100; la solicitud queda fechada, sin convertir automáticamente el plan ni el hallazgo en «terminado». La decisión de cierre sigue siendo humana y usa las reglas de RF-23.
+
+Cada avance puede vincular una evidencia ya registrada con `evidenceId`. `GET /api/actions/:id/evidence-options` ofrece solamente evidencias del riesgo, control o auditoría relacionados con el hallazgo que la cuenta puede consultar. La API vuelve a comprobar esa relación y el permiso antes de guardar el ID; el plan admite hasta 20 referencias. Las cargas y archivos siguen en el módulo de Evidencias. Avances, comentarios, evidencias vinculadas y solicitudes se añaden a `history` con actor y fecha. La escritura usa `storageVersion` para rechazar versiones antiguas con 409. El responsable y los roles de planeación autorizados pueden actualizar avance o comentar; solo el responsable solicita validación. Dirección conserva lectura. Una acción terminada, cancelada o vinculada a un hallazgo cerrado ya no admite esos cambios.
+
+Los planes anteriores siguen siendo legibles: si no tenían porcentaje, la interfaz muestra 100 % para `DONE` y 0 % para otros estados; no se reescribe su historial. En Supabase, los campos nuevos viven en el JSON `payload` de `vera_actions`, de modo que no se requiere una migración de esquema adicional. La prueba HTTP [findingPlan.integration.test.js](../backend/tests/findingPlan.integration.test.js) verifica vínculo, permisos, rangos, evidencia, concurrencia por versión, historial y solicitud. La persistencia remota después de reinicio y la aceptación por personas reales requieren una ejecución separada en el entorno desplegado; el test en memoria no las acredita.
+
 Una acción representa un compromiso humano relacionado con una auditoría, un riesgo, un control o un hallazgo. Es diferente de una notificación derivada: **leída** describe si alguien abrió un aviso; **terminada** es una transición explícita de la acción con una explicación y un actor. La IA no crea ni cierra acciones.
 
 ## Contrato y permisos

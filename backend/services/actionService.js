@@ -1,5 +1,6 @@
 const actionRepository = require("../repositories/actionRepository");
 const findingRepository = require("../repositories/findingRepository");
+const evidenceRepository = require("../repositories/evidenceRepository");
 const userRepository = require("../repositories/userRepository");
 const { logActivity } = require("./auditLogger");
 const { buildAuditContext } = require("./auditContextService");
@@ -19,6 +20,8 @@ const TRANSITIONS = {
 };
 const canTransition = (from, to) => STATUSES.includes(to) && TRANSITIONS[from]?.includes(to) === true;
 const text = (value) => String(value ?? "").trim();
+const actorName = (user) => user.name || user.username;
+const actorEvent = (user, at) => ({ actorId: user.id, actorName: actorName(user), at });
 
 class ActionError extends Error {
   constructor(message, status) {
@@ -156,10 +159,12 @@ const createAction = async (user, body, { operationId } = {}) => {
     sourceType, sourceId, sourceTitle: source.title,
     orgUnitId: source.orgUnitId || null,
     title, rationale, dueDate, assigneeId, assigneeName: assignee.name,
+    ...(sourceType === "FINDING" ? { sourceControlId: source.controlId,
+      progressPercent: 0, evidenceIds: [], validationRequestedAt: null } : {}),
     ...(operationId ? { aiOperationId: operationId } : {}),
     status: "OPEN", createdBy: { id: user.id, name: user.name || user.username },
     createdAt: now, updatedAt: now, completedAt: null,
-    history: [{ type: "CREATED", actorId: user.id, actorName: user.name || user.username, at: now }]
+    history: [{ type: "CREATED", ...actorEvent(user, now) }]
   });
   await logActivity({ actor: user, action: "FOLLOW_UP_ACTION_CREATED", details: {
     actionId: action.id, sourceType, sourceId, assigneeId
@@ -195,8 +200,11 @@ const changeStatus = async (user, id, body) => {
   const now = new Date().toISOString();
   const updated = await actionRepository.mutate(id, {
     status, completedAt: ["DONE", "CANCELLED"].includes(status) ? now : null,
+    ...(action.sourceType === "FINDING" ? { progressPercent: status === "DONE" ? 100
+      : action.status === "DONE" ? 0 : action.progressPercent ?? 0,
+    validationRequestedAt: status === "DONE" || action.status === "DONE" ? null : action.validationRequestedAt || null } : {}),
     history: [...action.history, { type: "STATUS_CHANGED", from: action.status, to: status, note,
-      actorId: user.id, actorName: user.name || user.username, at: now }]
+      ...actorEvent(user, now) }]
   }, assertVersion(body.version));
   await logActivity({ actor: user, action: "FOLLOW_UP_ACTION_STATUS_CHANGED", details: {
     actionId: id, sourceType: action.sourceType, sourceId: action.sourceId, from: action.status, to: status
@@ -226,4 +234,95 @@ const reassign = async (user, id, body) => {
   return updated;
 };
 
-module.exports = { ActionError, listActions, listActionsForAudit, listSources, getAction, listAssignees, createAction, changeStatus, reassign, canTransition, dateIsValid };
+const editableFindingPlan = async (user, id, { assigneeOnly = false } = {}) => {
+  const action = await getAction(user, id);
+  if (action.sourceType !== "FINDING") throw new ActionError("Selecciona un plan vinculado a un hallazgo.", 400);
+  const finding = await requiredSource(user, "FINDING", action.sourceId);
+  await assertWritableSourceScope(user, "FINDING", finding);
+  if (finding.status === "CLOSED" || ["DONE", "CANCELLED"].includes(action.status)) {
+    throw new ActionError("Este plan ya no admite cambios de avance.", 409);
+  }
+  if (action.assigneeId !== user.id && (assigneeOnly || !PLANNING_APPROVE_ROLES.includes(user.role))) {
+    throw new ActionError("Solo el responsable puede modificar este plan.", 403);
+  }
+  return { action, finding };
+};
+
+const evidenceOptions = async (user, finding) => {
+  const linked = { RISK: finding.riskId, CONTROL: finding.controlId, AUDIT: finding.auditId };
+  const rows = (await evidenceRepository.getAll()).filter((item) => linked[item.entityType] === item.entityId);
+  const allowed = [];
+  for (const row of rows) {
+    if (await visibleSource(user, row.entityType, row.entityId)) {
+      allowed.push({ id: row.id, title: row.title, entityType: row.entityType });
+    }
+  }
+  return allowed;
+};
+
+const listPlanEvidence = async (user, id) => {
+  const action = await getAction(user, id);
+  if (action.sourceType !== "FINDING") throw new ActionError("Selecciona un plan vinculado a un hallazgo.", 400);
+  const finding = await requiredSource(user, "FINDING", action.sourceId);
+  return evidenceOptions(user, finding);
+};
+
+const updateProgress = async (user, id, body) => {
+  const { action, finding } = await editableFindingPlan(user, id);
+  const progressPercent = body.progressPercent;
+  const note = text(body.note);
+  const evidenceId = text(body.evidenceId);
+  if (!Number.isInteger(progressPercent) || progressPercent < 0 || progressPercent > 100) {
+    throw new ActionError("El avance debe ser un entero entre 0 y 100.", 400);
+  }
+  if (note.length < 10 || note.length > 1000) throw new ActionError("Explica el avance en 10 a 1,000 caracteres.", 400);
+  if (evidenceId && !(await evidenceOptions(user, finding)).some((item) => item.id === evidenceId)) {
+    throw new ActionError("La evidencia no existe o no está disponible para este hallazgo.", 404);
+  }
+  const currentIds = action.evidenceIds || [];
+  if (evidenceId && !currentIds.includes(evidenceId) && currentIds.length >= 20) {
+    throw new ActionError("El plan admite hasta 20 evidencias vinculadas.", 400);
+  }
+  const now = new Date().toISOString();
+  const updated = await actionRepository.mutate(id, {
+    progressPercent, evidenceIds: evidenceId ? [...new Set([...currentIds, evidenceId])] : currentIds,
+    validationRequestedAt: progressPercent === 100 ? action.validationRequestedAt || null : null,
+    history: [...action.history, { type: "PROGRESS_UPDATED", from: action.progressPercent ?? 0,
+      to: progressPercent, note, ...(evidenceId ? { evidenceId } : {}), ...actorEvent(user, now) }]
+  }, assertVersion(body.version));
+  await logActivity({ actor: user, action: "FINDING_PLAN_PROGRESS_UPDATED", details: {
+    actionId: id, sourceId: action.sourceId, progressPercent, ...(evidenceId ? { evidenceId } : {})
+  } });
+  return updated;
+};
+
+const addPlanComment = async (user, id, body) => {
+  const { action } = await editableFindingPlan(user, id);
+  const note = text(body.note);
+  if (note.length < 2 || note.length > 1000) throw new ActionError("El comentario debe tener entre 2 y 1,000 caracteres.", 400);
+  const now = new Date().toISOString();
+  const updated = await actionRepository.mutate(id, { history: [...action.history,
+    { type: "COMMENTED", note, ...actorEvent(user, now) }] }, assertVersion(body.version));
+  await logActivity({ actor: user, action: "FINDING_PLAN_COMMENTED", details: { actionId: id, sourceId: action.sourceId } });
+  return updated;
+};
+
+const requestValidation = async (user, id, body) => {
+  const { action } = await editableFindingPlan(user, id, { assigneeOnly: true });
+  if (action.progressPercent !== 100) throw new ActionError("Completa el avance al 100 % antes de solicitar validación.", 409);
+  if (action.validationRequestedAt) throw new ActionError("La validación ya fue solicitada.", 409);
+  const note = text(body.note);
+  if (note.length < 10 || note.length > 1000) throw new ActionError("Explica la solicitud en 10 a 1,000 caracteres.", 400);
+  const now = new Date().toISOString();
+  const updated = await actionRepository.mutate(id, { validationRequestedAt: now,
+    history: [...action.history, { type: "VALIDATION_REQUESTED", note, ...actorEvent(user, now) }]
+  }, assertVersion(body.version));
+  await logActivity({ actor: user, action: "FINDING_PLAN_VALIDATION_REQUESTED", details: {
+    actionId: id, sourceId: action.sourceId
+  } });
+  return updated;
+};
+
+module.exports = { ActionError, listActions, listActionsForAudit, listSources, getAction, listAssignees,
+  createAction, changeStatus, reassign, listPlanEvidence, updateProgress, addPlanComment,
+  requestValidation, canTransition, dateIsValid };
