@@ -25,3 +25,13 @@ export const changeActionStatus = (id, payload) => request(`/${encodeURIComponen
 export const reassignAction = (id, payload) => request(`/${encodeURIComponent(id)}/assignee`, {
   method: "PATCH", body: JSON.stringify(payload)
 });
+export const getPlanEvidence = (id) => request(`/${encodeURIComponent(id)}/evidence-options`);
+export const updatePlanProgress = (id, payload) => request(`/${encodeURIComponent(id)}/progress`, {
+  method: "PATCH", body: JSON.stringify(payload)
+});
+export const addPlanComment = (id, payload) => request(`/${encodeURIComponent(id)}/comments`, {
+  method: "POST", body: JSON.stringify(payload)
+});
+export const requestPlanValidation = (id, payload) => request(`/${encodeURIComponent(id)}/validation-request`, {
+  method: "POST", body: JSON.stringify(payload)
+});

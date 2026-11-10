@@ -116,7 +116,7 @@ La disponibilidad de 99.5% requiere una ventana de medición mensual; RTO de 4 h
 | TC-45 | RF-17: impacto, probabilidad y severidad calculada | Unit/API | Alta | 3 | Cubierto por API y unitarias para las nueve combinaciones de impacto/probabilidad |
 | TC-46 | RF-18: control asociado al riesgo | API | Alta | 3 | Existente: enlace de controles a riesgos y validación de IDs |
 | TC-47 | RF-20: registrar hallazgo ligado a auditoría | API/E2E | Alta | 3 | Parcial: HU-15 registra hallazgo ligado a control/riesgo y a auditoría cuando el riesgo la tiene vinculada; falta el flujo general de hallazgos por auditoría y su E2E |
-| TC-48 | RF-21: crear plan de acción para hallazgo | API/E2E | Alta | 3 | Parcial: acciones vinculadas a hallazgos existen y se prueban por API; falta aceptar el flujo desplegado con personas y datos sintéticos. |
+| TC-48 | RF-21: crear plan de acción para hallazgo | API/E2E | Alta | 3 | Parcial: API y pantalla permiten avance, comentario, evidencia registrada y solicitud de validación con historial y versión; falta aceptar persistencia tras reinicio y el flujo desplegado con personas y datos sintéticos. |
 | TC-49 | RF-22: asignar responsable y fecha de compromiso | API/E2E | Alta | 3 | Parcial: acción con responsable activo y fecha objetivo validada por API; falta aceptación desplegada. |
 | TC-50 | RF-23: cerrar hallazgo tras completar plan | API/E2E | Alta | 3 | Cubierto en código: cierre exige una o más acciones vinculadas terminadas, motivo, actor y fecha; falta dictamen de Production. |
 | TC-51 | RF-25: historial de cambios de auditoría | API/UI | Media | 4 | Parcial: historial contextual de propuestas y filtro de bitácora probados; falta historial de expediente persistente/UI |

@@ -26,6 +26,10 @@
 .action-card p { margin: 0; font-size: 12px; line-height: 1.55; }
 .action-card-meta { margin: 13px 0; color: var(--vera-text-muted); font-size: 11px; }
 .action-card-meta b { color: var(--vera-text-strong); }
+.action-plan-progress { display: grid; gap: 5px; max-width: 420px; margin: 12px 0; color: var(--vera-text-muted); font-size: 12px; }
+.action-plan-progress label { color: var(--vera-text-strong); font-weight: 700; }
+.action-plan-progress progress { width: 100%; height: 10px; accent-color: var(--vera-accent); }
+.action-plan-progress a { color: var(--vera-accent); }
 .action-card-meta .action-due-label { padding: 4px 7px; border-radius: 6px; background: var(--vera-accent-soft); color: var(--vera-accent); font-weight: 700; }
 .action-card-meta .action-due-label.is-overdue { background: var(--vera-danger-soft); color: var(--vera-danger); }
 .action-card-actions { gap: 8px; }
@@ -47,7 +51,7 @@
 .action-form h3, .action-form p, .action-edit h4 { margin: 0; }
 .action-form p { font-size: 12px; }
 .action-form label, .action-edit label { display: grid; gap: 6px; color: var(--vera-text-strong); font-size: 12px; font-weight: 700; }
-.action-form input, .action-form select, .action-form textarea, .action-edit select, .action-edit textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--vera-border); border-radius: 7px; background: var(--vera-surface); color: var(--vera-text-strong); font: inherit; font-weight: 400; }
+.action-form input, .action-form select, .action-form textarea, .action-edit input, .action-edit select, .action-edit textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--vera-border); border-radius: 7px; background: var(--vera-surface); color: var(--vera-text-strong); font: inherit; font-weight: 400; }
 .action-form-actions, .action-edit > div { display: flex; justify-content: flex-end; gap: 8px; }
 .action-queue-footnote { display: flex; align-items: center; gap: 6px; margin: 15px 0 0; font-size: 11px; }
 .action-queue :is(button, a, input, select, textarea, summary):focus-visible { outline: 3px solid var(--vera-accent); outline-offset: 2px; }

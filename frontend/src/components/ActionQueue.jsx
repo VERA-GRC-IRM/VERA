@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CalendarClock, ClipboardCheck, Plus, RefreshCw } from "lucide-react";
-import { changeActionStatus, createAction, getActionAssignees, getActionSources, getActions, reassignAction } from "../services/actionService";
+import { addPlanComment, changeActionStatus, createAction, getActionAssignees, getActionSources,
+  getActions, getPlanEvidence, reassignAction, requestPlanValidation, updatePlanProgress } from "../services/actionService";
 import { localDateAfter, localToday } from "../utils/localDate";
 import "./ActionQueue.css";
 
@@ -14,6 +15,9 @@ const formatMoment = (value) => value && !Number.isNaN(Date.parse(value))
 const historyLabel = (entry) => entry.type === "CREATED" ? "Acción registrada"
   : entry.type === "STATUS_CHANGED" ? `Estado: ${STATUS[entry.from] || entry.from} → ${STATUS[entry.to] || entry.to}`
     : entry.type === "REASSIGNED" ? `Responsable: ${entry.fromName || `cuenta #${entry.fromId}`} → ${entry.toName || `cuenta #${entry.toId}`}`
+      : entry.type === "PROGRESS_UPDATED" ? `Avance: ${entry.from} % → ${entry.to} %${entry.evidenceId ? ` · evidencia ${entry.evidenceId}` : ""}`
+        : entry.type === "VALIDATION_REQUESTED" ? "Validación solicitada"
+          : entry.type === "COMMENTED" ? "Comentario añadido"
       : "Cambio registrado";
 const actorLabel = (action, entry) => entry.actorName ||
   (entry.type === "CREATED" && action.createdBy?.id === entry.actorId ? action.createdBy.name : null) ||
@@ -21,7 +25,8 @@ const actorLabel = (action, entry) => entry.actorName ||
 const sourcePath = (action) => action.sourceType === "AUDIT"
   ? `/auditorias-activas/${encodeURIComponent(action.sourceId)}`
   : action.sourceType === "RISK" ? `/riesgos#risk-${encodeURIComponent(action.sourceId)}`
-    : action.sourceType === "CONTROL" ? `/controles#control-${encodeURIComponent(action.sourceId)}` : "/auditorias-activas";
+    : action.sourceType === "CONTROL" ? `/controles#control-${encodeURIComponent(action.sourceId)}`
+      : `/controles#finding-${encodeURIComponent(action.sourceId)}`;
 const initialForm = { sourceKey: "", title: "", rationale: "", dueDate: "", assigneeId: "" };
 
 function ActionQueue({ revision = 0, onActionChanged }) {
@@ -39,6 +44,9 @@ function ActionQueue({ revision = 0, onActionChanged }) {
   const [editMode, setEditMode] = useState("STATUS");
   const [nextStatus, setNextStatus] = useState("");
   const [nextAssignee, setNextAssignee] = useState("");
+  const [progress, setProgress] = useState("0");
+  const [evidenceId, setEvidenceId] = useState("");
+  const [planEvidence, setPlanEvidence] = useState([]);
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -130,12 +138,19 @@ function ActionQueue({ revision = 0, onActionChanged }) {
     setNote("");
     setNextStatus(NEXT[action.status]?.[0] || "");
     setNextAssignee("");
+    setProgress(String(action.progressPercent ?? (action.status === "DONE" ? 100 : 0)));
+    setEvidenceId("");
+    setPlanEvidence([]);
     setEditAssignees([]);
     if (mode === "ASSIGNEE") {
       try {
         const result = await getActionAssignees(action.sourceType, action.sourceId);
         setEditAssignees(result.assignees.filter((person) => person.id !== action.assigneeId));
       } catch (cause) { setError(cause.message); setEditing(null); }
+    }
+    if (mode === "PROGRESS") {
+      try { const result = await getPlanEvidence(action.id); setPlanEvidence(result.evidence); }
+      catch (cause) { setError(cause.message); setEditing(null); }
     }
   };
 
@@ -144,7 +159,11 @@ function ActionQueue({ revision = 0, onActionChanged }) {
     setSaving(true);
     try {
       if (editMode === "STATUS") await changeActionStatus(action.id, { version: action.storageVersion, status: nextStatus, note });
-      else await reassignAction(action.id, { version: action.storageVersion, assigneeId: Number(nextAssignee), note });
+      else if (editMode === "ASSIGNEE") await reassignAction(action.id, { version: action.storageVersion, assigneeId: Number(nextAssignee), note });
+      else if (editMode === "PROGRESS") await updatePlanProgress(action.id, { version: action.storageVersion,
+        progressPercent: Number(progress), note, ...(evidenceId ? { evidenceId } : {}) });
+      else if (editMode === "VALIDATION") await requestPlanValidation(action.id, { version: action.storageVersion, note });
+      else await addPlanComment(action.id, { version: action.storageVersion, note });
       await reload();
       setEditing(null);
       setError("");
@@ -169,7 +188,7 @@ function ActionQueue({ revision = 0, onActionChanged }) {
     {canCreate && createOpen && <form className="action-form" onSubmit={submitCreate}>
       <h3>Registrar compromiso</h3><p>Elige un registro existente y una persona que pueda verlo. La acción quedará en la bitácora.</p>
       <label>Registro relacionado<select required value={form.sourceKey} onChange={(event) => setForm({ ...form, sourceKey: event.target.value, assigneeId: "" })}><option value="">Seleccionar registro</option>{sources.map((item) => <option key={`${item.sourceType}:${item.sourceId}`} value={`${item.sourceType}:${item.sourceId}`}>{SOURCE[item.sourceType]} · {item.title} ({item.sourceId})</option>)}</select></label>
-      <label>Título<input required minLength={3} maxLength={140} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
+      <label>{form.sourceKey.startsWith("FINDING:") ? "Acción correctiva" : "Título"}<input required minLength={3} maxLength={140} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
       <label>Responsable<select required value={form.assigneeId} onChange={(event) => setForm({ ...form, assigneeId: event.target.value })}><option value="">Seleccionar responsable</option>{assignees.map((person) => <option key={person.id} value={person.id}>{person.name} · {person.role}</option>)}</select></label>
       <label>Fecha objetivo<input required type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} /></label>
       <label className="action-form-full">Motivo<textarea required minLength={10} maxLength={1000} rows={3} value={form.rationale} onChange={(event) => setForm({ ...form, rationale: event.target.value })} /></label>
@@ -180,7 +199,8 @@ function ActionQueue({ revision = 0, onActionChanged }) {
       <div className="action-card-top"><span><ClipboardCheck size={17} aria-hidden="true" /> {SOURCE[action.sourceType]} · {action.sourceTitle}</span><strong className={`action-status action-status-${action.status.toLowerCase()}`}>{STATUS[action.status]}</strong></div>
       <h3>{action.title}</h3><p>{action.rationale}</p>
       <div className="action-card-meta"><span>Responsable: <b>{action.assigneeName}</b></span><span><CalendarClock size={14} aria-hidden="true" /> Fecha objetivo: <b>{formatDate(action.dueDate)}</b></span>{!["DONE", "CANCELLED"].includes(action.status) && action.dueDate < today && <span className="action-due-label is-overdue">Vencida</span>}{!["DONE", "CANCELLED"].includes(action.status) && action.dueDate === today && <span className="action-due-label">Vence hoy</span>}{!["DONE", "CANCELLED"].includes(action.status) && action.dueDate > today && action.dueDate <= cutoff && <span className="action-due-label">Próxima</span>}<span>{action.history.length} evento{action.history.length === 1 ? "" : "s"}</span></div>
-      <div className="action-card-actions"><Link to={sourcePath(action)}>{action.sourceType === "FINDING" ? "Ver auditorías" : "Abrir registro"}</Link>{(manager || (canCreate && action.assigneeId === user?.id)) && <button type="button" onClick={() => openEdit(action, "STATUS")}>Cambiar estado</button>}{manager && <button type="button" onClick={() => openEdit(action, "ASSIGNEE")}>Reasignar</button>}</div>
+      {action.sourceType === "FINDING" && <div className="action-plan-progress"><label htmlFor={`progress-${action.id}`}>Plan de remediación · {action.progressPercent ?? (action.status === "DONE" ? 100 : 0)} %</label><progress id={`progress-${action.id}`} max="100" value={action.progressPercent ?? (action.status === "DONE" ? 100 : 0)} />{action.validationRequestedAt && <span>Validación solicitada el {formatMoment(action.validationRequestedAt)}</span>}{(action.evidenceIds || []).length > 0 && <span>{action.evidenceIds.length} evidencia(s) vinculadas · <Link to="/evidencias">Ver evidencias</Link></span>}</div>}
+      <div className="action-card-actions"><Link to={sourcePath(action)}>{action.sourceType === "FINDING" ? "Ver hallazgo" : "Abrir registro"}</Link>{(manager || (canCreate && action.assigneeId === user?.id)) && <button type="button" onClick={() => openEdit(action, "STATUS")}>Cambiar estado</button>}{manager && <button type="button" onClick={() => openEdit(action, "ASSIGNEE")}>Reasignar</button>}{action.sourceType === "FINDING" && !["DONE", "CANCELLED"].includes(action.status) && (manager || (canCreate && action.assigneeId === user?.id)) && <><button type="button" onClick={() => openEdit(action, "PROGRESS")}>Actualizar avance</button><button type="button" onClick={() => openEdit(action, "COMMENT")}>Comentar</button></>}{action.sourceType === "FINDING" && action.assigneeId === user?.id && action.progressPercent === 100 && !action.validationRequestedAt && !["DONE", "CANCELLED"].includes(action.status) && <button type="button" onClick={() => openEdit(action, "VALIDATION")}>Solicitar validación</button>}</div>
       <details className="action-history"><summary>Ver bitácora · {action.history.length} evento{action.history.length === 1 ? "" : "s"}</summary>
         <ol>{[...action.history].reverse().map((entry, index) => <li key={`${entry.at}-${entry.type}-${index}`}>
           <div><strong>{historyLabel(entry)}</strong><time dateTime={entry.at}>{formatMoment(entry.at)}</time></div>
@@ -188,9 +208,10 @@ function ActionQueue({ revision = 0, onActionChanged }) {
           {entry.note && <p>{entry.note}</p>}
         </li>)}</ol>
       </details>
-      {editing === action.id && <form className="action-edit" onSubmit={(event) => submitEdit(event, action)}><h4>{editMode === "STATUS" ? "Actualizar estado" : "Cambiar responsable"}</h4>
+      {editing === action.id && <form className="action-edit" onSubmit={(event) => submitEdit(event, action)}><h4>{editMode === "STATUS" ? "Actualizar estado" : editMode === "ASSIGNEE" ? "Cambiar responsable" : editMode === "PROGRESS" ? "Actualizar avance del plan" : editMode === "VALIDATION" ? "Solicitar validación" : "Agregar comentario"}</h4>
         {editMode === "STATUS" ? <label>Nuevo estado<select value={nextStatus} onChange={(event) => setNextStatus(event.target.value)}>{NEXT[action.status]?.map((status) => <option key={status} value={status}>{STATUS[status]}</option>)}</select></label>
-          : <label>Nuevo responsable<select required value={nextAssignee} onChange={(event) => setNextAssignee(event.target.value)}><option value="">Seleccionar responsable</option>{editAssignees.map((person) => <option key={person.id} value={person.id}>{person.name} · {person.role}</option>)}</select></label>}
+          : editMode === "ASSIGNEE" ? <label>Nuevo responsable<select required value={nextAssignee} onChange={(event) => setNextAssignee(event.target.value)}><option value="">Seleccionar responsable</option>{editAssignees.map((person) => <option key={person.id} value={person.id}>{person.name} · {person.role}</option>)}</select></label>
+            : editMode === "PROGRESS" ? <><label>Avance (%)<input type="number" required min="0" max="100" step="1" value={progress} onChange={(event) => setProgress(event.target.value)} /></label><label>Evidencia registrada (opcional)<select value={evidenceId} onChange={(event) => setEvidenceId(event.target.value)}><option value="">Sin nueva evidencia</option>{planEvidence.map((item) => <option key={item.id} value={item.id}>{item.title} · {item.id}</option>)}</select></label></> : null}
         <label>Explicación<textarea required minLength={10} maxLength={1000} rows={2} value={note} onChange={(event) => setNote(event.target.value)} /></label>
         <div><button type="button" className="secondary-action" onClick={() => setEditing(null)}>Cancelar</button><button type="submit" className="primary-action" disabled={saving || (editMode === "ASSIGNEE" && !nextAssignee)}>{saving ? "Guardando…" : "Guardar cambio"}</button></div>
       </form>}
