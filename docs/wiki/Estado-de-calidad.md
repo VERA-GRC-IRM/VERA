@@ -1,5 +1,7 @@
 # Estado de calidad · bitácora de evidencia
 
+> Desde el 10 de noviembre de 2026, las pruebas de navegadores y accesibilidad automatizada están [diferidas](https://github.com/VERA-GRC-IRM/VERA/issues/300). Los resultados de navegador que siguen abajo pertenecen a un corte histórico; consulta el [portal vigente](https://vera-grc-irm.github.io/VERA/) para el SHA actual.
+
 Para revisar el estado actual de VERA **sin instalar nada**, abre el [portal público de calidad](https://vera-grc-irm.github.io/VERA/). La [issue de preparación #113](https://github.com/VERA-GRC-IRM/VERA/issues/113) registra las puertas que siguen abiertas. Esta página conserva también un corte histórico del commit `720cef05d2e1c5b16a5552837dbc0c5c3043381e`, observado el **17 de octubre de 2026**. El [workflow integral](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/classroom-quality.yml) ofrece el enlace estable para ejecutar o consultar corridas.
 
 La sección [Releases](https://github.com/VERA-GRC-IRM/VERA/releases) conserva cortes puntuales con commit, evidencias y límites. El portal muestra el resultado más reciente de `main`; una Release no certifica por sí misma la aceptación funcional en Production.

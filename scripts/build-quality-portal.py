@@ -21,7 +21,7 @@ TOKEN = os.environ.get("GITHUB_TOKEN", "")
 MAX_ARTIFACT_BYTES = 8 * 1024 * 1024
 WORKFLOWS = (
     ("Calidad de software", "quality.yml", "Backend, cobertura, lint, build y dependencias"),
-    ("Interfaz y accesibilidad", "e2e.yml", "Chrome, Edge, Firefox y perfiles móvil/tableta"),
+    ("Navegadores y accesibilidad", "e2e.yml", "Diferida; ejecución manual conservada, fuera de los gates vigentes"),
     ("Análisis estático", "codeql.yml", "CodeQL para JavaScript y TypeScript"),
     ("Informe integral", "classroom-quality.yml", "Resumen ejecutivo, logs y artefactos"),
     ("Evaluación de IA", "ai-evaluation.yml", "Casos sintéticos; sin llamadas al modelo"),
@@ -112,7 +112,8 @@ def current_integral_report(run, main_sha):
         return None
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as archive:
-            member = archive.getinfo("quality-report/classroom-summary.json")
+            # upload-artifact removes the shared quality-report/ root from ZIP entries.
+            member = archive.getinfo("classroom-summary.json")
             if member.file_size > 64 * 1024:
                 return None
             report = json.loads(archive.read(member))
@@ -130,11 +131,13 @@ def current_integral_report(run, main_sha):
     coverage = report.get("coverageBackend") or {}
     traceability = report.get("traceability") or {}
     counts = (backend.get("passed"), backend.get("total"), ai.get("passed"), ai.get("total"),
-              ai.get("modelCalls"), e2e.get("passed"), e2e.get("failed"),
-              e2e.get("flaky"), e2e.get("skipped"), report.get("durationSeconds"),
+              ai.get("modelCalls"), report.get("durationSeconds"),
               report.get("highCriticalVulnerabilities"), traceability.get("plannedCases"),
               traceability.get("casesWithRelatedSources"))
     if not all(valid_count(value) for value in counts):
+        return None
+    if e2e.get("status") != "DIFERIDA" or any(
+            e2e.get(key) is not None for key in ("passed", "failed", "flaky", "skipped")):
         return None
     if any(not isinstance(coverage.get(key), (int, float)) or isinstance(coverage.get(key), bool)
            or not 0 <= coverage[key] <= 100
@@ -217,8 +220,10 @@ def render(output_dir):
         if filename == "classroom-quality.yml":
             integral_run = run
         label, css_class = run_state(run, main_sha)
-        if filename in ("quality.yml", "e2e.yml", "codeql.yml") and css_class == "success":
+        if filename in ("quality.yml", "codeql.yml") and css_class == "success":
             core_passed += 1
+        if filename == "e2e.yml":
+            label, css_class = "Diferida · manual", "old"
         workflow_url = f"https://github.com/{REPOSITORY}/actions/workflows/{filename}"
         run_url = run.get("html_url", workflow_url) if run else workflow_url
         sha = run.get("head_sha", "") if run else ""
@@ -245,7 +250,7 @@ def render(output_dir):
     generated = datetime.now(timezone.utc).strftime("%d %b %Y · %H:%M UTC")
     classroom_url = f"https://github.com/{REPOSITORY}/actions/workflows/classroom-quality.yml"
     commit_url = f"https://github.com/{REPOSITORY}/commit/{main_sha}"
-    status = "Tres verificaciones vigentes aprobadas" if core_passed == 3 else f"{core_passed} de 3 verificaciones vigentes aprobadas"
+    status = "Dos verificaciones vigentes aprobadas" if core_passed == 2 else f"{core_passed} de 2 verificaciones vigentes aprobadas"
     report = current_integral_report(integral_run, main_sha)
     release = latest_quality_release()
     release_url = release.get("html_url") if release else f"https://github.com/{REPOSITORY}/releases"
@@ -260,7 +265,6 @@ def render(output_dir):
     if report:
         backend = report["backend"]
         ai = report["aiSynthetic"]
-        e2e = report["e2e"]
         coverage = report["coverageBackend"]
         traceability = report["traceability"]
         planned = traceability["plannedCases"]
@@ -268,21 +272,21 @@ def render(output_dir):
         unrelated = planned - related
         related_width = related * 100 / planned if planned else 0
         metrics = (
-            ("Pruebas de backend", f"{backend['passed']}/{backend['total']}", "Pruebas aprobadas del informe integral"),
-            ("Interfaz en navegadores", f"{e2e['passed']}/{e2e['passed'] + e2e['failed'] + e2e['flaky'] + e2e['skipped']}", "Sin fallas, inestables ni omitidas"),
-            ("IA sintética", f"{ai['passed']}/{ai['total']}", "Sin llamadas al modelo"),
-            ("Cobertura backend", f"{coverage['linesPercent']:.2f} %", f"Líneas · {coverage['branchesPercent']:.2f} % ramas · {coverage['functionsPercent']:.2f} % funciones"),
-            ("Duración integral", f"{report['durationSeconds'] // 60} min {report['durationSeconds'] % 60} s", "Tiempo observado en GitHub Actions"),
-            ("Dependencias", str(report["highCriticalVulnerabilities"]), "Vulnerabilidades npm altas o críticas"),
+            ("Pruebas de backend", f"{backend['passed']}/{backend['total']}", "Pruebas aprobadas del informe integral", run_url),
+            ("Navegadores", "Diferida", "Fuera de los gates vigentes", f"https://github.com/{REPOSITORY}/issues/300"),
+            ("IA sintética", f"{ai['passed']}/{ai['total']}", "Sin llamadas al modelo", run_url),
+            ("Cobertura backend", f"{coverage['linesPercent']:.2f} %", f"Líneas · {coverage['branchesPercent']:.2f} % ramas · {coverage['functionsPercent']:.2f} % funciones", run_url),
+            ("Duración integral", f"{report['durationSeconds'] // 60} min {report['durationSeconds'] % 60} s", "Tiempo observado en GitHub Actions", run_url),
+            ("Dependencias", str(report["highCriticalVulnerabilities"]), "Vulnerabilidades npm altas o críticas", run_url),
         )
         metric_cards = "".join(
             f'<article class="kpi"><span class="kpi-label">{escape(label)}</span>'
             f'<strong>{escape(value)}</strong><span>{escape(detail)}</span>'
-            f'<a href="{escape(run_url)}" aria-label="Ver evidencia de {escape(label)}">Ver corrida ↗</a></article>'
-            for label, value, detail in metrics
+            f'<a href="{escape(link)}" aria-label="Ver detalle de {escape(label)}">Ver detalle ↗</a></article>'
+            for label, value, detail, link in metrics
         )
         evidence_note = (
-            f'Informe integral aprobado del commit <code>{escape(main_sha[:12])}</code>. '
+            f'Informe integral aprobado del commit <code>{escape(main_sha[:12])}</code>, sin pruebas de navegadores. '
             f'<a href="{escape(run_url)}">Abrir Summary, logs y artefactos ↗</a>'
         )
         traceability_view = (
@@ -366,7 +370,7 @@ def render(output_dir):
   <p>Resultados, cobertura y trazabilidad vinculados al commit que los produjo. Cada cifra lleva a su corrida; las comprobaciones del entorno real se distinguen de las pruebas automatizadas.</p></header>
   <main>
     <section class="panel summary" aria-label="Resumen de calidad">
-      <div class="metric"><span id="ci-label">CI en la publicación</span><b id="ci-status">{escape(status)}</b><span>Calidad, interfaz y CodeQL</span></div>
+      <div class="metric"><span id="ci-label">CI en la publicación</span><b id="ci-status">{escape(status)}</b><span>Calidad y CodeQL; navegadores diferidos</span></div>
       <div class="metric"><span>Commit observado</span><b><a id="main-commit" href="{escape(commit_url)}"><code>{escape(main_sha[:12])}</code></a></b><span>Rama main</span></div>
       <div class="metric"><span>Consulta en vivo</span><b id="live-checked">Pendiente</b><span id="publication-time">Publicación: {escape(generated)}</span></div>
     </section>
@@ -394,7 +398,7 @@ def render(output_dir):
       <a href="status.json">Datos JSON ↗</a>
     </div></section>
     <section class="panel note"><h2>Cómo interpretar el resultado</h2>
-      <p>Una corrida aprobada verifica únicamente su alcance. La columna SHA identifica el código del workflow; en los controles contra Vercel no identifica por sí solo el deployment examinado. Los E2E de interfaz utilizan fixtures de API; la aceptación de Preview usa cuentas demo aisladas y el smoke de Production solo rutas públicas y rechazo anónimo. La comprobación Supabase local usa una base desechable y una fila sintética; no acredita un respaldo de Production. Consulta el artifact de cada corrida para ver destino y tiempos. Las pruebas de carga de 150/250 usuarios requieren staging autorizado.</p>
+      <p>Una corrida aprobada verifica únicamente su alcance. Las pruebas de navegadores y sus comprobaciones automatizadas de accesibilidad están <a href="https://github.com/{escape(REPOSITORY)}/issues/300">diferidas</a> y no cuentan para el resultado vigente. La columna SHA identifica el código del workflow; en los controles contra Vercel no identifica por sí solo el deployment examinado. La aceptación de Preview usa cuentas demo aisladas y el smoke de Production solo rutas públicas y rechazo anónimo. La comprobación Supabase local usa una base desechable y una fila sintética; no acredita un respaldo de Production. Consulta el artefacto de cada corrida para ver destino y tiempos. Las pruebas de carga de 150/250 usuarios requieren staging autorizado.</p>
       <p>Los resultados de seguridad requieren revisar también <a href="https://github.com/{escape(REPOSITORY)}/security">Security</a>: un check CodeQL verde no significa cero alertas. Un despliegue exitoso tampoco acredita por sí solo la aceptación de cada HU.</p>
     </section>
   </main><footer>VERA · Fuente: GitHub Actions y commit de main. La consulta al abrir usa la API pública de GitHub; sus respuestas pueden tener hasta 60 s de caché. La vista no usa datos personales, secretos ni servicios de IA.</footer>
@@ -411,7 +415,7 @@ def render(output_dir):
             "main_sha": main_sha,
             "generated_at": generated_iso,
             "core_passed": core_passed,
-            "core_total": 3,
+            "core_total": 2,
             "workflows": records,
             "integral_evidence": {
                 "run_url": run_url,
@@ -426,7 +430,7 @@ def render(output_dir):
             },
             "archived_quality_cut": {"tag": release_tag, "url": release_url,
                                      "summary_markdown_url": release_asset},
-            "scope": "GitHub Actions and bounded deployed checks; workflow SHA is not necessarily target deployment SHA; not full production acceptance or zero security alerts",
+            "scope": "GitHub Actions and bounded deployed checks; browser E2E deferred and excluded from current gates; workflow SHA is not necessarily target deployment SHA; not full production acceptance or zero security alerts",
         }, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
         newline="\n",
@@ -437,7 +441,7 @@ def render(output_dir):
         f"- Generado: {generated_iso}",
         f"- Repositorio: {REPOSITORY}",
         f"- Commit actual de main: `{main_sha}`",
-        f"- CI vigente: {core_passed}/3 verificaciones principales aprobadas",
+        f"- CI vigente: {core_passed}/2 verificaciones principales aprobadas; navegadores diferidos",
         f"- Informe integral del SHA actual: {'PASS' if report else 'no disponible'} — {run_url}",
         f"- Corte archivado: [{release_tag}]({release_url})",
         "",
@@ -445,7 +449,7 @@ def render(output_dir):
     if report:
         markdown.extend([
             f"- Backend: {report['backend']['passed']}/{report['backend']['total']} pruebas",
-            f"- Interfaz E2E: {report['e2e']['passed']} aprobadas, {report['e2e']['failed']} fallidas",
+            "- Interfaz E2E: diferida; no ejecutada en el informe integral ([deuda #300](https://github.com/VERA-GRC-IRM/VERA/issues/300))",
             f"- IA sintética: {report['aiSynthetic']['passed']}/{report['aiSynthetic']['total']} escenarios; {report['aiSynthetic']['modelCalls']} llamadas al modelo",
             f"- Cobertura backend: {report['coverageBackend']['linesPercent']:.2f} % líneas, {report['coverageBackend']['branchesPercent']:.2f} % ramas, {report['coverageBackend']['functionsPercent']:.2f} % funciones",
             f"- Duración integral: {report['durationSeconds']} s",
@@ -472,7 +476,7 @@ def render(output_dir):
     (output_dir / "status.md").write_text("\n".join(markdown), encoding="utf-8", newline="\n")
     shutil.copyfile(ROOT / "frontend" / "public" / "vera-logo.svg", output_dir / "vera-mark.svg")
     shutil.copyfile(ROOT / "scripts" / "quality-portal-live.js", output_dir / "live-status.js")
-    print(f"Quality portal generated for {main_sha[:12]} with {core_passed}/3 current checks.")
+    print(f"Quality portal generated for {main_sha[:12]} with {core_passed}/2 current checks; browser E2E deferred.")
 
 
 if __name__ == "__main__":

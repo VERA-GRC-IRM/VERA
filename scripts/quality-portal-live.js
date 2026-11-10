@@ -9,7 +9,7 @@
     "ai-evaluation.yml", "preview-role-acceptance.yml",
     "production-smoke.yml", "local-supabase-rehearsal.yml",
   ];
-  const coreNames = ["quality.yml", "e2e.yml", "codeql.yml"];
+  const coreNames = ["quality.yml", "codeql.yml"];
   const intervalMs = 5 * 60 * 1000;
   const minRefreshMs = 60 * 1000;
   const elements = {
@@ -97,7 +97,7 @@
     hideUnverifiedMetrics("No se pudieron confirmar las cifras del informe integral con GitHub. Abra la corrida original.");
     for (const row of document.querySelectorAll("tr[data-workflow]")) {
       const badge = row.cells[1].querySelector(".pill");
-      badge.textContent = "Sin confirmar";
+      badge.textContent = row.dataset.workflow === "e2e.yml" ? "Diferida · manual" : "Sin confirmar";
       badge.className = "pill unknown";
     }
     setAlert("No se pudo consultar GitHub ahora. Los enlaces y tiempos son una instantánea publicada, no un estado vigente; abra Actions para comprobarlo.", "old");
@@ -139,7 +139,9 @@
       for (const row of document.querySelectorAll("tr[data-workflow]")) {
         const name = row.dataset.workflow;
         const run = runs.get(name);
-        const [label, classification] = state(run, sha);
+        const [runLabel, runClassification] = state(run, sha);
+        const [label, classification] = name === "e2e.yml"
+          ? ["Diferida · manual", "old"] : [runLabel, runClassification];
         const badge = row.cells[1].querySelector(".pill");
         badge.textContent = label;
         badge.className = `pill ${classification}`;
@@ -152,7 +154,7 @@
       }
 
       elements.ciLabel.textContent = "CI vigente de main";
-      elements.ciStatus.textContent = `${passed} de 3 verificaciones principales aprobadas`;
+      elements.ciStatus.textContent = `${passed} de 2 verificaciones principales aprobadas`;
       elements.commit.href = `https://github.com/${repository}/commit/${sha}`;
       elements.commit.querySelector("code").textContent = sha.slice(0, 12);
       elements.checked.textContent = new Intl.DateTimeFormat("es-MX", {
@@ -174,7 +176,7 @@
       }
 
       lastCheck = Date.now();
-      setAlert(`Estado consultado al abrir esta página. GitHub puede servir metadatos con hasta 60 segundos de caché. Commit: ${sha.slice(0, 12)}.`, passed === 3 ? "success" : "pending");
+      setAlert(`Estado consultado al abrir esta página. Navegadores diferidos. GitHub puede servir metadatos con hasta 60 segundos de caché. Commit: ${sha.slice(0, 12)}.`, passed === 2 ? "success" : "pending");
     } catch (_) {
       markUnverified();
     } finally {

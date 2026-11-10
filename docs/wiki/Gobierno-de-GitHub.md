@@ -1,6 +1,6 @@
 # Gobierno de GitHub · VERA
 
-Esta página explica la configuración del entorno GitHub, separada del comportamiento de las historias de usuario. **Corte inicial: 17 de octubre de 2026; actualización de calidad: 18 de octubre de 2026 UTC.** Las políticas reales viven en GitHub; vuelve a comprobarlas después de cambiar la organización, el plan o los permisos.
+Esta página explica la configuración del entorno GitHub, separada del comportamiento de las historias de usuario. **Corte inicial: 17 de octubre de 2026; excepción E2E: 10 de noviembre de 2026.** Las políticas reales viven en GitHub; vuelve a comprobarlas después de cambiar la organización, el plan o los permisos.
 
 ## Dos repositorios, una aplicación
 
@@ -18,10 +18,11 @@ La [regla de `main`](https://github.com/VERA-GRC-IRM/VERA/rules/25312937) exige 
 | Check obligatorio | Qué comprueba | Límite |
 | --- | --- | --- |
 | Calidad Node.js 22 | Pruebas, lint, build, dependencias e informe | No sustituye pruebas con cuentas y datos de producción. |
-| UI E2E | Chrome, Edge, Firefox, tamaños móvil/tablet y accesibilidad automatizada | Usa datos controlados; no valida todos los flujos en Vercel. |
 | CodeQL JavaScript/TypeScript | Análisis estático del código | Cero alertas abiertas es un dato de corte, no garantía absoluta. |
 | Descripción revisable | Alcance, evidencia, verificación y riesgos del PR | La evidencia debe seguir siendo verificable por quien revisa. |
 | Supabase local | Migraciones, tablas privadas, persistencia y bitácora sintéticas tras reinicio, restauración lógica | Base desechable; no acredita copia ni persistencia de Production. |
+
+La matriz UI E2E de Chrome, Edge, Firefox, móvil/tableta y accesibilidad automatizada está [diferida](https://github.com/VERA-GRC-IRM/VERA/issues/300): su workflow sigue disponible manualmente, pero no es un check obligatorio ni se cuenta como aprobado en el informe integral.
 
 La [plantilla de PR](https://github.com/VERA-GRC-IRM/VERA/blob/main/.github/pull_request_template.md) y el [validador](https://github.com/VERA-GRC-IRM/VERA/blob/main/.github/scripts/check_pr_description.py) dan el mismo formato a cambios humanos y asistidos por IA. El workflow lee el script de `main`, no del código propuesto; los PR cerrados omiten el job al editar su descripción. El PR [#103](https://github.com/VERA-GRC-IRM/VERA/pull/103) registra la corrección y sus tiempos.
 
@@ -29,7 +30,7 @@ La [plantilla de PR](https://github.com/VERA-GRC-IRM/VERA/blob/main/.github/pull
 
 | Automatización | Activación | Evidencia principal |
 | --- | --- | --- |
-| [Calidad, navegadores y CodeQL](https://github.com/VERA-GRC-IRM/VERA/actions) | Cada PR y push a `main` | Checks del commit. |
+| [Calidad y CodeQL](https://github.com/VERA-GRC-IRM/VERA/actions) | Cada PR y push a `main` | Checks obligatorios del commit; navegadores diferidos. |
 | [Informe integral de calidad](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/classroom-quality.yml) | Manual y semanal | Summary, tiempos, logs y artefacto de 30 días. |
 | [Evaluación sintética de IA](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/ai-evaluation.yml) | Manual | Regresiones reproducibles sin llamadas al modelo real. |
 | [Portal público de calidad](https://vera-grc-irm.github.io/VERA/) | Cambios y comprobación programada | Estado por SHA en GitHub Pages, sin instalación local. |
