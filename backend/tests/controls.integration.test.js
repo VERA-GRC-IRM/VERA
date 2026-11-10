@@ -55,6 +55,21 @@ test("HU-15: controls link to valid risks, retain effectiveness evaluations and 
     ...body, title: `${body.title} otro`, riskIds: [otherRisk.id]
   }));
   const otherControl = (await otherControlResponse.json()).control;
+  const auditorControlResponse = await fetch(`${baseUrl}/api/controls`, json(auditor, "POST", {
+    ...body, title: `${body.title} registrado por auditoría`, ownerId: 5
+  }));
+  assert.equal(auditorControlResponse.status, 201);
+  const auditorControl = (await auditorControlResponse.json()).control;
+  assert.equal(auditorControl.createdBy.id, 5);
+  assert.equal(auditorControl.ownerId, 5);
+  const unassignedControl = await fetch(`${baseUrl}/api/controls`, json(auditor, "POST", {
+    ...body, title: `${body.title} riesgo ajeno`, ownerId: 5, riskIds: [otherRisk.id]
+  }));
+  assert.equal(unassignedControl.status, 404);
+  const invalidOwner = await fetch(`${baseUrl}/api/controls`, json(auditor, "POST", {
+    ...body, title: `${body.title} responsable distinto`, ownerId: 3
+  }));
+  assert.equal(invalidOwner.status, 403);
 
   const auditorControls = await fetch(`${baseUrl}/api/controls`, json(auditor));
   const auditorVisibleControls = (await auditorControls.json()).controls;
@@ -62,7 +77,7 @@ test("HU-15: controls link to valid risks, retain effectiveness evaluations and 
   assert.ok(!auditorVisibleControls.some((item) => item.id === otherControl.id));
   const invalidRating = await fetch(`${baseUrl}/api/controls/${control.id}/evaluate`, json(manager, "POST", { rating: 6, note: "No es una escala válida." }));
   assert.equal(invalidRating.status, 400);
-  const evaluationResponse = await fetch(`${baseUrl}/api/controls/${control.id}/evaluate`, json(manager, "POST", { rating: 2, note: "La evidencia del último trimestre mostró varias excepciones." }));
+  const evaluationResponse = await fetch(`${baseUrl}/api/controls/${control.id}/evaluate`, json(auditor, "POST", { rating: 2, note: "La evidencia del último trimestre mostró varias excepciones." }));
   assert.equal(evaluationResponse.status, 200);
   const evaluated = (await evaluationResponse.json()).control;
   assert.equal(evaluated.effectiveness, 2);
@@ -71,8 +86,11 @@ test("HU-15: controls link to valid risks, retain effectiveness evaluations and 
   assert.equal(evaluated.evaluations[1].version, 2);
   assert.equal(evaluated.evaluations[1].result, "INEFFECTIVE");
   assert.ok(evaluated.evaluations[1].assessedAt);
-  assert.equal(evaluated.evaluations[1].assessedBy.id, 3);
+  assert.equal(evaluated.evaluations[1].assessedBy.id, 5);
   assert.equal(evaluated.evaluations[1].note, "La evidencia del último trimestre mostró varias excepciones.");
+  assert.equal((await fetch(`${baseUrl}/api/controls/${otherControl.id}/evaluate`, json(auditor, "POST", {
+    rating: 2, note: "La evidencia del último trimestre mostró varias excepciones."
+  }))).status, 404);
   const listed = await fetch(`${baseUrl}/api/controls`, json(manager));
   const listedControl = (await listed.json()).controls.find((item) => item.id === control.id);
   assert.equal(listedControl.effectivenessResult, "INEFFECTIVE");

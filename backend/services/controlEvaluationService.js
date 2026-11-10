@@ -1,5 +1,5 @@
 const controlRepository = require("../repositories/controlRepository");
-const { RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
+const { CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { logActivity } = require("./auditLogger");
 const { assertWritableControlScope } = require("./recordWriteScopeService");
 
@@ -20,7 +20,7 @@ const parseEvaluation = (body) => {
 };
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
 const evaluateControlForUser = async (user, id, body, expectedVersion) => {
-  if (!RISK_CONTROL_MANAGE_ROLES.includes(user.role)) throw errorFor("Tu rol no puede evaluar controles.", 403);
+  if (!CONTROL_MANAGE_ROLES.includes(user.role)) throw errorFor("Tu rol no puede evaluar controles.", 403);
   if (typeof id !== "string" || !id.trim() || id.length > 80) throw errorFor("Selecciona un control válido.", 400);
   const current = await controlRepository.findById(id);
   if (!current) throw errorFor("Control no encontrado.", 404);

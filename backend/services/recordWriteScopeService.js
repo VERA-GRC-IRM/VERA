@@ -1,7 +1,7 @@
 const riskRepository = require("../repositories/riskRepository");
 const planningRepository = require("../repositories/planningRepository");
 const controlRepository = require("../repositories/controlRepository");
-const { assertWritableRecordScope } = require("./recordScopeVisibility");
+const { assertWritableRecordScope, UNAVAILABLE_RECORD } = require("./recordScopeVisibility");
 
 const assertWritableRiskAuditLink = async (user, risk) => {
   if (!risk.linkedAuditId) return;
@@ -16,6 +16,9 @@ const assertWritableRiskAuditLink = async (user, risk) => {
 const assertWritableControlScope = async (user, control) => {
   await assertWritableRecordScope(user, control);
   const risks = await Promise.all((control.riskIds || []).map((id) => riskRepository.findById(id)));
+  if (user.role === "AUDITOR" && risks.some((risk) => !risk || risk.ownerId !== user.id)) {
+    throw Object.assign(new Error(UNAVAILABLE_RECORD), { status: 404 });
+  }
   for (const risk of risks.filter(Boolean)) {
     await assertWritableRecordScope(user, risk);
     if ((risk.orgUnitId || null) !== (control.orgUnitId || null)) {
