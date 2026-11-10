@@ -112,7 +112,8 @@ def current_integral_report(run, main_sha):
         return None
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as archive:
-            member = archive.getinfo("quality-report/classroom-summary.json")
+            # upload-artifact removes the shared quality-report/ root from ZIP entries.
+            member = archive.getinfo("classroom-summary.json")
             if member.file_size > 64 * 1024:
                 return None
             report = json.loads(archive.read(member))
