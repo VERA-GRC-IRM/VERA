@@ -38,11 +38,16 @@ export const purgeDeniedOfflineSnapshots = async () => {
   const id = userId();
   const vault = readOfflineVault(id);
   const snapshots = { ...vault.snapshots };
+  let evidenceFiles = vault.evidenceFiles || {};
   let removed = false;
   for (const moduleId of Object.keys(snapshots)) {
-    if (wasDenied(moduleId)) { delete snapshots[moduleId]; removed = true; }
+    if (wasDenied(moduleId)) {
+      delete snapshots[moduleId];
+      if (moduleId === "evidence") evidenceFiles = {};
+      removed = true;
+    }
   }
-  if (removed) await saveOfflineVault(id, { ...vault, snapshots });
+  if (removed) await saveOfflineVault(id, { ...vault, snapshots, evidenceFiles });
   return removed;
 };
 
@@ -54,6 +59,7 @@ export const captureOfflineSnapshots = async (selectedIds) => {
   if (!selected.length) throw new Error("Selecciona al menos una sección.");
   const previous = readOfflineVault(id);
   const snapshots = { ...previous.snapshots };
+  let evidenceFiles = { ...(previous.evidenceFiles || {}) };
   const results = [];
   const refreshed = [];
   let revoked = false;
@@ -71,6 +77,7 @@ export const captureOfflineSnapshots = async (selectedIds) => {
           delete snapshots[module.id];
           revoked = true;
         }
+        if (module.id === "evidence") { evidenceFiles = {}; revoked = true; }
         results.push({ id: module.id, ok: false, message: "Sin permiso; copia local retirada", retained: false });
         continue;
       }
@@ -87,6 +94,12 @@ export const captureOfflineSnapshots = async (selectedIds) => {
       }
       const savedAt = new Date().toISOString();
       snapshots[module.id] = { data, savedAt };
+      if (module.id === "evidence") {
+        const currentFiles = new Map(data.evidence.filter((item) => item.file)
+          .map((item) => [String(item.id), item.file.path]));
+        evidenceFiles = Object.fromEntries(Object.entries(evidenceFiles)
+          .filter(([fileId, file]) => currentFiles.get(String(fileId)) === file.path));
+      }
       refreshed.push(module.id);
       totalBytes = totalBytes - priorBytes + bytes;
       results.push({ id: module.id, ok: true, count: module.listKey ? data[module.listKey].length : null });
@@ -96,7 +109,7 @@ export const captureOfflineSnapshots = async (selectedIds) => {
     }
   }
   if (refreshed.length || revoked) {
-    await saveOfflineVault(id, { ...previous, snapshots,
+    await saveOfflineVault(id, { ...previous, snapshots, evidenceFiles,
       lastSyncAt: refreshed.length ? new Date().toISOString() : previous.lastSyncAt });
     for (const moduleId of refreshed) clearDenied(moduleId);
   }
@@ -109,7 +122,8 @@ export const removeOfflineSnapshot = async (moduleId) => {
   const vault = readOfflineVault(id);
   const snapshots = { ...vault.snapshots };
   delete snapshots[moduleId];
-  await saveOfflineVault(id, { ...vault, snapshots });
+  await saveOfflineVault(id, { ...vault, snapshots,
+    evidenceFiles: moduleId === "evidence" ? {} : vault.evidenceFiles });
 };
 
 export const getOfflineSnapshot = (moduleId) => {

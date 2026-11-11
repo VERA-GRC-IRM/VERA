@@ -202,6 +202,7 @@ test("scope read projections use direct grants and hide denied records from list
   assert.equal(await statusFor(`/api/actions/for-audit/${deniedAudit.id}`), 404);
   assert.equal(await statusFor(`/api/actions?sourceType=RISK&sourceId=${deniedRisk.id}`), 404);
   assert.equal(await statusFor(`/api/evidence/${deniedEvidence.id}/download`), 404);
+  assert.equal(await statusFor(`/api/evidence/${deniedEvidence.id}/content`), 404);
   const listedControls = (await getItems("/api/controls")).controls;
   assert.ok(listedControls.some((item) => item.id === allowedControl.id));
   assert.ok(!listedControls.some((item) => [deniedControl.id, mixedControl.id].includes(item.id)));
