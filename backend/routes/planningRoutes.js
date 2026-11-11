@@ -23,6 +23,7 @@ const { getHistory, addComment } = require("../controllers/planningHistoryContro
 const { buildAuditContext } = require("../services/auditContextService");
 const { parseAuditFilters } = require("../services/auditSearch");
 const { buildPortfolioReport, reportToCsv } = require("../services/portfolioReportService");
+const { reportToPdf } = require("../services/portfolioPdfService");
 
 // Todos los usuarios con sesión pueden consultar el tablero.
 router.get("/", verifyToken, listProposals);
@@ -31,7 +32,7 @@ router.get("/report", verifyToken, async (req, res, next) => {
   try {
     const { filters, error } = parseAuditFilters(req.query);
     if (error) return res.status(400).json({ message: error });
-    if (req.query.format !== undefined && req.query.format !== "csv") {
+    if (req.query.format !== undefined && !["csv", "pdf"].includes(req.query.format)) {
       return res.status(400).json({ message: "El formato no es válido." });
     }
     const report = await buildPortfolioReport(req.user, filters);
@@ -41,6 +42,12 @@ router.get("/report", verifyToken, async (req, res, next) => {
       res.set("Content-Type", "text/csv; charset=utf-8");
       res.set("Content-Disposition", 'attachment; filename="vera-reporte-portafolio.csv"');
       return res.send(reportToCsv(report));
+    }
+    if (req.query.format === "pdf") {
+      const pdf = await reportToPdf(report);
+      res.set("Content-Type", "application/pdf");
+      res.set("Content-Disposition", 'attachment; filename="vera-reporte-portafolio.pdf"');
+      return res.send(pdf);
     }
     return res.json(report);
   } catch (error) {

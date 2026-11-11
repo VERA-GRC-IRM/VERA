@@ -68,9 +68,9 @@ function BuscarAuditorias() {
     catch (cause) { setError(cause.message); }
     finally { setReportBusy(false); }
   };
-  const exportReport = async () => {
+  const exportReport = async (format) => {
     setReportBusy(true);
-    try { await downloadPortfolioReport(appliedFilters); setError(""); }
+    try { await downloadPortfolioReport(appliedFilters, format); setError(""); }
     catch (cause) { setError(cause.message); }
     finally { setReportBusy(false); }
   };
@@ -117,7 +117,8 @@ function BuscarAuditorias() {
           <div className="audit-report-actions">
             <div><h2>Reporte del portafolio</h2><p>Incluye auditorías y sus riesgos, controles, hallazgos y evidencias vinculadas, según tu acceso. Usa los últimos filtros aplicados.</p></div>
             <button className="secondary-action" type="button" onClick={openReport} disabled={loading || reportBusy}>Ver reporte</button>
-            <button className="secondary-action" type="button" onClick={exportReport} disabled={loading || reportBusy}>Descargar CSV</button>
+            <button className="secondary-action" type="button" onClick={() => exportReport("csv")} disabled={loading || reportBusy}>Descargar CSV</button>
+            <button className="secondary-action" type="button" onClick={() => exportReport("pdf")} disabled={loading || reportBusy}>Descargar PDF</button>
           </div>
           {report && <section className="audit-report-panel" aria-label="Reporte del portafolio">
             <p role="status">{report.total} expediente(s) · {report.scope} · Actualizado: {new Date(report.asOf).toLocaleString("es-MX")}</p>

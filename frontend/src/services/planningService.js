@@ -45,8 +45,9 @@ const reportParams = (filters, format) => {
 
 export const getPortfolioReport = (filters = {}) => request(`/report?${reportParams(filters)}`);
 
-export const downloadPortfolioReport = async (filters = {}) => {
-  const response = await fetch(`${API_URL}/report?${reportParams(filters, "csv")}`, {
+export const downloadPortfolioReport = async (filters = {}, format = "csv") => {
+  if (!["csv", "pdf"].includes(format)) throw new Error("El formato no es válido.");
+  const response = await fetch(`${API_URL}/report?${reportParams(filters, format)}`, {
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
   });
   if (!response.ok) {
@@ -57,7 +58,7 @@ export const downloadPortfolioReport = async (filters = {}) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "vera-reporte-portafolio.csv";
+  link.download = `vera-reporte-portafolio.${format}`;
   document.body.appendChild(link);
   link.click();
   link.remove();

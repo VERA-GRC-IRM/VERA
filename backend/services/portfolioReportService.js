@@ -67,7 +67,7 @@ const buildPortfolioReport = async (user, filters) => {
   };
 };
 
-const CSV_COLUMNS = ["ID auditoría", "Título", "Estado", "Área", "Tipo", "Objetivo", "Responsable",
+const CSV_COLUMNS = ["ID auditoría", "Título", "Estado", "Área", "Unidad ID", "Tipo", "Objetivo", "Responsable",
   "Trimestre", "Año", "Inicio", "Fin", "Riesgo", "Avance %", "Riesgos vinculados",
   "Controles vinculados", "Hallazgos vinculados", "Evidencias vinculadas", "Horas planeadas", "Horas ejecutadas"];
 const safeCell = (value) => {
@@ -79,7 +79,7 @@ const reportToCsv = (report) => {
   const lines = [CSV_COLUMNS.map(safeCell).join(",")];
   for (const { audit, risks, controls, findings, evidence = [] } of report.rows) {
     lines.push([
-      audit.id, audit.title, audit.status, audit.area, audit.type, audit.objective,
+      audit.id, audit.title, audit.status, audit.area, audit.orgUnitId, audit.type, audit.objective,
       audit.responsible, audit.quarter, audit.year, audit.startDate, audit.endDate,
       audit.risk, audit.progress, listTitles(risks), listTitles(controls),
       listTitles(findings), listTitles(evidence), audit.plannedHours, audit.executedHours
