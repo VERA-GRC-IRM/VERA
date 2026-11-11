@@ -1,5 +1,7 @@
 # VERA sin conexión
 
+Los contratos de lectura, escritura diferida y operaciones que siguen en línea están resumidos en [Contratos de operación sin conexión](offline-contracts.md).
+
 El objetivo es permitir trabajo útil después de una sesión inicial en línea, sin confundir un borrador local con un cambio confirmado por Supabase. La base de datos y los permisos del servidor siguen siendo la fuente de verdad.
 
 ## Etapa 1: aplicación disponible
