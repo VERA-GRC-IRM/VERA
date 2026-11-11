@@ -7,6 +7,8 @@ import { createOfflineVault, deleteOfflineVault, exportOfflineVault, hasOfflineV
 import { captureOfflineSnapshots, getOfflineSnapshots, purgeDeniedOfflineSnapshots,
   SNAPSHOT_MODULES, SNAPSHOT_TTL_MS, removeOfflineSnapshot } from "../services/offlineSnapshots";
 import { searchOfflineRecords } from "../services/offlineSearch";
+import { getOfflineEvidenceBlob, getOfflineEvidenceFiles,
+  removeOfflineEvidenceFile, saveOfflineEvidenceFile } from "../services/offlineEvidenceFiles";
 import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts, inspectOfflineActionConflict,
   getEvidenceDraftTargets, getFindingDraftTargets, saveOfflineDraft, saveOfflineEvidenceDraft,
   saveOfflineFindingDraft, syncOfflineDraft, syncOfflineEvidenceDraft,
@@ -21,6 +23,10 @@ const readStorageStatus = async () => {
     ]);
     return { available: true, persistent, usage: estimate.usage };
   } catch { return { available: false }; }
+};
+const readSavedEvidenceFiles = () => {
+  try { return getOfflineEvidenceFiles(); }
+  catch { return []; }
 };
 
 const PREPARATION_PACKS = [
@@ -74,6 +80,7 @@ function OfflineWorkspace() {
   const [restorePhrase, setRestorePhrase] = useState("");
   const [backupMessage, setBackupMessage] = useState("");
   const [conflictDetails, setConflictDetails] = useState({});
+  const [savedEvidenceFiles, setSavedEvidenceFiles] = useState([]);
   const currentTime = checkedAt;
   const savedSections = Object.values(snapshots);
   const readySections = savedSections.filter((item) => {
@@ -112,6 +119,37 @@ function OfflineWorkspace() {
     return () => { active = false; };
   }, [open, snapshots, drafts]);
 
+  const saveEvidenceForOffline = async (id) => {
+    setBusy(true); setError("");
+    try {
+      await saveOfflineEvidenceFile(id);
+      setSavedEvidenceFiles(readSavedEvidenceFiles());
+    } catch (cause) {
+      try { setSnapshots(getOfflineSnapshots()); setSavedEvidenceFiles(readSavedEvidenceFiles()); }
+      catch { /* El espacio pudo bloquearse. */ }
+      setError(cause.message);
+    } finally { setBusy(false); }
+  };
+
+  const removeSavedEvidence = async (id) => {
+    setBusy(true); setError("");
+    try { await removeOfflineEvidenceFile(id); setSavedEvidenceFiles(readSavedEvidenceFiles()); }
+    catch (cause) { setError(cause.message); }
+    finally { setBusy(false); }
+  };
+
+  const downloadSavedEvidence = (id) => {
+    setError("");
+    try {
+      const { blob, name } = getOfflineEvidenceBlob(id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url; link.download = name;
+      document.body.append(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (cause) { setError(cause.message); }
+  };
+
   const requestStoragePersistence = async () => {
     setStorageMessage("");
     if (!navigator.storage?.persist) return;
@@ -145,6 +183,7 @@ function OfflineWorkspace() {
       await purgeDeniedOfflineSnapshots();
       setExists(true); setOpen(true);
       setSnapshots(getOfflineSnapshots()); setDrafts(getOfflineDrafts());
+      setSavedEvidenceFiles(readSavedEvidenceFiles());
       try { setDraftableActions(getDraftableActions()); } catch { setDraftableActions([]); }
       setEvidenceTargets(getEvidenceDraftTargets()); setFindingTargets(getFindingDraftTargets());
       setCheckedAt(Date.now()); setBackupFile(null); setRestorePhrase("");
@@ -172,6 +211,7 @@ function OfflineWorkspace() {
       setOpen(true);
       setSnapshots(getOfflineSnapshots());
       setDrafts(getOfflineDrafts());
+      setSavedEvidenceFiles(readSavedEvidenceFiles());
       try { setDraftableActions(getDraftableActions()); } catch { setDraftableActions([]); }
       setEvidenceTargets(getEvidenceDraftTargets());
       setFindingTargets(getFindingDraftTargets());
@@ -193,6 +233,7 @@ function OfflineWorkspace() {
       setSnapshots({});
       setCaptureResults([]);
       setDrafts([]);
+      setSavedEvidenceFiles([]);
       setConfirmDelete(false);
     } catch (cause) { setError(cause.message); }
     finally { setBusy(false); }
@@ -206,6 +247,7 @@ function OfflineWorkspace() {
       const results = await captureOfflineSnapshots(moduleIds);
       setCaptureResults(results);
       setSnapshots(getOfflineSnapshots());
+      setSavedEvidenceFiles(readSavedEvidenceFiles());
       try { setDraftableActions(getDraftableActions()); } catch { setDraftableActions([]); }
       setEvidenceTargets(getEvidenceDraftTargets());
       setFindingTargets(getFindingDraftTargets());
@@ -223,6 +265,7 @@ function OfflineWorkspace() {
     try {
       await removeOfflineSnapshot(id);
       setSnapshots(getOfflineSnapshots());
+      setSavedEvidenceFiles(readSavedEvidenceFiles());
       setFindingTargets(getFindingDraftTargets());
       setSelected((current) => current.filter((value) => value !== id));
     } catch (cause) { setError(cause.message); }
@@ -414,7 +457,7 @@ function OfflineWorkspace() {
                   onClick={() => capture(Object.keys(snapshots))} disabled={busy || !online}>
                   Revalidar copias guardadas
                 </button>}
-                <button type="button" className="secondary-action" onClick={() => { lockOfflineVault(); setOpen(false); setSnapshots({}); setCaptureResults([]); }}>Bloquear espacio local</button>
+                <button type="button" className="secondary-action" onClick={() => { lockOfflineVault(); setOpen(false); setSnapshots({}); setSavedEvidenceFiles([]); setCaptureResults([]); }}>Bloquear espacio local</button>
               </div>
               {captureResults.length > 0 && <div className="offline-snapshot-results" role="status">
                 <strong>Resultado de la actualización</strong>
@@ -423,6 +466,20 @@ function OfflineWorkspace() {
                     ? `guardado${result.count === null ? "" : ` (${result.count} registros)`}` : `${result.message}${result.retained ? " (la copia anterior permanece)" : ""}`}
                 </li>)}</ul>
               </div>}
+              <section className="offline-evidence-reading" aria-labelledby="offline-evidence-reading-title">
+                <h3 id="offline-evidence-reading-title">Archivos para consulta sin red</h3>
+                <p>Guarda explícitamente hasta dos archivos autorizados de Evidencias. Quedan cifrados en este dispositivo y se pueden descargar mientras la copia de Evidencias esté vigente. Las referencias externas no se guardan.</p>
+                {snapshots.evidence && checkedAt - Date.parse(snapshots.evidence.savedAt) <= SNAPSHOT_TTL_MS
+                  ? <ul>{snapshots.evidence.data.evidence.filter((item) => item.file).map((item) => {
+                    const saved = savedEvidenceFiles.find((file) => String(file.id) === String(item.id));
+                    return <li key={item.id}><div><strong>{item.title}</strong><small>{Math.ceil(item.file.size / 1024)} KiB · {item.entityType} {item.entityId}{saved ? ` · guardado el ${new Date(saved.savedAt).toLocaleString("es-MX")}` : ""}</small></div>
+                      <div>{saved ? <><button type="button" className="secondary-action" onClick={() => downloadSavedEvidence(item.id)}>Descargar copia local</button>
+                        <button type="button" className="secondary-action" disabled={busy} onClick={() => removeSavedEvidence(item.id)}>Quitar archivo</button></>
+                        : <button type="button" className="secondary-action" disabled={busy || !online} onClick={() => saveEvidenceForOffline(item.id)}>Guardar archivo autorizado</button>}</div></li>;
+                  })}</ul>
+                  : <p role="status">Actualiza la sección Evidencias con conexión antes de elegir archivos.</p>}
+                <small>{savedEvidenceFiles.length} de 2 archivos guardados; máximo 6 MiB en conjunto. Al revalidar Evidencias, los archivos retirados o cambiados se eliminan de la copia.</small>
+              </section>
               <div className="offline-drafts">
                 <h3>Borradores de trabajo</h3>
                 <p>Quedan solo en este dispositivo hasta que los uses o los borres. No son cambios enviados ni aprobados.</p>

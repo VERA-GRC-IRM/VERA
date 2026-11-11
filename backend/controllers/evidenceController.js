@@ -118,6 +118,25 @@ const downloadEvidence = async (req, res) => {
   res.json({ url, expiresIn: 60 });
 };
 
+// Entrega controlada para preparar una copia cifrada en el dispositivo. La URL
+// firmada sigue siendo la vía habitual de descarga y nunca se guarda localmente.
+const readEvidenceContent = async (req, res) => {
+  const evidence = await evidenceRepository.findById(req.params.id);
+  if (!evidence?.file || !await canAccessEntity(evidence.entityType, evidence.entityId, req.user)) {
+    return res.status(404).json({ message: "Archivo de evidencia no encontrado." });
+  }
+  try {
+    const bytes = await evidenceStorage.downloadBytes(evidence.file);
+    res.set({ "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff",
+      "X-VERA-Evidence-Path": evidence.file.path,
+      "Content-Type": evidence.file.mime, "Content-Length": String(bytes.length) });
+    return res.send(bytes);
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ message: error.message });
+    throw error;
+  }
+};
+
 const indexImageEvidence = async (req, res) => {
   const startedAt = Date.now();
   const evidence = await evidenceRepository.findById(req.params.id);
@@ -192,4 +211,5 @@ const askEvidence = async (req, res) => {
   }
 };
 
-module.exports = { listEvidence, createEvidence, uploadEvidence, downloadEvidence, askEvidence, indexImageEvidence };
+module.exports = { listEvidence, createEvidence, uploadEvidence, downloadEvidence,
+  readEvidenceContent, askEvidence, indexImageEvidence };

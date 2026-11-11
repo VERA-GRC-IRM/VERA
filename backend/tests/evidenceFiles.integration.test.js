@@ -30,7 +30,7 @@ test("HU-16: carga archivo privado, vincula metadatos y firma descarga autorizad
     if (url.hostname !== "supabase.example") return originalFetch(input, options);
     assert.equal(options.headers.apikey, "sb_secret_test");
     assert.equal(options.headers.Authorization, undefined);
-    if (url.pathname.startsWith("/storage/v1/object/vera-evidence/")) {
+    if (url.pathname.startsWith("/storage/v1/object/vera-evidence/") && options.method === "POST") {
       uploaded += 1;
       assert.equal(options.method, "POST");
       assert.ok(["application/pdf", "text/csv", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(options.headers["Content-Type"]));
@@ -39,6 +39,9 @@ test("HU-16: carga archivo privado, vincula metadatos y firma descarga autorizad
     if (url.pathname.startsWith("/storage/v1/object/sign/vera-evidence/")) {
       assert.equal(JSON.parse(options.body).expiresIn, 60);
       return Response.json({ signedURL: `${url.pathname.slice("/storage/v1".length)}?token=test-signature` });
+    }
+    if (url.pathname.startsWith("/storage/v1/object/vera-evidence/") && options.method === undefined) {
+      return new Response(body, { headers: { "Content-Type": "application/pdf", "Content-Length": String(body.length) } });
     }
     throw new Error(`Unexpected storage request ${url.pathname}`);
   };
@@ -92,6 +95,13 @@ test("HU-16: carga archivo privado, vincula metadatos y firma descarga autorizad
   assert.match(signed.url, /^https:\/\/supabase\.example\/storage\/v1\/object\/sign\/vera-evidence\//);
   assert.equal(signed.expiresIn, 60);
   assert.equal((await fetch(`${base}/api/evidence/${evidence.id}/download`)).status, 401);
+  const content = await fetch(`${base}/api/evidence/${evidence.id}/content`, { headers: auth(5) });
+  assert.equal(content.status, 200);
+  assert.equal(content.headers.get("cache-control"), "private, no-store");
+  assert.equal(content.headers.get("content-type"), "application/pdf");
+  assert.equal(content.headers.get("x-vera-evidence-path"), evidence.file.path);
+  assert.deepEqual(Buffer.from(await content.arrayBuffer()), body);
+  assert.equal((await fetch(`${base}/api/evidence/${evidence.id}/content`)).status, 401);
   assert.equal((await fetch(`${base}/api/evidence`, { headers: auth(5) })).status, 200);
 
   const invalid = await fetch(`${base}/api/evidence/upload?${query}`, {
