@@ -9,6 +9,7 @@ const { assertWritableSourceScope } = require("./recordWriteScopeService");
 const { USER_STATUS } = require("../config/accountRules");
 const { PLANNING_APPROVE_ROLES, RECORD_CREATE_ROLES } = require("../config/roles");
 const { canReplayAction } = require("./creationReplayScope");
+const notificationEvents = require("./notificationEventService");
 
 const SOURCES = ["AUDIT", "RISK", "CONTROL", "FINDING"];
 const STATUSES = ["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"];
@@ -169,6 +170,7 @@ const createAction = async (user, body, { operationId } = {}) => {
   await logActivity({ actor: user, action: "FOLLOW_UP_ACTION_CREATED", details: {
     actionId: action.id, sourceType, sourceId, assigneeId
   } });
+  await notificationEvents.actionAssigned(action);
   return action;
 };
 
@@ -231,6 +233,7 @@ const reassign = async (user, id, body) => {
   await logActivity({ actor: user, action: "FOLLOW_UP_ACTION_REASSIGNED", details: {
     actionId: id, sourceType: action.sourceType, sourceId: action.sourceId, fromId: action.assigneeId, toId: assigneeId
   } });
+  await notificationEvents.actionAssigned(updated);
   return updated;
 };
 
@@ -320,6 +323,7 @@ const requestValidation = async (user, id, body) => {
   await logActivity({ actor: user, action: "FINDING_PLAN_VALIDATION_REQUESTED", details: {
     actionId: id, sourceId: action.sourceId
   } });
+  await notificationEvents.planValidationRequested(updated);
   return updated;
 };
 

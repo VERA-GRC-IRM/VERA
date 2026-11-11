@@ -10,7 +10,7 @@ Cada avance puede vincular una evidencia ya registrada con `evidenceId`. `GET /a
 
 Los planes anteriores siguen siendo legibles: si no tenían porcentaje, la interfaz muestra 100 % para `DONE` y 0 % para otros estados; no se reescribe su historial. En Supabase, los campos nuevos viven en el JSON `payload` de `vera_actions`, de modo que no se requiere una migración de esquema adicional. La prueba HTTP [findingPlan.integration.test.js](../backend/tests/findingPlan.integration.test.js) verifica vínculo, permisos, rangos, evidencia, concurrencia por versión, historial y solicitud. La persistencia remota después de reinicio y la aceptación por personas reales requieren una ejecución separada en el entorno desplegado; el test en memoria no las acredita.
 
-Una acción representa un compromiso humano relacionado con una auditoría, un riesgo, un control o un hallazgo. Es diferente de una notificación derivada: **leída** describe si alguien abrió un aviso; **terminada** es una transición explícita de la acción con una explicación y un actor. La IA no crea ni cierra acciones.
+Una acción representa un compromiso humano relacionado con una auditoría, un riesgo, un control o un hallazgo. Es diferente de un aviso del [centro de notificaciones](hu17-notificaciones.md): **leída** describe si alguien abrió un aviso; **terminada** es una transición explícita de la acción con una explicación y un actor. La IA no crea ni cierra acciones.
 
 ## Contrato y permisos
 

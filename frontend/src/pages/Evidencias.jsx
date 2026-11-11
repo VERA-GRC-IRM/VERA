@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { ExternalLink, FileCheck2, FileImage, FileText, Plus, Search, X } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import EvidenceAssistantDialog from "../components/EvidenceAssistantDialog";
@@ -36,6 +37,7 @@ const canAttachToAudit =
   PLANNING_APPROVE_ROLES.includes(currentUser?.role);
 
 function Evidencias() {
+  const location = useLocation();
   const [items, setItems] = useState([]);
   const [risks, setRisks] = useState([]);
   const [controls, setControls] = useState([]);
@@ -63,6 +65,12 @@ function Evidencias() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
+  useEffect(() => {
+    try {
+      const target = decodeURIComponent(location.hash.slice(1));
+      if (target.startsWith("evidence-")) document.getElementById(target)?.scrollIntoView({ block: "center" });
+    } catch { /* Un fragmento inválido no altera la lista. */ }
+  }, [location.hash, items]);
 
   const entities = useMemo(() => ({ RISK: risks, CONTROL: controls, AUDIT: audits }[form.entityType] || []), [form.entityType, risks, controls, audits]);
   const visible = items.filter((item) => (filter === "ALL" || item.entityType === filter) && (!search || `${item.title} ${item.description} ${item.reference} ${item.entityTitle}`.toLowerCase().includes(search.toLowerCase())));

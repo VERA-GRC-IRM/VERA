@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { buildNotifications } = require("../services/notificationService");
+const { buildNotifications, assignmentId, validationId } = require("../services/notificationService");
 
 const now = Date.parse("2026-10-09T12:00:00.000Z");
 
@@ -57,4 +57,39 @@ test("action reminders follow the assigned user's local calendar and active stat
     now: Date.parse("2026-10-09T06:00:00Z"), offsetMinutes: 360 });
   assert.ok(nextDay.some(({ id }) => id === "ACTION_OVERDUE:ACT-TODAY"));
   assert.ok(!nextDay.some(({ id }) => id === "ACTION_DUE_SOON:ACT-TODAY"));
+});
+
+test("HU-17: assignments, decisions, findings and evidence target only their owner", () => {
+  const proposals = [{ id: "AUD-X", status: "APPROVED", title: "Revisión", area: "Operaciones",
+    createdBy: { id: 4 }, approvedAt: "2026-10-09T10:00:00Z" }];
+  const actions = [{ id: "ACT-X", title: "Corregir", sourceTitle: "Riesgo", assigneeId: 5,
+    createdBy: { id: 3 }, status: "OPEN", dueDate: "2026-12-31", createdAt: "2026-10-09T09:00:00Z" }];
+  const risks = [{ id: "RSK-X", ownerId: 5 }];
+  const controls = [{ id: "CTL-X", ownerId: 3 }];
+  const findings = [{ id: "FDG-X", riskId: "RSK-X", controlId: "CTL-X", title: "Excepción",
+    createdBy: { id: 3 }, createdAt: "2026-10-09T08:00:00Z" }];
+  const evidence = [{ id: "EVD-X", entityType: "RISK", entityId: "RSK-X", title: "Acta",
+    author: { id: 3 }, createdAt: "2026-10-09T07:00:00Z" }];
+  const data = { proposals, actions, risks, controls, findings, evidence, now };
+  const owner = buildNotifications({ ...data, user: { id: 5, role: "AUDITOR" } });
+  assert.ok(owner.some((item) => item.id === "ACTION_ASSIGNED:ACT-X:2026-10-09T09:00:00Z"));
+  assert.ok(owner.some((item) => item.id === "FINDING_CREATED:FDG-X" && item.path === "/controles#finding-FDG-X"));
+  assert.ok(owner.some((item) => item.id === "EVIDENCE_CREATED:EVD-X" && item.path === "/evidencias#evidence-EVD-X"));
+  const creator = buildNotifications({ ...data, user: { id: 4, role: "JEFATURA" } });
+  assert.ok(creator.some((item) => item.id === "PROPOSAL_DECIDED:AUD-X"));
+  assert.ok(!creator.some((item) => item.id === "EVIDENCE_CREATED:EVD-X"));
+  const unrelated = buildNotifications({ ...data, user: { id: 2, role: "DIRECTOR" } });
+  assert.ok(!unrelated.some((item) => ["ACTION_ASSIGNED", "FINDING_CREATED", "EVIDENCE_CREATED", "PROPOSAL_DECIDED"].includes(item.type)));
+});
+
+test("HU-17: una reasignación o nueva solicitud crea un aviso nuevo sin heredar lectura", () => {
+  const action = { id: "ACT-X", assigneeId: 5, createdAt: "2026-10-01T00:00:00Z",
+    history: [{ type: "CREATED", at: "2026-10-01T00:00:00Z" }] };
+  const first = assignmentId(action);
+  action.history.push({ type: "REASSIGNED", toId: 5, at: "2026-10-02T00:00:00Z" });
+  assert.notEqual(assignmentId(action), first);
+  action.validationRequestedAt = "2026-10-03T00:00:00Z";
+  const request = validationId(action);
+  action.validationRequestedAt = "2026-10-04T00:00:00Z";
+  assert.notEqual(validationId(action), request);
 });

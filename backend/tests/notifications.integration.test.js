@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 process.env.JWT_SECRET ||= "notifications-integration-test-secret-32-characters";
 const app = require("../server");
 const { startTestServer } = require("./helpers/testServer");
+const reads = require("../repositories/notificationReadRepository");
 const tokenFor = (id) => jwt.sign({ id }, process.env.JWT_SECRET);
 const json = (token, method = "GET", body) => ({
   method,
@@ -43,6 +44,8 @@ test("HU-17: in-app pending inbox is derived from proposal states and scoped to 
   assert.equal(approval.status, 200);
   const started = await fetch(`${baseUrl}/api/planning/${activeProposal.id}/start`, json(manager, "POST", {}));
   assert.equal(started.status, 200);
+  assert.ok((await reads.getStoredForUser(3)).some((item) => item.id === `PROPOSAL_DECIDED:${activeProposal.id}`));
+  assert.ok((await reads.getStoredForUser(5)).some((item) => item.id === `AUDIT_FOLLOW_UP:${activeProposal.id}`));
 
   const directorResponse = await fetch(`${baseUrl}/api/notifications`, json(director));
   const directorInbox = await directorResponse.json();

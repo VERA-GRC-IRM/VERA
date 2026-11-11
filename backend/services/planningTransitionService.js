@@ -2,6 +2,7 @@ const planningRepository = require("../repositories/planningRepository");
 const { PLANNING_APPROVE_ROLES } = require("../config/roles");
 const { logActivity } = require("./auditLogger");
 const { assertWritableRecordScope } = require("./recordScopeVisibility");
+const notificationEvents = require("./notificationEventService");
 
 const text = (value) => String(value ?? "").trim();
 const terminal = (status) => ["APPROVED", "ACTIVE", "CLOSED", "REJECTED"].includes(status);
@@ -60,6 +61,8 @@ const applyTransition = async (user, id, operation, options = {}) => {
   }
   await logActivity({ actor: user, action,
     details: { ...details, ...(note && operation !== "reject" ? { note } : {}) } });
+  if (["approve", "reject"].includes(operation)) await notificationEvents.proposalDecided(record);
+  if (operation === "start") await notificationEvents.auditAssigned(record);
   return { kind, record };
 };
 
