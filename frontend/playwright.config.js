@@ -19,6 +19,7 @@ if (process.env.PLAYWRIGHT_BRANDED_BROWSERS === "1") {
 
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: "offline-shell.spec.js", // production build and service worker use playwright.offline.config.js
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
