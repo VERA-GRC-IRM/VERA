@@ -7,7 +7,7 @@ import { createOfflineVault, deleteOfflineVault, exportOfflineVault, hasOfflineV
 import { captureOfflineSnapshots, getOfflineSnapshots, purgeDeniedOfflineSnapshots,
   SNAPSHOT_MODULES, SNAPSHOT_TTL_MS, removeOfflineSnapshot } from "../services/offlineSnapshots";
 import { searchOfflineRecords } from "../services/offlineSearch";
-import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts,
+import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts, inspectOfflineActionConflict,
   getEvidenceDraftTargets, getFindingDraftTargets, saveOfflineDraft, saveOfflineEvidenceDraft,
   saveOfflineFindingDraft, syncOfflineDraft, syncOfflineEvidenceDraft,
   syncOfflineFindingDraft } from "../services/offlineDrafts";
@@ -73,6 +73,7 @@ function OfflineWorkspace() {
   const [backupFile, setBackupFile] = useState(null);
   const [restorePhrase, setRestorePhrase] = useState("");
   const [backupMessage, setBackupMessage] = useState("");
+  const [conflictDetails, setConflictDetails] = useState({});
   const currentTime = checkedAt;
   const savedSections = Object.values(snapshots);
   const readySections = savedSections.filter((item) => {
@@ -245,8 +246,23 @@ function OfflineWorkspace() {
     if (deleteDraftId !== id) { setDeleteDraftId(id); return; }
     setBusy(true);
     setError("");
-    try { await deleteOfflineDraft(id); setDrafts(getOfflineDrafts()); setDeleteDraftId(""); }
+    try {
+      await deleteOfflineDraft(id); setDrafts(getOfflineDrafts()); setDeleteDraftId("");
+      setConflictDetails((current) => { const next = { ...current }; delete next[id]; return next; });
+    }
     catch (cause) { setError(cause.message); }
+    finally { setBusy(false); }
+  };
+
+  const compareConflict = async (id) => {
+    setBusy(true); setError("");
+    try {
+      const current = await inspectOfflineActionConflict(id);
+      setConflictDetails((details) => ({ ...details, [id]: current }));
+    } catch (cause) {
+      setConflictDetails((current) => { const next = { ...current }; delete next[id]; return next; });
+      setError(cause.message);
+    }
     finally { setBusy(false); }
   };
 
@@ -469,6 +485,25 @@ function OfflineWorkspace() {
                     {["ACTION_PROGRESS", "ACTION_COMMENT"].includes(draft.type) && draft.state === "NEEDS_REVIEW" && <>
                       <p>La respuesta anterior se perdió. VERA comprobará la misma operación antes de aplicar algún cambio.</p>
                       <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>Comprobar o reintentar plan</button>
+                    </>}
+                    {["ACTION_PROGRESS", "ACTION_COMMENT"].includes(draft.type) && draft.state === "CONFLICT" && <>
+                      <button type="button" className="secondary-action" disabled={busy || !online}
+                        onClick={() => compareConflict(draft.id)}>Comparar con plan actual</button>
+                      {conflictDetails[draft.id] && <div className="offline-conflict-compare">
+                        <strong>Comparación para decidir</strong>
+                        <div className="offline-conflict-grid">
+                          <section><h4>Tu borrador local</h4><p>{draft.note}</p>
+                            {draft.type === "ACTION_PROGRESS" && <small>Avance propuesto: {draft.progressPercent}%</small>}
+                            <small>Versión de origen: {draft.version}</small></section>
+                          <section><h4>Plan actual en VERA</h4><p>{conflictDetails[draft.id].title}</p>
+                            <small>Estado: {conflictDetails[draft.id].status} · Versión: {conflictDetails[draft.id].version}</small>
+                            {Number.isInteger(conflictDetails[draft.id].progressPercent) &&
+                              <small>Avance actual: {conflictDetails[draft.id].progressPercent}%</small>}
+                            {conflictDetails[draft.id].lastChange?.note &&
+                              <p>Último cambio: {conflictDetails[draft.id].lastChange.note}</p>}</section>
+                        </div>
+                        <p>Revisa el plan actual antes de crear un borrador nuevo. VERA no combina ni sobrescribe cambios automáticamente.</p>
+                      </div>}
                     </>}
                     {draft.type !== "GENERAL_NOTE" && ["CONFLICT", "NEEDS_REVIEW"].includes(draft.state) && <Link to={{ EVIDENCE_UPLOAD: "/evidencias", FINDING_CREATE: "/controles" }[draft.type] || "/notificaciones"}>Revisar {{ EVIDENCE_UPLOAD: "evidencias", FINDING_CREATE: "hallazgos" }[draft.type] || "plan"}</Link>}
                     <button type="button" className="secondary-action" disabled={busy} onClick={() => removeDraft(draft.id)}>{deleteDraftId === draft.id ? "Confirmar borrado" : "Borrar borrador"}</button>

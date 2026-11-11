@@ -323,6 +323,29 @@ export const syncOfflineDraft = async (draftId) => {
   return body.action;
 };
 
+export const inspectOfflineActionConflict = async (draftId) => {
+  if (!navigator.onLine) throw new Error("Conéctate para consultar el plan actual.");
+  const draft = getOfflineDrafts().find((item) => item.id === draftId);
+  if (!draft || !["ACTION_COMMENT", "ACTION_PROGRESS"].includes(draft.type) || draft.state !== "CONFLICT") {
+    throw new Error("Selecciona un borrador de plan con conflicto de versión.");
+  }
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Inicia sesión para consultar el plan actual.");
+  const response = await fetch(`/api/actions/${encodeURIComponent(draft.actionId)}`, {
+    headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(15000)
+  });
+  if (!response.ok) throw new Error(await responseMessage(response));
+  const action = (await response.json()).action;
+  if (String(action?.id) !== String(draft.actionId) || !Number.isInteger(action.storageVersion)) {
+    throw new Error("El servidor no devolvió el plan esperado.");
+  }
+  const latest = Array.isArray(action.history) ? action.history.at(-1) : null;
+  return { title: action.title, status: action.status, version: action.storageVersion,
+    progressPercent: action.progressPercent, updatedAt: action.updatedAt,
+    lastChange: latest ? { type: latest.type, note: latest.note || "",
+      actorName: latest.actorName || "", at: latest.at || "" } : null };
+};
+
 export const syncOfflineEvidenceDraft = async (draftId) => {
   if (!navigator.onLine) throw new Error("Conéctate antes de cargar la evidencia.");
   const userId = currentUser();

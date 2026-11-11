@@ -47,12 +47,26 @@ test("manual sync sends the original version once and confirms server acceptance
 test("changed server version blocks an offline draft before any write", async ({ page, context }) => {
   await prepareDraft(page, context, 402);
   await page.route("**/api/actions/plan-1", (route) => route.fulfill({ status: 200, contentType: "application/json",
-    body: JSON.stringify({ action: { id: "plan-1", storageVersion: 4 } }) }));
+    body: JSON.stringify({ action: { id: "plan-1", title: "Corregir control", status: "IN_PROGRESS",
+      storageVersion: 4, progressPercent: 50,
+      history: [{ type: "PROGRESS_UPDATED", note: "Otro avance registrado antes de reconectar." }] } }) }));
   let writes = 0;
   await page.route("**/api/actions/plan-1/progress", (route) => { writes += 1; return route.abort(); });
   await page.getByRole("button", { name: "Enviar al servidor" }).click();
   await expect(page.getByText("Conflicto de versión")).toBeVisible();
   expect(writes).toBe(0);
+  await page.getByRole("button", { name: "Comparar con plan actual" }).click();
+  await expect(page.getByRole("heading", { name: "Tu borrador local" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Plan actual en VERA" })).toBeVisible();
+  await expect(page.getByText("Avance actual: 50%")).toBeVisible();
+  await expect(page.getByText("Otro avance registrado antes de reconectar.")).toBeVisible();
+  expect(writes).toBe(0);
+  await page.unroute("**/api/actions/plan-1");
+  await page.route("**/api/actions/plan-1", (route) => route.fulfill({ status: 403,
+    json: { message: "Acceso retirado" } }));
+  await page.getByRole("button", { name: "Comparar con plan actual" }).click();
+  await expect(page.getByRole("alert")).toContainText("Acceso retirado");
+  await expect(page.getByRole("heading", { name: "Plan actual en VERA" })).toHaveCount(0);
 });
 
 test("uncertain network result requires review and never retries automatically", async ({ page, context }) => {
