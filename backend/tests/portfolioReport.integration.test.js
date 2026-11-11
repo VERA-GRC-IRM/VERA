@@ -1,11 +1,23 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const jwt = require("jsonwebtoken");
+const { PDFDocument } = require("pdf-lib");
 
 process.env.JWT_SECRET ||= "portfolio-report-test-secret-over-32-characters";
 const app = require("../server");
 const { startTestServer } = require("./helpers/testServer");
 const { reportToCsv } = require("../services/portfolioReportService");
+const { reportToPdf } = require("../services/portfolioPdfService");
+
+const pdfText = async (bytes) => {
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const document = await getDocument({ data: new Uint8Array(bytes) }).promise;
+  const pages = [];
+  for (let index = 1; index <= document.numPages; index += 1) {
+    pages.push((await (await document.getPage(index)).getTextContent()).items.map((item) => item.str).join(" "));
+  }
+  return pages.join(" ");
+};
 
 const auth = (id, method = "GET", body) => ({
   method,
@@ -78,6 +90,17 @@ test("RF-29: report includes linked facts and filtered CSV with UTF-8 headings",
   assert.deepEqual([...csvBytes.slice(0, 3)], [0xef, 0xbb, 0xbf]);
   const csv = new TextDecoder().decode(csvBytes);
   for (const value of [proposal.id, risk.id, control.id, "Excepción regional", '"40"', '"12.5"']) assert.ok(csv.includes(value));
+  const pdfResponse = await fetch(`${base}/api/planning/report?${query}&format=pdf`, auth(3));
+  assert.equal(pdfResponse.status, 200);
+  assert.match(pdfResponse.headers.get("content-type"), /application\/pdf/);
+  assert.match(pdfResponse.headers.get("content-disposition"), /attachment/);
+  assert.equal(pdfResponse.headers.get("cache-control"), "no-store");
+  const pdfBytes = Buffer.from(await pdfResponse.arrayBuffer());
+  assert.equal(pdfBytes.subarray(0, 5).toString(), "%PDF-");
+  const text = await pdfText(pdfBytes);
+  for (const value of [proposal.id, risk.id, control.id, "Excepción regional", "Horas planeadas: 40", "ejecutadas: 12.5"]) {
+    assert.ok(text.includes(value), `Falta en PDF: ${value}`);
+  }
   const filtered = await fetch(`${base}/api/planning/report?year=2026&quarter=Q4&status=ACTIVE&responsibleId=5&q=${encodeURIComponent(proposal.id)}`, auth(3));
   assert.equal(filtered.status, 200);
   assert.equal((await filtered.json()).total, 1);
@@ -98,12 +121,18 @@ test("RF-29: auditor sees only assigned records; empty and invalid filters are e
   assert.ok(!auditorReport.rows.some((row) => row.audit.id === "AUD-01"));
   const auditorCsv = await (await fetch(`${base}/api/planning/report?format=csv`, auth(5))).text();
   assert.ok(!auditorCsv.includes("AUD-01"));
+  const auditorPdf = await fetch(`${base}/api/planning/report?format=pdf`, auth(5));
+  assert.equal(auditorPdf.status, 200);
+  assert.ok(!(await pdfText(Buffer.from(await auditorPdf.arrayBuffer()))).includes("AUD-01"));
   const empty = await fetch(`${base}/api/planning/report?q=no-existe-ninguna-auditoria`, auth(3));
   assert.equal(empty.status, 200);
   assert.equal((await empty.json()).total, 0);
   const emptyCsv = await (await fetch(`${base}/api/planning/report?q=no-existe-ninguna-auditoria&format=csv`, auth(3))).text();
   assert.equal(emptyCsv.trim().split("\r\n").length, 1);
-  for (const query of ["status=UNKNOWN", "q=x&q=y", "format=pdf", "responsibleId=x", "orgUnitId=invalid"]) {
+  const emptyPdf = await fetch(`${base}/api/planning/report?q=no-existe-ninguna-auditoria&format=pdf`, auth(3));
+  assert.equal(emptyPdf.status, 200);
+  assert.match(await pdfText(Buffer.from(await emptyPdf.arrayBuffer())), /No hay expedientes visibles/);
+  for (const query of ["status=UNKNOWN", "q=x&q=y", "format=xml", "responsibleId=x", "orgUnitId=invalid"]) {
     assert.equal((await fetch(`${base}/api/planning/report?${query}`, auth(3))).status, 400);
   }
 });
@@ -125,6 +154,11 @@ test("HU-27: unit filter uses stored assignment and hours reject invalid input",
   const scoped = await fetch(`${base}/api/planning/report?orgUnitId=${unit.id}&q=${audit.id}`, auth(1));
   assert.equal(scoped.status, 200);
   assert.deepEqual((await scoped.json()).rows.map((row) => row.audit.id), [audit.id]);
+  const unitCsv = await (await fetch(`${base}/api/planning/report?orgUnitId=${unit.id}&q=${audit.id}&format=csv`, auth(1))).text();
+  assert.ok(unitCsv.includes(unit.id));
+  const unitPdf = await fetch(`${base}/api/planning/report?orgUnitId=${unit.id}&q=${audit.id}&format=pdf`, auth(1));
+  assert.equal(unitPdf.status, 200);
+  assert.ok((await pdfText(Buffer.from(await unitPdf.arrayBuffer()))).includes(unit.id));
   const otherUnit = `ORG-00000000-0000-4000-8000-000000000000`;
   const empty = await fetch(`${base}/api/planning/report?orgUnitId=${otherUnit}&q=${audit.id}`, auth(1));
   assert.equal((await empty.json()).total, 0);
@@ -146,4 +180,24 @@ test("RF-29: CSV quotes values and neutralizes spreadsheet formulas", () => {
   assert.ok(csv.includes('"Área, Norte"'));
   assert.ok(csv.includes('"Línea 1\nLínea 2"'));
   assert.ok(!csv.includes('"=HYPERLINK'));
+});
+
+test("HU-27: the paginated PDF keeps Spanish accents and every linked record", async () => {
+  const report = { asOf: "2026-11-10T00:00:00.000Z", scope: "Portafolio visible", filters: { year: "2026", quarter: "Q4" },
+    indicators: { audits: 1, risks: 1, controls: 1, findings: 1, evidence: 1,
+      plannedHours: 4, executedHours: 2, auditsWithPlannedHours: 1, auditsWithExecutedHours: 1 },
+    rows: [{ audit: { id: "AUD-ÚNICA", title: "Revisión de operación", status: "ACTIVE",
+      area: "México", responsible: "José Sánchez", year: 2026, quarter: "Q4",
+      plannedHours: 4, executedHours: 2, objective: "Control de información" },
+    risks: [{ id: "R-1", title: "Riesgo inherente", level: "Alto" }],
+    controls: [{ id: "C-1", title: "Control periódico" }],
+    findings: [{ id: "H-1", title: "Hallazgo crítico", status: "OPEN" }],
+    evidence: [{ id: "E-1", title: "Evidencia válida", entityType: "AUDIT" }] }] };
+  const bytes = await reportToPdf(report);
+  const pdf = await PDFDocument.load(bytes);
+  assert.equal(pdf.getPageCount(), 1);
+  const text = await pdfText(bytes);
+  for (const value of ["AUD-ÚNICA", "Revisión", "México", "José Sánchez", "R-1", "C-1", "H-1", "E-1", "Año: 2026", "Trimestre: Q4"]) {
+    assert.ok(text.includes(value), `Falta en PDF: ${value}`);
+  }
 });

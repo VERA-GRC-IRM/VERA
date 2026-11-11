@@ -40,6 +40,7 @@ const relatedSources = {
   "frontend/e2e/finding-closure.spec.js": [50],
   "frontend/e2e/proposals.spec.js": [10, 54, 55, 56],
   "performance/dashboard-load.js": [31, 32, 63, 67],
+  "backend/scripts/benchmark-portfolio-pdf.js": [68],
   "scripts/production-smoke.mjs": [57, 61],
   "scripts/local-supabase-rehearsal.sh": [62, 66, 74]
 };

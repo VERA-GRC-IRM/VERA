@@ -136,7 +136,7 @@ La disponibilidad de 99.5% requiere una ventana de medición mensual; RTO de 4 h
 | TC-65 | RNF-12: revisión de privacidad y tratamiento de datos | Revisión/manual | Alta | 7 | Pendiente: definir jurisdicción, inventario de datos y responsable de aprobación |
 | TC-66 | RNF-13: conservar historial/evidencia según retención | Operativa/API | Alta | 4 | Bloqueado: almacenamiento actual en memoria, sin política de retención |
 | TC-67 | RNF-14: panel carga en máximo 2 segundos | Rendimiento/E2E | Media | 7 | Parcial: perfil k6 propone medir API p95 <1500 ms, pero no se ha ejecutado; falta medición completa de página, red y hardware representativos |
-| TC-68 | RNF-15: reporte de hasta 100 páginas en máximo 10 segundos | Rendimiento | Media | 7 | Bloqueado: el reporte CSV no tiene concepto de páginas; falta acordar formato paginado y medir 100 páginas en entorno representativo. |
+| TC-68 | RNF-15: reporte de hasta 100 páginas en máximo 10 segundos | Rendimiento | Media | 7 | Parcial: PDF paginado de 100 páginas en 1 085 ms de render local con datos sintéticos y Node 22; falta medir API, Supabase y red en un entorno representativo. CSV conserva su contrato sin páginas. |
 | TC-69 | RNF-16: activar y usar 2FA | API/E2E | Alta | 2 | Cubierto por API: enrolamiento TOTP, código erróneo/expirado y sesión solo tras código válido |
 | TC-70 | RNF-18: WCAG 2.1 AA | A11y/UI/manual | Media | 6 | Parcial: axe analiza login y panel contra reglas WCAG 2.1 A/AA; falta teclado/lector, resto de rutas y revisión manual antes de afirmar conformidad |
 | TC-71 | RNF-19: interfaz completamente en español | UI/manual | Media | 6 | Pendiente: inventario y verificación de textos visibles |

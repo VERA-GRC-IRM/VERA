@@ -517,7 +517,7 @@ function AuditoriasActivas() {
                         <h3>Reporte del expediente</h3>
                         <p>{currentContext.audit.title} · {currentContext.audit.status} · {currentContext.audit.area}</p>
                         <p>{linkedRisks.length} riesgos · {linkedControls.length} controles · {linkedFindings.length} hallazgos · {linkedEvidence.length} evidencias vinculadas.</p>
-                        <button type="button" className="secondary-action" onClick={() => navigate(`/auditorias-activas/${encodeURIComponent(selectedAudit.id)}`)}>Ver reporte y descargar CSV</button>
+                        <button type="button" className="secondary-action" onClick={() => navigate(`/auditorias-activas/${encodeURIComponent(selectedAudit.id)}`)}>Ver reporte y descargar CSV o PDF</button>
                       </section>}
                       {currentContextError && <p role="alert">No se pudieron cargar las relaciones: {currentContextError}</p>}
                       {activeTab !== "summary" && activeTab !== "activity" && !currentContext && !currentContextError && <p role="status">Cargando relaciones del expediente...</p>}
