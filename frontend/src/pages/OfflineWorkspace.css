@@ -26,11 +26,13 @@
 .offline-vault-delete { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--vera-border); }
 .offline-snapshot-options { display: grid; gap: 4px; margin: 22px 0; padding: 0; border: 0; }
 .offline-snapshot-options legend { margin-bottom: 12px; font-weight: 700; }
-.offline-snapshot-options label { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--vera-border); }
+.offline-snapshot-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--vera-border); }
+.offline-snapshot-row label { display: flex; flex: 1; align-items: center; gap: 12px; }
 .offline-snapshot-options input { width: 18px; height: 18px; flex: none; }
 .offline-snapshot-options span { flex: 1; }
 .offline-snapshot-options small { display: block; margin-top: 3px; color: var(--vera-text-muted); }
 .offline-snapshot-options a { color: var(--vera-accent); }
+.offline-snapshot-row button { min-height: 38px; }
 .offline-vault-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .offline-snapshot-results { margin-top: 18px; padding: 14px; border-radius: 9px; background: var(--vera-surface-raised); }
 .offline-snapshot-results ul { margin: 8px 0 0; padding-left: 22px; }

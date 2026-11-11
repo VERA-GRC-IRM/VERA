@@ -35,9 +35,9 @@ export const captureOfflineSnapshots = async (selectedIds) => {
   const selected = SNAPSHOT_MODULES.filter((module) => selectedIds.includes(module.id));
   if (!selected.length) throw new Error("Selecciona al menos una sección.");
   const previous = readOfflineVault(id);
-  const snapshots = {};
+  const snapshots = { ...previous.snapshots };
   const results = [];
-  let totalBytes = 0;
+  let totalBytes = Object.values(snapshots).reduce((total, snapshot) => total + countBytes(snapshot.data), 0);
   for (const module of selected) {
     try {
       const response = await fetch(module.path, {
@@ -47,7 +47,8 @@ export const captureOfflineSnapshots = async (selectedIds) => {
       if (!response.ok) throw new Error(response.status === 403 ? "Sin permiso" : `HTTP ${response.status}`);
       const data = await response.json();
       const bytes = countBytes(data);
-      if (bytes > MAX_MODULE_BYTES || totalBytes + bytes > MAX_TOTAL_BYTES) {
+      const priorBytes = snapshots[module.id] ? countBytes(snapshots[module.id].data) : 0;
+      if (bytes > MAX_MODULE_BYTES || totalBytes - priorBytes + bytes > MAX_TOTAL_BYTES) {
         throw new Error("Esta sección supera el límite local; reduce los datos antes de descargarla.");
       }
       if (module.listKey && !Array.isArray(data[module.listKey])) {
@@ -55,16 +56,26 @@ export const captureOfflineSnapshots = async (selectedIds) => {
       }
       const savedAt = new Date().toISOString();
       snapshots[module.id] = { data, savedAt };
-      totalBytes += bytes;
+      totalBytes = totalBytes - priorBytes + bytes;
       results.push({ id: module.id, ok: true, count: module.listKey ? data[module.listKey].length : null });
     } catch (error) {
-      results.push({ id: module.id, ok: false, message: error.message });
+      results.push({ id: module.id, ok: false, message: error.message,
+        retained: Boolean(snapshots[module.id]) });
     }
   }
-  if (Object.keys(snapshots).length) {
+  if (results.some((result) => result.ok)) {
     await saveOfflineVault(id, { ...previous, snapshots, lastSyncAt: new Date().toISOString() });
   }
   return results;
+};
+
+export const removeOfflineSnapshot = async (moduleId) => {
+  if (!SNAPSHOT_MODULES.some((module) => module.id === moduleId)) throw new Error("Sección local desconocida.");
+  const id = userId();
+  const vault = readOfflineVault(id);
+  const snapshots = { ...vault.snapshots };
+  delete snapshots[moduleId];
+  await saveOfflineVault(id, { ...vault, snapshots });
 };
 
 export const getOfflineSnapshot = (moduleId) => {
