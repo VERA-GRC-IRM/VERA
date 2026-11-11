@@ -88,14 +88,14 @@ La disponibilidad de 99.5% requiere una ventana de medición mensual; RTO de 4 h
 | TC-17 | RF-16: riesgo inválido | Unit/API | Alta | 3 | Cubierto por API: límites de escala/campos y vínculo a auditoría inexistente |
 | TC-18 | RF-19: carga exitosa de archivo | API/E2E | Media | 4 | Parcial: integración HTTP prueba carga PDF privada, vínculo y descarga firmada con Storage simulado; falta prueba en Supabase real y E2E |
 | TC-19 | RF-19: archivo excede límite | API/E2E | Media | 4 | Parcial: backend limita a 3 MB y devuelve 413; falta evidencia E2E/remota |
-| TC-20 | RF-24: notificación al responsable | API/E2E | Media | 4 | Parcial: bandeja derivada, prioridad y alcance por rol probados; falta canal externo/evento de entrega |
+| TC-20 | RF-24: notificación al responsable | API/E2E | Media | 4 | Cubierto por API: eventos reales y avisos persistentes por destinatario, prioridad, enlace y alcance probados; falta aceptación desplegada. El canal externo no forma parte de esta bandeja. |
 | TC-21 | RF-24: marcar/gestionar como leída | API/E2E | Media | 4 | Parcial: pruebas HTTP y repositorio simulado cubren lectura por persona, permisos y reversión; falta comprobar persistencia real en despliegue |
 | TC-22 | RF-27: aplicar filtros | API/E2E | Media | 5 | Parcial: filtros de riesgos/evidencias, auditorías y reportes se cubren por API; falta dictamen desplegado. |
 | TC-23 | RF-27: búsqueda con coincidencias | API/E2E | Media | 5 | Parcial: búsqueda por API/UI de auditorías y reporte filtrado; falta aceptar alcance global con criterios oficiales. |
 | TC-24 | RF-27: búsqueda sin resultados | API/UI | Media | 5 | Parcial: HU-26 y el reporte muestran estado vacío; falta dictamen desplegado. |
 | TC-25 | RF-27: filtro sin resultados | API/UI | Media | 5 | Parcial: filtro vacío y CSV solo con encabezados implementados; falta dictamen desplegado. |
 | TC-26 | RF-29: exportación completa | API/E2E | Media | 5 | Cubierto en código: descarga CSV del portafolio visible; falta dictamen de Production. |
-| TC-27 | RF-29: exportar datos filtrados | API/E2E | Media | 5 | Cubierto en código: exportación con los mismos filtros de búsqueda y alcance por rol; falta dictamen de Production. |
+| TC-27 | RF-29: exportar datos filtrados | API/E2E | Media | 5 | Cubierto en código: exportación con año, trimestre, unidad, estado y responsable tras aplicar alcance por rol; falta dictamen de Production. |
 | TC-28 | RF-29: exportar filtro vacío | API/UI | Media | 5 | Cubierto en código: reporte vacío y CSV con encabezados; falta dictamen de Production. |
 | TC-29 | RF-30/RNF-03: funciones distintas por rol | Unit/API/E2E | Alta | 2 | Parcial: listado/edición y denegación por rol cubiertos en API; falta matriz completa de módulos |
 | TC-30 | RF-33: cerrar auditoría y evitar edición posterior | API/UI | Alta | 3 | Parcial: flujo API y rechazo de transiciones/edición posteriores; reflejo visual queda en PR-5 |
