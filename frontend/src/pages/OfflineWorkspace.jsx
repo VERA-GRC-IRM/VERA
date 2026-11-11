@@ -24,7 +24,7 @@ function OfflineWorkspace() {
   const [selected, setSelected] = useState([]);
   const [snapshots, setSnapshots] = useState({});
   const [captureResults, setCaptureResults] = useState([]);
-  const [checkedAt, setCheckedAt] = useState(0);
+  const [checkedAt, setCheckedAt] = useState(() => Date.now());
   const [drafts, setDrafts] = useState([]);
   const [draftableActions, setDraftableActions] = useState([]);
   const [draftType, setDraftType] = useState("GENERAL_NOTE");
@@ -41,6 +41,14 @@ function OfflineWorkspace() {
   const [evidenceTargetIndex, setEvidenceTargetIndex] = useState("");
   const [evidenceFile, setEvidenceFile] = useState(null);
   const [evidenceInputKey, setEvidenceInputKey] = useState(0);
+  const currentTime = checkedAt;
+  const savedSections = Object.values(snapshots);
+  const readySections = savedSections.filter((item) => {
+    const age = currentTime - Date.parse(item.savedAt);
+    return Number.isFinite(age) && age >= 0 && age <= SNAPSHOT_TTL_MS;
+  });
+  const pendingDrafts = drafts.filter((item) => item.state === "DRAFT" && item.type !== "GENERAL_NOTE").length;
+  const reviewDrafts = drafts.filter((item) => ["CONFLICT", "NEEDS_REVIEW"].includes(item.state)).length;
 
   useEffect(() => {
     let active = true;
@@ -204,6 +212,24 @@ function OfflineWorkspace() {
             {open ? <>
               <h2>Espacio desbloqueado</h2>
               <p>Elige qué secciones autorizadas quieres guardar en este dispositivo. La copia caduca a las 24 horas y nunca confirma cambios en el servidor.</p>
+              <section className="offline-readiness" aria-labelledby="offline-readiness-title">
+                <div className="offline-readiness-heading">
+                  <h3 id="offline-readiness-title">Estado de este dispositivo</h3>
+                  <span>{online ? "Red detectada por el dispositivo" : "Sin red detectada"}</span>
+                </div>
+                <div className="offline-readiness-grid">
+                  <p><strong>{readySections.length}</strong><span>Secciones vigentes</span></p>
+                  <p><strong>{savedSections.length - readySections.length}</strong><span>Copias caducadas</span></p>
+                  <p><strong>{pendingDrafts}</strong><span>Trabajos pendientes de envío</span></p>
+                  <p><strong>{reviewDrafts}</strong><span>Trabajos que requieren revisión</span></p>
+                </div>
+                <p className="offline-readiness-hint">{readySections.length
+                  ? "Estas copias se pueden consultar sin red hasta 24 horas después de guardarlas. Los pendientes aún no están en el servidor."
+                  : "Guarda al menos una sección con conexión antes de trabajar sin red."}</p>
+                {readySections.length > 0 && <p className="offline-readiness-hint">Copia más reciente: {new Date(Math.max(
+                  ...readySections.map((item) => Date.parse(item.savedAt))
+                )).toLocaleString("es-MX")}. Consulta la fecha individual de cada sección antes de usarla.</p>}
+              </section>
               <fieldset className="offline-snapshot-options">
                 <legend>Secciones para consultar sin conexión</legend>
                 {SNAPSHOT_MODULES.map((module) => {

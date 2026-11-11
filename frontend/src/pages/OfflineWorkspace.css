@@ -8,6 +8,16 @@
   box-shadow: var(--vera-shadow);
 }
 .offline-vault-card h2 { margin: 0 0 12px; font-size: 1.2rem; }
+.offline-readiness { margin-top: 20px; padding: 18px; border: 1px solid var(--vera-border); border-radius: 12px; background: var(--vera-surface-raised); }
+.offline-readiness-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.offline-readiness-heading h3 { margin: 0; font-size: 1rem; }
+.offline-readiness-heading span { color: var(--vera-text-muted); font-size: .85rem; }
+.offline-readiness-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; margin-top: 14px; }
+.offline-readiness-grid p { display: flex; flex-direction: column; gap: 2px; min-width: 0; margin: 0; padding: 10px; border: 1px solid var(--vera-border); border-radius: 8px; background: var(--vera-surface); }
+.offline-readiness-grid strong { color: var(--vera-text); font-size: 1.35rem; line-height: 1.1; }
+.offline-readiness-grid span { color: var(--vera-text-muted); font-size: .82rem; }
+.offline-readiness .offline-readiness-hint { margin: 12px 0 0; font-size: .88rem; }
+@media (max-width: 520px) { .offline-readiness-grid { grid-template-columns: 1fr; } }
 .offline-vault-card p { color: var(--vera-text-muted); line-height: 1.55; }
 .offline-vault-form { display: grid; gap: 16px; margin: 20px 0; }
 .offline-vault-form label { display: grid; gap: 7px; font-weight: 600; }
