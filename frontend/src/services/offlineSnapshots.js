@@ -14,7 +14,8 @@ export const SNAPSHOT_MODULES = [
   { id: "findings", label: "Hallazgos", path: "/api/findings/", link: "/auditorias-activas", listKey: "findings" },
   { id: "actions", label: "Planes de acción", path: "/api/actions", link: "/dashboard", listKey: "actions" },
   { id: "evidence", label: "Evidencias (metadatos)", path: "/api/evidence/", link: "/evidencias", listKey: "evidence" },
-  { id: "notifications", label: "Pendientes", path: "/api/notifications", link: "/notificaciones", listKey: "notifications" }
+  { id: "notifications", label: "Pendientes", path: "/api/notifications", link: "/notificaciones", listKey: "notifications" },
+  { id: "report", label: "Informe de portafolio", path: "/api/planning/report", link: "/sin-conexion/informe", listKey: "rows" }
 ];
 
 const userId = () => {

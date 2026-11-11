@@ -31,6 +31,7 @@ import AiQuality from "./pages/AiQuality";
 import Evidencias from "./pages/Evidencias";
 import MetodosRiesgo from "./pages/MetodosRiesgo";
 import OfflineWorkspace from "./pages/OfflineWorkspace";
+import OfflineReport from "./pages/OfflineReport";
 import Trimestres, { TrimestreDetalle } from "./pages/Trimestres";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AssistantConversationProvider from "./contexts/AssistantConversationProvider";
@@ -146,6 +147,7 @@ function App() {
           <Route path="/calidad-ia" element={<ProtectedRoute allowedRoles={["SUPER_ADMIN"]}><AiQuality /></ProtectedRoute>} />
           <Route path="/evidencias" element={<ProtectedRoute><Evidencias /></ProtectedRoute>} />
           <Route path="/sin-conexion" element={<ProtectedRoute><OfflineWorkspace /></ProtectedRoute>} />
+          <Route path="/sin-conexion/informe" element={<ProtectedRoute><OfflineReport /></ProtectedRoute>} />
 
           <Route
             path="/trimestres/:quarterId"

@@ -1,0 +1,31 @@
+.offline-report-stamp { margin: 16px 0; color: var(--vera-text-muted); }
+.offline-report-filters { display: flex; flex-wrap: wrap; gap: 12px; margin: 22px 0; }
+.offline-report-filters label { display: grid; gap: 6px; min-width: 145px; font-weight: 600; }
+.offline-report-filters select { min-height: 42px; padding: 8px; border: 1px solid var(--vera-border); border-radius: 8px; background: var(--vera-surface); color: var(--vera-text); font: inherit; }
+.offline-report-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+.offline-report-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 10px; }
+.offline-report-kpis article { display: grid; gap: 4px; padding: 16px; border: 1px solid var(--vera-border); border-radius: 10px; background: var(--vera-surface); }
+.offline-report-kpis strong { font-size: 1.25rem; }.offline-report-kpis span { color: var(--vera-text-muted); font-size: .85rem; }
+.offline-report-count { margin: 26px 0 12px; }
+.offline-report-table-wrap { overflow-x: auto; border: 1px solid var(--vera-border); border-radius: 10px; }
+.offline-report table { border-collapse: collapse; min-width: 950px; width: 100%; background: var(--vera-surface); }
+.offline-report th, .offline-report td { padding: 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--vera-border); }
+.offline-report th { background: var(--vera-surface-raised); }
+.offline-report td small { display: block; color: var(--vera-text-muted); }
+.offline-report td p { margin: 6px 0; }
+.offline-report-print-relations { display: none; }
+.offline-report-empty { padding: 24px; border: 1px solid var(--vera-border); border-radius: 10px; }
+@media print {
+  @page { size: A4 landscape; margin: 12mm; }
+  .offline-report-layout .sidebar, .mobile-nav-toggle, .sidebar-backdrop, .offline-report-actions,
+  .offline-report-filters, .vera-connectivity-status { display: none !important; }
+  .offline-report-layout .dashboard-main { margin: 0 !important; padding: 0 !important; }
+  .offline-report-layout .dashboard-content { max-width: none !important; padding: 0 !important; }
+  .offline-report-table-wrap { overflow: visible; border: 0; }
+  .offline-report table { min-width: 0; font-size: 8pt; }
+  .offline-report thead { display: table-header-group; }
+  .offline-report tr { break-inside: avoid; }
+  .offline-report-kpis article { break-inside: avoid; }
+  .offline-report details { display: none; }
+  .offline-report-print-relations { display: block; }
+}
