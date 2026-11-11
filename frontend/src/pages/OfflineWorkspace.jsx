@@ -11,6 +11,16 @@ import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts,
   syncOfflineDraft, syncOfflineEvidenceDraft } from "../services/offlineDrafts";
 import "./OfflineWorkspace.css";
 
+const readStorageStatus = async () => {
+  if (!navigator.storage?.estimate || !navigator.storage?.persisted) return { available: false };
+  try {
+    const [estimate, persistent] = await Promise.all([
+      navigator.storage.estimate(), navigator.storage.persisted()
+    ]);
+    return { available: true, persistent, usage: estimate.usage };
+  } catch { return { available: false }; }
+};
+
 function OfflineWorkspace() {
   useDocumentTitle("Sin conexión");
   const user = JSON.parse(localStorage.getItem("user") || "null");
@@ -41,6 +51,8 @@ function OfflineWorkspace() {
   const [evidenceTargetIndex, setEvidenceTargetIndex] = useState("");
   const [evidenceFile, setEvidenceFile] = useState(null);
   const [evidenceInputKey, setEvidenceInputKey] = useState(0);
+  const [storageStatus, setStorageStatus] = useState(null);
+  const [storageMessage, setStorageMessage] = useState("");
   const currentTime = checkedAt;
   const savedSections = Object.values(snapshots);
   const readySections = savedSections.filter((item) => {
@@ -68,6 +80,25 @@ function OfflineWorkspace() {
     window.addEventListener("offline", update);
     return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
   }, []);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    let active = true;
+    readStorageStatus().then((status) => { if (active) setStorageStatus(status); });
+    return () => { active = false; };
+  }, [open, snapshots, drafts]);
+
+  const requestStoragePersistence = async () => {
+    setStorageMessage("");
+    if (!navigator.storage?.persist) return;
+    try {
+      const granted = await navigator.storage.persist();
+      setStorageStatus(await readStorageStatus());
+      setStorageMessage(granted
+        ? "El navegador concedió conservación reforzada. Borrar los datos del sitio seguirá eliminando la copia."
+        : "El navegador no concedió conservación reforzada. Mantén suficiente espacio y no borres los datos del sitio.");
+    } catch { setStorageMessage("No se pudo solicitar conservación al navegador."); }
+  };
 
   const submit = async (event) => {
     event.preventDefault();
@@ -229,6 +260,16 @@ function OfflineWorkspace() {
                 {readySections.length > 0 && <p className="offline-readiness-hint">Copia más reciente: {new Date(Math.max(
                   ...readySections.map((item) => Date.parse(item.savedAt))
                 )).toLocaleString("es-MX")}. Consulta la fecha individual de cada sección antes de usarla.</p>}
+                <div className="offline-storage-status">
+                  <strong>Conservación en este navegador</strong>
+                  <p>{!storageStatus ? "Consultando almacenamiento…" : storageStatus.available
+                    ? `Uso estimado de este sitio: ${typeof storageStatus.usage === "number" ? `${(storageStatus.usage / 1048576).toFixed(1)} MiB` : "no disponible"}. Conservación reforzada: ${storageStatus.persistent ? "concedida" : "no concedida"}.`
+                    : "Este navegador no informa si puede conservar la copia de forma reforzada."}</p>
+                  {storageStatus?.available && !storageStatus.persistent && navigator.storage?.persist &&
+                    <button type="button" className="secondary-action" onClick={requestStoragePersistence}>Solicitar conservación al navegador</button>}
+                  {storageMessage && <p role="status">{storageMessage}</p>}
+                  <p>El espacio indicado incluye datos y archivos de este sitio; es una estimación, no una reserva. Si borras los datos del navegador, perderás la copia local.</p>
+                </div>
               </section>
               <fieldset className="offline-snapshot-options">
                 <legend>Secciones para consultar sin conexión</legend>

@@ -17,6 +17,10 @@
 .offline-readiness-grid strong { color: var(--vera-text); font-size: 1.35rem; line-height: 1.1; }
 .offline-readiness-grid span { color: var(--vera-text-muted); font-size: .82rem; }
 .offline-readiness .offline-readiness-hint { margin: 12px 0 0; font-size: .88rem; }
+.offline-storage-status { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--vera-border); }
+.offline-storage-status strong { font-size: .9rem; }
+.offline-storage-status p { margin: 5px 0; font-size: .84rem; }
+.offline-storage-status button { margin: 7px 0; min-height: 38px; }
 @media (max-width: 520px) { .offline-readiness-grid { grid-template-columns: 1fr; } }
 .offline-vault-card p { color: var(--vera-text-muted); line-height: 1.55; }
 .offline-vault-form { display: grid; gap: 16px; margin: 20px 0; }

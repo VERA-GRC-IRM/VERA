@@ -62,6 +62,8 @@ El informe local indica la hora de la copia y es preliminar: no demuestra el est
 
 La tarjeta **Estado de este dispositivo** resume secciones vigentes y caducadas, trabajos pendientes de envío y cambios que requieren revisión. Una nota personal no cuenta como envío pendiente. El indicador de red proviene del dispositivo y no asegura que el servidor esté disponible; la fecha de cada sección sigue siendo la referencia para decidir si usarla.
 
+La misma tarjeta muestra el uso aproximado de almacenamiento del sitio que informa el navegador, incluyendo archivos de la aplicación. La persona puede **solicitar conservación** mediante la API de almacenamiento; el navegador puede concederla o rechazarla. Ni la estimación ni la concesión garantizan espacio ilimitado, recuperación tras borrar datos del sitio o permanencia ante fallas del dispositivo. Las pruebas de resistencia simulan limpieza de IndexedDB y dos pestañas que intentan guardar sobre la misma revisión cifrada: la segunda recibe un conflicto en vez de sobrescribir la primera.
+
 1. Con conexión, inicia sesión y abre **Sin conexión**. Crea una frase local exclusiva para ese dispositivo y conserva la frase por tu cuenta.
 2. Selecciona las secciones necesarias y pulsa **Actualizar secciones elegidas**. Las otras secciones guardadas permanecen; puedes quitarlas individualmente. Verifica los resultados y la hora de la copia antes de desconectar.
 3. Sin red, desbloquea el espacio, consulta las vistas guardadas y prepara notas, avances o archivos. Una recarga vuelve a bloquear el espacio.
