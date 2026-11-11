@@ -33,3 +33,9 @@ La protección depende también de la seguridad del dispositivo y de la fuerza d
 Con la sesión vigente y el espacio desbloqueado, la persona elige secciones y pulsa **Actualizar secciones elegidas**. Cada respuesta la entrega el backend con sus permisos normales; solo las respuestas correctas se guardan en el espacio cifrado. Se admiten panel general, propuestas, auditorías activas, riesgos, responsables autorizados, controles, hallazgos, planes de acción, metadatos de evidencias y pendientes. No se guardan archivos descargados, enlaces de descarga ni credenciales. Una actualización parcial informa qué secciones se guardaron y cuáles fallaron.
 
 Al fallar la red, las consultas iniciales de esas vistas pueden leer la copia elegida. Un aviso indica qué sección y cuándo se guardó. Una respuesta del servidor, incluso `401` o `403`, **nunca se sustituye por la copia**. Las consultas filtradas o de detalle que no se guardaron tampoco se sustituyen silenciosamente. Las copias caducan 24 horas después de su descarga y cada sección tiene límite de 2 MiB; el conjunto, 8 MiB. Cambios, decisiones, IA, reportes y archivos siguen necesitando conexión en esta etapa.
+
+## Etapa 4: borradores locales
+
+El espacio local permite escribir notas de trabajo y preparar comentarios o avances de planes de acción vinculados a un hallazgo. Estos últimos usan la copia vigente del plan para guardar su ID y versión. Cada borrador queda cifrado, separado por cuenta, limitado en tamaño y etiquetado **Pendiente de usar**. Crear o borrar un borrador funciona sin red; cerrar la pestaña lo bloquea hasta introducir la frase local de nuevo.
+
+Los borradores **no se envían ni se aplican al servidor** en esta etapa. Las notas generales pueden servir de referencia para cualquier módulo, pero no se convierten automáticamente en registros. La sincronización posterior tendrá que revalidar sesión, permisos, versión y reglas de negocio antes de modificar un plan.
