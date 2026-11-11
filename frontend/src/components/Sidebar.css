@@ -84,6 +84,17 @@
   overflow-y: auto;
   padding-bottom: 12px;
 }
+.nav-prepare-action {
+  display: flex; align-items: center; gap: 9px; width: calc(100% - 20px);
+  min-height: 42px; margin: 6px 10px 10px; padding: 8px 11px;
+  border: 1px solid var(--vera-border); border-radius: 8px;
+  background: var(--vera-surface-soft); color: var(--vera-text); font: inherit;
+  font-size: 12px; text-align: left; cursor: pointer;
+}
+.nav-prepare-action:hover, .nav-prepare-action:focus-visible {
+  border-color: var(--vera-accent); background: var(--vera-accent-soft);
+}
+.nav-prepare-action svg { flex: none; }
 
 .sidebar-brand { position: relative; padding-right: 34px; }
 .brand-copy { min-width: 0; }
@@ -145,6 +156,8 @@
 :root[data-nav-collapsed="true"] .nav-group { margin-bottom: 8px; }
 :root[data-nav-collapsed="true"] .nav-group + .nav-group { padding-top: 8px; }
 :root[data-nav-collapsed="true"] .nav-item { justify-content: center; padding: 11px 0; }
+:root[data-nav-collapsed="true"] .nav-prepare-action { justify-content: center; width: calc(100% - 18px); margin: 6px 9px 10px; padding: 8px 0; }
+:root[data-nav-collapsed="true"] .nav-prepare-action span { display: none; }
 :root[data-nav-collapsed="true"] .role-preview-launcher { margin: 8px 9px; padding: 5px; }
 :root[data-nav-collapsed="true"] .role-preview-buttons { grid-template-columns: 1fr; }
 :root[data-nav-collapsed="true"] .role-preview-buttons button { min-height: 38px; }
@@ -204,6 +217,8 @@
   :root[data-nav-collapsed="true"] .sidebar .logout-button span { display: block; }
   :root[data-nav-collapsed="true"] .sidebar nav { padding: 0 16px; }
   :root[data-nav-collapsed="true"] .nav-item { justify-content: flex-start; padding: 13px 16px; }
+  :root[data-nav-collapsed="true"] .nav-prepare-action { justify-content: flex-start; width: calc(100% - 32px); margin: 6px 16px 10px; padding: 8px 11px; }
+  :root[data-nav-collapsed="true"] .nav-prepare-action span { display: inline; }
   :root[data-nav-collapsed="true"] .role-preview-launcher { margin: 14px 12px; padding: 12px; }
   :root[data-nav-collapsed="true"] .role-preview-buttons { grid-template-columns: 1fr 1fr; }
   :root[data-nav-collapsed="true"] .sidebar .role-preview-short,

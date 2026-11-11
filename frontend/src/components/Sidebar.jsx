@@ -36,6 +36,10 @@ const ICON_SIZE = 20;
 const ICON_STROKE = 1.75;
 const PREVIEW_ROLES = ["AUDITOR", "JEFATURA", "GERENTE", "DIRECTOR"];
 const NAV_STORAGE_KEY = "vera:navigation-collapsed";
+const OFFLINE_SECTIONS_BY_VIEW = {
+  dashboard: "dashboard", planificacion: "planning", "auditorias-activas": "activeAudits",
+  riesgos: "risks", controles: "controls", notificaciones: "notifications", evidencias: "evidence"
+};
 
 function Sidebar({ active }) {
   const navigate = useNavigate();
@@ -174,6 +178,14 @@ function Sidebar({ active }) {
           </button>
         </div>
         <div className="sidebar-navigation">
+
+          {!user?.roleTour && OFFLINE_SECTIONS_BY_VIEW[active] && <button type="button"
+            className="nav-prepare-action"
+            onClick={() => goTo(`/sin-conexion?seccion=${OFFLINE_SECTIONS_BY_VIEW[active]}`)}
+            title="Preparar esta vista sin conexión" aria-label="Preparar esta vista sin conexión">
+            <HardDriveDownload size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
+            <span>Preparar esta vista sin conexión</span>
+          </button>}
 
           <nav aria-label="Módulos principales">
             {groups.map((group) => group.items.length > 0 && <section className="nav-group" key={group.label}
