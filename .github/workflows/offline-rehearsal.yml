@@ -1,0 +1,63 @@
+name: Offline mode rehearsal
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offline-rehearsal-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline:
+    name: PWA, local vault and deferred work (Chromium)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+
+      - name: Build production frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Exercise offline scenarios
+        run: npx playwright test --config playwright.offline.config.js
+        working-directory: frontend
+        env:
+          CI: "true"
+
+      - name: Record scope
+        if: always()
+        run: |
+          echo "## Offline rehearsal" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Commit: %s\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "This synthetic run covers Chromium and a production frontend build with mocked API responses. It does not establish offline Azure AI, first-time authentication, or Production acceptance." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vera-offline-${{ github.run_id }}-${{ github.run_attempt }}
+          path: frontend/test-results/
+          if-no-files-found: warn
+          retention-days: 14

@@ -5,7 +5,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), VitePWA({
-    registerType: 'autoUpdate',
+    registerType: 'prompt',
+    injectRegister: false,
     manifest: {
       name: 'VERA Digital Systems',
       short_name: 'VERA',

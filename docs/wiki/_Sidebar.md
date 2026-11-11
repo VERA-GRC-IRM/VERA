@@ -7,6 +7,7 @@
 - [Producto y flujos](https://github.com/VERA-GRC-IRM/VERA/wiki/Producto-y-flujos)
 - [Módulos y HU](https://github.com/VERA-GRC-IRM/VERA/wiki/Modulos-y-HU)
 - [IA de VERA](https://github.com/VERA-GRC-IRM/VERA/wiki/IA-de-VERA)
+- [Trabajo sin conexión](https://github.com/VERA-GRC-IRM/VERA/wiki/Sin-conexion)
 
 **Diseño y datos**
 

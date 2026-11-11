@@ -14,6 +14,7 @@
 | --- | --- | --- |
 | Entender la solución en 5 minutos | [Producto y flujos](https://github.com/VERA-GRC-IRM/VERA/wiki/Producto-y-flujos) | [Módulos y HU](https://github.com/VERA-GRC-IRM/VERA/wiki/Modulos-y-HU) |
 | Revisar el acceso y la apariencia | [Experiencia y accesibilidad](https://github.com/VERA-GRC-IRM/VERA/wiki/Experiencia-y-accesibilidad) | [Guía técnica de interfaz](https://github.com/VERA-GRC-IRM/VERA/blob/main/docs/ui-experience.md) |
+| Trabajar durante una desconexión | [Trabajo sin conexión](https://github.com/VERA-GRC-IRM/VERA/wiki/Sin-conexion) | [Alcance y ensayos](https://github.com/VERA-GRC-IRM/VERA/blob/main/docs/offline-mode.md) |
 | Revisar la calidad sin instalar software | [Plataforma de calidad de software](https://vera-grc-irm.github.io/VERA/) | [Calidad y pruebas](https://github.com/VERA-GRC-IRM/VERA/wiki/Calidad-y-pruebas) |
 | Entender la organización y sus controles | [Gobierno de GitHub](https://github.com/VERA-GRC-IRM/VERA/wiki/Gobierno-de-GitHub) | [Estado de calidad](https://github.com/VERA-GRC-IRM/VERA/wiki/Estado-de-calidad) |
 | Seguir entregas y pendientes | [Cortes integrados](https://github.com/VERA-GRC-IRM/VERA/milestones?state=closed) | [Tablero público de entrega y aceptación](https://github.com/orgs/VERA-GRC-IRM/projects/1/views/2) |
