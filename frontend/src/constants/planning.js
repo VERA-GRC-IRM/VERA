@@ -21,6 +21,6 @@ export const AUDIT_PROPOSAL_DELETE_ROLES = ["SUPER_ADMIN", "GERENTE"];
 export const PLANNING_APPROVE_ROLES = ["SUPER_ADMIN", "GERENTE"];
 
 export const EDITABLE_FIELDS_BY_STATUS = {
-  APPROVED: ["objective", "responsibleId", "quarter", "startDate", "endDate", "likelihood", "impact"],
-  ACTIVE: ["objective", "responsibleId", "endDate"]
+  APPROVED: ["objective", "responsibleId", "quarter", "startDate", "endDate", "likelihood", "impact", "plannedHours"],
+  ACTIVE: ["objective", "responsibleId", "endDate", "plannedHours", "executedHours"]
 };
