@@ -11,6 +11,9 @@ on:
       - Preview role acceptance
       - Production smoke
       - Local Supabase migration and restore rehearsal
+      - Offline mode rehearsal
+      - Offline browser matrix
+      - Offline upgrade across releases
     types: [completed]
     branches: [main]
   push:
