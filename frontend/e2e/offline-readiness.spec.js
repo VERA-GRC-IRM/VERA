@@ -31,4 +31,15 @@ test("readiness distinguishes saved sections, local notes and work awaiting serv
   await expect(page.locator(".offline-draft-list li")).toHaveCount(2);
   await expect(status).toContainText("1Trabajos pendientes de envío", { timeout: 15000 });
   await expect(status).toContainText("Sin red detectada");
+  await page.getByRole("link", { name: "Ver trabajo local guardado" }).click();
+  const filters = page.getByRole("group", { name: "Filtrar trabajo local" });
+  await filters.getByRole("button", { name: "Para enviar (1)" }).click();
+  await expect(page.locator(".offline-draft-list li")).toHaveCount(1);
+  await expect(page.getByText("Nota personal")).toHaveCount(0);
+  await filters.getByRole("button", { name: "Revisar (0)" }).click();
+  await expect(page.getByText("No hay trabajos en esta vista.", { exact: false })).toBeVisible();
+  await filters.getByRole("button", { name: "Notas (1)" }).click();
+  await expect(page.getByText("Nota personal")).toBeVisible();
+  await filters.getByRole("button", { name: "Todos (2)" }).click();
+  await expect(page.locator(".offline-draft-list li")).toHaveCount(2);
 });
