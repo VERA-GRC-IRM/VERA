@@ -75,5 +75,11 @@
 .offline-draft-list small { display: block; color: var(--vera-text-muted); }
 .offline-draft-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .offline-draft-actions a { color: var(--vera-accent); }
+.offline-conflict-compare { width: 100%; padding: 12px; border: 1px solid var(--vera-border); border-radius: 9px; background: var(--vera-surface-raised); }
+.offline-conflict-compare > strong { display: block; margin-bottom: 8px; }
+.offline-conflict-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.offline-conflict-grid section { min-width: 0; padding: 10px; border: 1px solid var(--vera-border); border-radius: 8px; background: var(--vera-surface); }
+.offline-conflict-grid h4 { margin: 0 0 6px; font-size: .9rem; }
+@media (max-width: 560px) { .offline-conflict-grid { grid-template-columns: 1fr; } }
 .offline-evidence-form { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--vera-border); }
 .offline-evidence-form h4 { margin: 0; }
