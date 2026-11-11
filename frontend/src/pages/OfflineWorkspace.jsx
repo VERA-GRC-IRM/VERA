@@ -7,7 +7,7 @@ import { createOfflineVault, deleteOfflineVault, hasOfflineVault,
 import { captureOfflineSnapshots, getOfflineSnapshots, SNAPSHOT_MODULES,
   SNAPSHOT_TTL_MS } from "../services/offlineSnapshots";
 import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts,
-  saveOfflineDraft } from "../services/offlineDrafts";
+  saveOfflineDraft, syncOfflineDraft } from "../services/offlineDrafts";
 import "./OfflineWorkspace.css";
 
 function OfflineWorkspace() {
@@ -32,6 +32,7 @@ function OfflineWorkspace() {
   const [draftNote, setDraftNote] = useState("");
   const [draftProgress, setDraftProgress] = useState("0");
   const [deleteDraftId, setDeleteDraftId] = useState("");
+  const [online, setOnline] = useState(() => navigator.onLine);
 
   useEffect(() => {
     let active = true;
@@ -43,6 +44,13 @@ function OfflineWorkspace() {
   useEffect(() => {
     const timer = setInterval(() => setCheckedAt(Date.now()), 60000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
   }, []);
 
   const submit = async (event) => {
@@ -126,6 +134,18 @@ function OfflineWorkspace() {
     finally { setBusy(false); }
   };
 
+  const sendDraft = async (id) => {
+    setBusy(true);
+    setError("");
+    try { await syncOfflineDraft(id); }
+    catch (cause) { setError(cause.message); }
+    finally {
+      try { setDrafts(getOfflineDrafts()); }
+      catch { setOpen(false); setDrafts([]); }
+      setBusy(false);
+    }
+  };
+
   return <div className="dashboard-layout">
     <Sidebar active="offline" />
     <main className="dashboard-main">
@@ -158,7 +178,7 @@ function OfflineWorkspace() {
                 })}
               </fieldset>
               <div className="offline-vault-actions">
-                <button type="button" className="primary-action" onClick={capture} disabled={busy || !selected.length || !navigator.onLine}>
+                <button type="button" className="primary-action" onClick={capture} disabled={busy || !selected.length || !online}>
                   {busy ? "Actualizando copia…" : "Actualizar secciones elegidas"}
                 </button>
                 <button type="button" className="secondary-action" onClick={() => { lockOfflineVault(); setOpen(false); setSnapshots({}); setCaptureResults([]); }}>Bloquear espacio local</button>
@@ -190,9 +210,13 @@ function OfflineWorkspace() {
                   <button type="submit" className="primary-action" disabled={busy || (draftType !== "GENERAL_NOTE" && !draftableActions.length)}>Guardar borrador local</button>
                 </form>
                 {drafts.length > 0 && <ul className="offline-draft-list">{drafts.map((draft) => <li key={draft.id}>
-                  <div><strong>{draft.title}</strong><small>{draft.type === "GENERAL_NOTE" ? "Nota" : draft.type === "ACTION_PROGRESS" ? "Avance" : "Comentario"} · {new Date(draft.createdAt).toLocaleString("es-MX")} · Pendiente de usar</small>
+                  <div><strong>{draft.title}</strong><small>{draft.type === "GENERAL_NOTE" ? "Nota" : draft.type === "ACTION_PROGRESS" ? "Avance" : "Comentario"} · {new Date(draft.createdAt).toLocaleString("es-MX")} · {{ DRAFT: "Pendiente de usar", SYNCED: "Enviado al servidor", CONFLICT: "Conflicto de versión", NEEDS_REVIEW: "Confirmación pendiente" }[draft.state] || draft.state}</small>
                     <p>{draft.note}</p>{draft.type === "ACTION_PROGRESS" && <small>Avance propuesto: {draft.progressPercent}%</small>}</div>
-                  <button type="button" className="secondary-action" disabled={busy} onClick={() => removeDraft(draft.id)}>{deleteDraftId === draft.id ? "Confirmar borrado" : "Borrar borrador"}</button>
+                  <div className="offline-draft-actions">
+                    {draft.type !== "GENERAL_NOTE" && draft.state === "DRAFT" && <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>Enviar al servidor</button>}
+                    {draft.type !== "GENERAL_NOTE" && ["CONFLICT", "NEEDS_REVIEW"].includes(draft.state) && <Link to="/notificaciones">Revisar plan</Link>}
+                    <button type="button" className="secondary-action" disabled={busy} onClick={() => removeDraft(draft.id)}>{deleteDraftId === draft.id ? "Confirmar borrado" : "Borrar borrador"}</button>
+                  </div>
                 </li>)}</ul>}
               </div>
             </> : exists !== null && <>
