@@ -121,7 +121,7 @@ test("an encrypted backup restores only with the original phrase and never expos
   await expect(page.getByText("Nota de recuperación")).toBeVisible();
 });
 
-test("an encrypted backup can be restored in a separate mobile browser context while offline", async ({ page, browser }) => {
+test("an encrypted backup can be restored in a separate mobile browser context while offline", async ({ page, browser, browserName }) => {
   await prepare(page, 704);
   await page.getByLabel("Frase local", { exact: true }).fill(phrase);
   await page.getByLabel("Repetir frase local").fill(phrase);
@@ -151,7 +151,18 @@ test("an encrypted backup can be restored in a separate mobile browser context w
     await mobilePage.getByLabel("Frase local original").fill(phrase);
     await mobilePage.getByRole("button", { name: "Restaurar copia" }).click();
     await expect(mobilePage.getByText("Nota portátil")).toBeVisible();
+    if (browserName === "firefox") {
+      // Firefox's forced-offline mode rejects even service-worker-backed navigations.
+      // Abort network requests instead, as in the existing draft reopening scenario.
+      await mobile.setOffline(false);
+      await mobilePage.route("**/*", (route) => route.abort("internetdisconnected"));
+    }
     await mobilePage.reload();
+    if (browserName === "firefox") {
+      const apiStatus = await mobilePage.evaluate(() => fetch("/api/dashboard")
+        .then((response) => response.status).catch(() => 0));
+      expect(apiStatus).toBe(0);
+    }
     await mobilePage.getByLabel("Frase local", { exact: true }).fill(phrase);
     await mobilePage.getByRole("button", { name: "Desbloquear" }).click();
     await expect(mobilePage.getByText("Nota portátil")).toBeVisible();
