@@ -6,6 +6,8 @@ import { createOfflineVault, deleteOfflineVault, hasOfflineVault,
   lockOfflineVault, unlockOfflineVault } from "../services/offlineVault";
 import { captureOfflineSnapshots, getOfflineSnapshots, SNAPSHOT_MODULES,
   SNAPSHOT_TTL_MS } from "../services/offlineSnapshots";
+import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts,
+  saveOfflineDraft } from "../services/offlineDrafts";
 import "./OfflineWorkspace.css";
 
 function OfflineWorkspace() {
@@ -22,6 +24,14 @@ function OfflineWorkspace() {
   const [snapshots, setSnapshots] = useState({});
   const [captureResults, setCaptureResults] = useState([]);
   const [checkedAt, setCheckedAt] = useState(0);
+  const [drafts, setDrafts] = useState([]);
+  const [draftableActions, setDraftableActions] = useState([]);
+  const [draftType, setDraftType] = useState("GENERAL_NOTE");
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftActionId, setDraftActionId] = useState("");
+  const [draftNote, setDraftNote] = useState("");
+  const [draftProgress, setDraftProgress] = useState("0");
+  const [deleteDraftId, setDeleteDraftId] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -52,6 +62,8 @@ function OfflineWorkspace() {
       } else await unlockOfflineVault(user.id, phrase);
       setOpen(true);
       setSnapshots(getOfflineSnapshots());
+      setDrafts(getOfflineDrafts());
+      try { setDraftableActions(getDraftableActions()); } catch { setDraftableActions([]); }
       setCheckedAt(Date.now());
       setPhrase("");
       setConfirmation("");
@@ -69,6 +81,7 @@ function OfflineWorkspace() {
       setExists(false);
       setSnapshots({});
       setCaptureResults([]);
+      setDrafts([]);
       setConfirmDelete(false);
     } catch (cause) { setError(cause.message); }
     finally { setBusy(false); }
@@ -82,6 +95,7 @@ function OfflineWorkspace() {
       const results = await captureOfflineSnapshots(selected);
       setCaptureResults(results);
       setSnapshots(getOfflineSnapshots());
+      try { setDraftableActions(getDraftableActions()); } catch { setDraftableActions([]); }
       setCheckedAt(Date.now());
     } catch (cause) { setError(cause.message); }
     finally { setBusy(false); }
@@ -89,6 +103,28 @@ function OfflineWorkspace() {
 
   const toggleSelection = (id) => setSelected((current) => current.includes(id)
     ? current.filter((value) => value !== id) : [...current, id]);
+
+  const submitDraft = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await saveOfflineDraft({ type: draftType, title: draftTitle, actionId: draftActionId,
+        note: draftNote, progressPercent: draftProgress });
+      setDrafts(getOfflineDrafts());
+      setDraftTitle(""); setDraftNote(""); setDraftActionId(""); setDraftProgress("0");
+    } catch (cause) { setError(cause.message); }
+    finally { setBusy(false); }
+  };
+
+  const removeDraft = async (id) => {
+    if (deleteDraftId !== id) { setDeleteDraftId(id); return; }
+    setBusy(true);
+    setError("");
+    try { await deleteOfflineDraft(id); setDrafts(getOfflineDrafts()); setDeleteDraftId(""); }
+    catch (cause) { setError(cause.message); }
+    finally { setBusy(false); }
+  };
 
   return <div className="dashboard-layout">
     <Sidebar active="offline" />
@@ -134,6 +170,31 @@ function OfflineWorkspace() {
                     ? `guardado${result.count === null ? "" : ` (${result.count} registros)`}` : result.message}
                 </li>)}</ul>
               </div>}
+              <div className="offline-drafts">
+                <h3>Borradores de trabajo</h3>
+                <p>Quedan solo en este dispositivo hasta que los uses o los borres. No son cambios enviados ni aprobados.</p>
+                <form className="offline-vault-form" onSubmit={submitDraft}>
+                  <label>Tipo de borrador<select value={draftType} onChange={(event) => setDraftType(event.target.value)}>
+                    <option value="GENERAL_NOTE">Nota de trabajo</option>
+                    <option value="ACTION_COMMENT">Comentario de plan de acción</option>
+                    <option value="ACTION_PROGRESS">Avance de plan de acción</option>
+                  </select></label>
+                  {draftType === "GENERAL_NOTE" ? <label>Título<input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} maxLength={120} required /></label>
+                    : <label>Plan de acción guardado<select value={draftActionId} onChange={(event) => setDraftActionId(event.target.value)} required>
+                      <option value="">Selecciona un plan</option>
+                      {draftableActions.map((action) => <option key={action.id} value={action.id}>{action.title}</option>)}
+                    </select></label>}
+                  {draftType === "ACTION_PROGRESS" && <label>Avance (%)<input type="number" min="0" max="100" step="1" value={draftProgress} onChange={(event) => setDraftProgress(event.target.value)} required /></label>}
+                  <label>{draftType === "GENERAL_NOTE" ? "Nota" : "Explicación"}<textarea value={draftNote} onChange={(event) => setDraftNote(event.target.value)} maxLength={draftType === "GENERAL_NOTE" ? 5000 : 1000} required /></label>
+                  {draftType !== "GENERAL_NOTE" && draftableActions.length === 0 && <p role="status">Actualiza primero la sección Planes de acción con conexión.</p>}
+                  <button type="submit" className="primary-action" disabled={busy || (draftType !== "GENERAL_NOTE" && !draftableActions.length)}>Guardar borrador local</button>
+                </form>
+                {drafts.length > 0 && <ul className="offline-draft-list">{drafts.map((draft) => <li key={draft.id}>
+                  <div><strong>{draft.title}</strong><small>{draft.type === "GENERAL_NOTE" ? "Nota" : draft.type === "ACTION_PROGRESS" ? "Avance" : "Comentario"} · {new Date(draft.createdAt).toLocaleString("es-MX")} · Pendiente de usar</small>
+                    <p>{draft.note}</p>{draft.type === "ACTION_PROGRESS" && <small>Avance propuesto: {draft.progressPercent}%</small>}</div>
+                  <button type="button" className="secondary-action" disabled={busy} onClick={() => removeDraft(draft.id)}>{deleteDraftId === draft.id ? "Confirmar borrado" : "Borrar borrador"}</button>
+                </li>)}</ul>}
+              </div>
             </> : exists !== null && <>
               <h2>{exists ? "Desbloquear copia local" : "Habilitar copia local"}</h2>
               <p>{exists ? "Introduce la frase que elegiste para este dispositivo." :

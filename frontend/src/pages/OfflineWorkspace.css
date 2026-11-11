@@ -11,7 +11,7 @@
 .offline-vault-card p { color: var(--vera-text-muted); line-height: 1.55; }
 .offline-vault-form { display: grid; gap: 16px; margin: 20px 0; }
 .offline-vault-form label { display: grid; gap: 7px; font-weight: 600; }
-.offline-vault-form input {
+.offline-vault-form input, .offline-vault-form select, .offline-vault-form textarea {
   width: 100%;
   min-height: 44px;
   padding: 10px 12px;
@@ -22,6 +22,7 @@
   font: inherit;
 }
 .offline-vault-form button { justify-self: start; }
+.offline-vault-form textarea { min-height: 100px; resize: vertical; }
 .offline-vault-delete { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--vera-border); }
 .offline-snapshot-options { display: grid; gap: 4px; margin: 22px 0; padding: 0; border: 0; }
 .offline-snapshot-options legend { margin-bottom: 12px; font-weight: 700; }
@@ -33,3 +34,9 @@
 .offline-vault-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .offline-snapshot-results { margin-top: 18px; padding: 14px; border-radius: 9px; background: var(--vera-surface-raised); }
 .offline-snapshot-results ul { margin: 8px 0 0; padding-left: 22px; }
+.offline-drafts { margin-top: 32px; padding-top: 22px; border-top: 1px solid var(--vera-border); }
+.offline-drafts h3 { margin: 0; }
+.offline-draft-list { list-style: none; margin: 24px 0 0; padding: 0; display: grid; gap: 12px; }
+.offline-draft-list li { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding: 14px; border: 1px solid var(--vera-border); border-radius: 10px; }
+.offline-draft-list p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; }
+.offline-draft-list small { display: block; color: var(--vera-text-muted); }
