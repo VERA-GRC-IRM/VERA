@@ -56,6 +56,7 @@ function OfflineWorkspace() {
   const [captureResults, setCaptureResults] = useState([]);
   const [checkedAt, setCheckedAt] = useState(() => Date.now());
   const [drafts, setDrafts] = useState([]);
+  const [queueFilter, setQueueFilter] = useState("all");
   const [draftableActions, setDraftableActions] = useState([]);
   const [draftType, setDraftType] = useState("GENERAL_NOTE");
   const [draftTitle, setDraftTitle] = useState("");
@@ -104,6 +105,21 @@ function OfflineWorkspace() {
   const pendingDrafts = drafts.filter((item) => item.state === "DRAFT" && item.type !== "GENERAL_NOTE").length;
   const reviewDrafts = drafts.filter((item) => ["CONFLICT", "NEEDS_REVIEW"].includes(item.state)).length;
   const completedDrafts = drafts.filter((item) => item.state === "SYNCED").length;
+  const noteDrafts = drafts.filter((item) => item.type === "GENERAL_NOTE").length;
+  const queueFilters = [
+    { id: "all", label: "Todos", count: drafts.length },
+    { id: "ready", label: "Para enviar", count: pendingDrafts },
+    { id: "review", label: "Revisar", count: reviewDrafts },
+    { id: "notes", label: "Notas", count: noteDrafts },
+    { id: "sent", label: "Enviados", count: completedDrafts }
+  ];
+  const visibleDrafts = drafts.filter((draft) => {
+    if (queueFilter === "ready") return draft.state === "DRAFT" && draft.type !== "GENERAL_NOTE";
+    if (queueFilter === "review") return ["CONFLICT", "NEEDS_REVIEW"].includes(draft.state);
+    if (queueFilter === "notes") return draft.type === "GENERAL_NOTE";
+    if (queueFilter === "sent") return draft.state === "SYNCED";
+    return true;
+  });
   const searchResults = open ? searchOfflineRecords(snapshots, SNAPSHOT_MODULES, {
     query: searchTerm, moduleId: searchModule, now: currentTime, ttlMs: SNAPSHOT_TTL_MS
   }) : [];
@@ -430,6 +446,7 @@ function OfflineWorkspace() {
                 <p className="offline-readiness-hint">{readySections.length
                   ? "Estas copias se pueden consultar sin red hasta 24 horas después de guardarlas. Los pendientes aún no están en el servidor."
                   : "Guarda al menos una sección con conexión antes de trabajar sin red."}</p>
+                {drafts.length > 0 && <a className="offline-queue-link" href="#offline-work-queue">Ver trabajo local guardado</a>}
                 {readySections.length > 0 && <p className="offline-readiness-hint">Copia más reciente: {new Date(Math.max(
                   ...readySections.map((item) => Date.parse(item.savedAt))
                 )).toLocaleString("es-MX")}. Consulta la fecha individual de cada sección antes de usarla.</p>}
@@ -594,7 +611,16 @@ function OfflineWorkspace() {
                   <label>Archivo (hasta 3 MiB)<input key={evidenceInputKey} type="file" accept=".pdf,.xls,.xlsx,.doc,.docx,.csv,.png,.jpg,.jpeg,.webp,.txt" onChange={(event) => setEvidenceFile(event.target.files?.[0] || null)} required /></label>
                   <button type="submit" className="primary-action" disabled={busy || !evidenceTargets.length}>Guardar archivo local</button>
                 </form>}
-                {drafts.length > 0 && <ul className="offline-draft-list">{drafts.map((draft) => <li key={draft.id}>
+                {drafts.length > 0 && <section id="offline-work-queue" className="offline-work-queue" aria-labelledby="offline-work-queue-title">
+                  <h4 id="offline-work-queue-title">Trabajo local guardado</h4>
+                  <p>Filtra los borradores de este dispositivo. Enviar o revisar requiere conexión y permisos vigentes; las notas no se envían.</p>
+                  <div className="offline-queue-filters" role="group" aria-label="Filtrar trabajo local">
+                    {queueFilters.map((filter) => <button key={filter.id} type="button" aria-pressed={queueFilter === filter.id}
+                      onClick={() => setQueueFilter(filter.id)}>{filter.label} ({filter.count})</button>)}
+                  </div>
+                  <p role="status" aria-live="polite">{visibleDrafts.length} de {drafts.length} trabajos locales visibles.</p>
+                  {visibleDrafts.length === 0 && <p>No hay trabajos en esta vista. Elige otro filtro para ver los demás.</p>}
+                  {visibleDrafts.length > 0 && <ul className="offline-draft-list">{visibleDrafts.map((draft) => <li key={draft.id}>
                   <div><strong>{draft.title}</strong><small>{{ GENERAL_NOTE: "Nota", ACTION_PROGRESS: "Avance", ACTION_COMMENT: "Comentario", EVIDENCE_UPLOAD: "Archivo de evidencia", FINDING_CREATE: "Hallazgo", RECORD_DESCRIPTION: "Descripción de registro" }[draft.type] || draft.type} · {new Date(draft.createdAt).toLocaleString("es-MX")} · {{ DRAFT: "Pendiente de usar", SYNCED: "Enviado al servidor", CONFLICT: "Conflicto de versión", NEEDS_REVIEW: "Confirmación pendiente" }[draft.state] || draft.state}</small>
                     {draft.note && <p>{draft.note}</p>}{draft.type === "ACTION_PROGRESS" && <small>Avance propuesto: {draft.progressPercent}%</small>}
                     {draft.type === "FINDING_CREATE" && <><p>{draft.description}</p><small>{draft.controlTitle} · {draft.riskTitle}</small></>}
@@ -642,6 +668,7 @@ function OfflineWorkspace() {
                     <button type="button" className="secondary-action" disabled={busy} onClick={() => removeDraft(draft.id)}>{deleteDraftId === draft.id ? "Confirmar borrado" : "Borrar borrador"}</button>
                   </div>
                 </li>)}</ul>}
+                </section>}
               </div>
             </> : exists !== null && <>
               <h2>{exists ? "Desbloquear copia local" : "Habilitar copia local"}</h2>
