@@ -1,9 +1,12 @@
 const fs = require("node:fs");
+const path = require("node:path");
 const { PDFDocument, PageSizes, rgb } = require("pdf-lib");
 const fontkit = require("@pdf-lib/fontkit");
 
-const regularBytes = fs.readFileSync(require.resolve("@fontsource/lato/files/lato-latin-400-normal.woff"));
-const boldBytes = fs.readFileSync(require.resolve("@fontsource/lato/files/lato-latin-700-normal.woff"));
+const assetDirectory = fs.existsSync(path.join(__dirname, "assets", "fonts", "Lato-Regular.woff"))
+  ? path.join(__dirname, "assets", "fonts") : path.join(__dirname, "..", "assets", "fonts");
+const regularBytes = fs.readFileSync(path.join(assetDirectory, "Lato-Regular.woff"));
+const boldBytes = fs.readFileSync(path.join(assetDirectory, "Lato-Bold.woff"));
 const PAGE_WIDTH = PageSizes.A4[0];
 const PAGE_HEIGHT = PageSizes.A4[1];
 const MARGIN = 48;
