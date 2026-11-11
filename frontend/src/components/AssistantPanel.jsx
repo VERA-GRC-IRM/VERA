@@ -90,6 +90,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
   const [confirmDeleteProject, setConfirmDeleteProject] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(() => !compact && window.matchMedia("(min-width: 1080px)").matches);
   const streamRef = useRef(null);
+  const questionRef = useRef(null);
   const threadMenuRef = useRef(null);
   const threadMenuButtonRef = useRef(null);
   const contextMenuRef = useRef(null);
@@ -575,7 +576,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
         </select></div>}
     </aside>}
     <div className="assistant-conversation">
-      <header className="assistant-conversation-header"><div className="assistant-conversation-title">
+      <header className="assistant-conversation-header"><button className="assistant-skip-compose" type="button" onClick={() => questionRef.current?.focus()} disabled={!available}>Ir al campo de pregunta</button><div className="assistant-conversation-title">
         {persistent && <button className="assistant-icon-button" type="button" onClick={() => setHistoryOpen((open) => !open)} aria-label={historyOpen ? "Ocultar historial" : "Mostrar historial"} aria-expanded={historyOpen} aria-controls="assistant-history-panel">{historyOpen ? <PanelLeftClose size={19} aria-hidden="true" /> : <PanelLeftOpen size={19} aria-hidden="true" />}</button>}
         <div><span className="assistant-kicker">VERA · ASISTENTE</span><h2>{thread?.title || (focus ? "Consulta de expediente" : "Nueva conversación")}</h2></div>
       </div><div className="assistant-conversation-tools"><span className="assistant-availability">{available === null ? "Conectando" : available ? persistent && user?.role !== "DIRECTOR" ? "Consultas y acciones" : "Solo lectura" : "No disponible"}</span>
@@ -726,7 +727,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
           <div className="assistant-compose-row"><div className="assistant-compose-actions">
             <button ref={contextMenuButtonRef} className="assistant-compose-add" type="button" onClick={() => setContextMenuOpen((open) => !open)} aria-label="Añadir contexto" aria-expanded={contextMenuOpen} aria-controls="assistant-context-menu" disabled={!available || busy || historyBusy || attachmentBusy || historyStale}><Plus size={19} aria-hidden="true" /></button>
           </div>
-          <textarea id="assistant-question" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} maxLength={withEvidence ? 500 : 800} rows={2} placeholder={selectedAttachmentId === PROJECT_LIBRARY ? "Pregunta sobre fragmentos de la biblioteca..." : selectedAttachmentId ? "Pregunta sobre el archivo seleccionado..." : "Escribe una pregunta sobre VERA..."} disabled={!available || busy || historyBusy || attachmentBusy || Boolean(historyError) || historyStale} />
+          <textarea ref={questionRef} id="assistant-question" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} maxLength={withEvidence ? 500 : 800} rows={2} placeholder={selectedAttachmentId === PROJECT_LIBRARY ? "Pregunta sobre fragmentos de la biblioteca..." : selectedAttachmentId ? "Pregunta sobre el archivo seleccionado..." : "Escribe una pregunta sobre VERA..."} disabled={!available || busy || historyBusy || attachmentBusy || Boolean(historyError) || historyStale} />
           <button className="assistant-compose-send" type="submit" disabled={!available || busy || historyBusy || attachmentBusy || Boolean(historyError) || historyStale || question.trim().length < 3 || question.trim().length > (withEvidence ? 500 : 800)} aria-label="Enviar pregunta"><Send size={19} aria-hidden="true" /></button>
           </div>
         </div>
