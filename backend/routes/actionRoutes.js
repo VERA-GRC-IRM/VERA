@@ -23,9 +23,11 @@ router.patch("/:id/status", allowRoles(...RECORD_CREATE_ROLES), async (req, res)
 router.patch("/:id/assignee", allowRoles(...PLANNING_APPROVE_ROLES), async (req, res) =>
   res.json({ action: await actions.reassign(req.user, req.params.id, req.body || {}) }));
 router.patch("/:id/progress", allowRoles(...RECORD_CREATE_ROLES), async (req, res) =>
-  res.json({ action: await actions.updateProgress(req.user, req.params.id, req.body || {}) }));
+  res.json({ action: await actions.updateProgress(req.user, req.params.id, req.body || {},
+    { operationId: req.get("Idempotency-Key") }) }));
 router.post("/:id/comments", allowRoles(...RECORD_CREATE_ROLES), async (req, res) =>
-  res.json({ action: await actions.addPlanComment(req.user, req.params.id, req.body || {}) }));
+  res.json({ action: await actions.addPlanComment(req.user, req.params.id, req.body || {},
+    { operationId: req.get("Idempotency-Key") }) }));
 router.post("/:id/validation-request", allowRoles(...RECORD_CREATE_ROLES), async (req, res) =>
   res.json({ action: await actions.requestValidation(req.user, req.params.id, req.body || {}) }));
 

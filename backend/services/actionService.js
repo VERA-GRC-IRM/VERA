@@ -237,18 +237,19 @@ const reassign = async (user, id, body) => {
   return updated;
 };
 
-const editableFindingPlan = async (user, id, { assigneeOnly = false } = {}) => {
+const editableFindingPlan = async (user, id, { assigneeOnly = false, allowClosedReplay = false } = {}) => {
   const action = await getAction(user, id);
   if (action.sourceType !== "FINDING") throw new ActionError("Selecciona un plan vinculado a un hallazgo.", 400);
   const finding = await requiredSource(user, "FINDING", action.sourceId);
   await assertWritableSourceScope(user, "FINDING", finding);
-  if (finding.status === "CLOSED" || ["DONE", "CANCELLED"].includes(action.status)) {
+  const closed = finding.status === "CLOSED" || ["DONE", "CANCELLED"].includes(action.status);
+  if (closed && !allowClosedReplay) {
     throw new ActionError("Este plan ya no admite cambios de avance.", 409);
   }
   if (action.assigneeId !== user.id && (assigneeOnly || !PLANNING_APPROVE_ROLES.includes(user.role))) {
     throw new ActionError("Solo el responsable puede modificar este plan.", 403);
   }
-  return { action, finding };
+  return { action, finding, closed };
 };
 
 const evidenceOptions = async (user, finding) => {
@@ -270,15 +271,40 @@ const listPlanEvidence = async (user, id) => {
   return evidenceOptions(user, finding);
 };
 
-const updateProgress = async (user, id, body) => {
-  const { action, finding } = await editableFindingPlan(user, id);
+const replayPlanEvent = (action, user, operationId, version, type, note, progressPercent) => {
+  if (!operationId) return null;
+  if (typeof operationId !== "string" ||
+      !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(operationId)) {
+    throw new ActionError("La clave de operación debe ser un UUID válido.", 400);
+  }
+  const event = action?.history.find((entry) => entry.operationId === operationId);
+  if (!event) return null;
+  if (event.type !== type || String(event.actorId) !== String(user.id) ||
+      event.baseVersion !== version || event.note !== note ||
+      (type === "PROGRESS_UPDATED" && event.to !== progressPercent)) {
+    throw new ActionError("La clave de operación ya se usó con otros datos.", 409);
+  }
+  return action;
+};
+
+const updateProgress = async (user, id, body, { operationId } = {}) => {
+  const { action, finding, closed } = await editableFindingPlan(user, id,
+    { allowClosedReplay: Boolean(operationId) });
   const progressPercent = body.progressPercent;
   const note = text(body.note);
   const evidenceId = text(body.evidenceId);
+  const version = assertVersion(body.version);
   if (!Number.isInteger(progressPercent) || progressPercent < 0 || progressPercent > 100) {
     throw new ActionError("El avance debe ser un entero entre 0 y 100.", 400);
   }
   if (note.length < 10 || note.length > 1000) throw new ActionError("Explica el avance en 10 a 1,000 caracteres.", 400);
+  const replay = replayPlanEvent(action, user, operationId, version, "PROGRESS_UPDATED", note, progressPercent);
+  if (replay) {
+    const event = replay.history.find((entry) => entry.operationId === operationId);
+    if (text(event.evidenceId) !== evidenceId) throw new ActionError("La clave de operación ya se usó con otros datos.", 409);
+    return replay;
+  }
+  if (closed) throw new ActionError("Este plan ya no admite cambios de avance.", 409);
   if (evidenceId && !(await evidenceOptions(user, finding)).some((item) => item.id === evidenceId)) {
     throw new ActionError("La evidencia no existe o no está disponible para este hallazgo.", 404);
   }
@@ -287,25 +313,50 @@ const updateProgress = async (user, id, body) => {
     throw new ActionError("El plan admite hasta 20 evidencias vinculadas.", 400);
   }
   const now = new Date().toISOString();
-  const updated = await actionRepository.mutate(id, {
+  let updated;
+  try { updated = await actionRepository.mutate(id, {
     progressPercent, evidenceIds: evidenceId ? [...new Set([...currentIds, evidenceId])] : currentIds,
     validationRequestedAt: progressPercent === 100 ? action.validationRequestedAt || null : null,
     history: [...action.history, { type: "PROGRESS_UPDATED", from: action.progressPercent ?? 0,
-      to: progressPercent, note, ...(evidenceId ? { evidenceId } : {}), ...actorEvent(user, now) }]
-  }, assertVersion(body.version));
+      to: progressPercent, note, ...(evidenceId ? { evidenceId } : {}),
+      ...(operationId ? { operationId, baseVersion: version } : {}), ...actorEvent(user, now) }]
+  }, version); }
+  catch (error) {
+    if (error.status !== 409 || !operationId) throw error;
+    const current = await actionRepository.findById(id);
+    const replayed = replayPlanEvent(current, user, operationId, version, "PROGRESS_UPDATED", note, progressPercent);
+    if (!replayed) throw error;
+    const event = replayed.history.find((entry) => entry.operationId === operationId);
+    if (text(event.evidenceId) !== evidenceId) throw new ActionError("La clave de operación ya se usó con otros datos.", 409);
+    return replayed;
+  }
   await logActivity({ actor: user, action: "FINDING_PLAN_PROGRESS_UPDATED", details: {
     actionId: id, sourceId: action.sourceId, progressPercent, ...(evidenceId ? { evidenceId } : {})
   } });
   return updated;
 };
 
-const addPlanComment = async (user, id, body) => {
-  const { action } = await editableFindingPlan(user, id);
+const addPlanComment = async (user, id, body, { operationId } = {}) => {
+  const { action, closed } = await editableFindingPlan(user, id,
+    { allowClosedReplay: Boolean(operationId) });
   const note = text(body.note);
+  const version = assertVersion(body.version);
   if (note.length < 2 || note.length > 1000) throw new ActionError("El comentario debe tener entre 2 y 1,000 caracteres.", 400);
+  const replay = replayPlanEvent(action, user, operationId, version, "COMMENTED", note);
+  if (replay) return replay;
+  if (closed) throw new ActionError("Este plan ya no admite cambios de avance.", 409);
   const now = new Date().toISOString();
-  const updated = await actionRepository.mutate(id, { history: [...action.history,
-    { type: "COMMENTED", note, ...actorEvent(user, now) }] }, assertVersion(body.version));
+  let updated;
+  try { updated = await actionRepository.mutate(id, { history: [...action.history,
+    { type: "COMMENTED", note, ...(operationId ? { operationId, baseVersion: version } : {}),
+      ...actorEvent(user, now) }] }, version); }
+  catch (error) {
+    if (error.status !== 409 || !operationId) throw error;
+    const replayed = replayPlanEvent(await actionRepository.findById(id), user, operationId,
+      version, "COMMENTED", note);
+    if (!replayed) throw error;
+    return replayed;
+  }
   await logActivity({ actor: user, action: "FINDING_PLAN_COMMENTED", details: { actionId: id, sourceId: action.sourceId } });
   return updated;
 };

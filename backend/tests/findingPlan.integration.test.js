@@ -69,23 +69,44 @@ test("HU-21: plan de hallazgo conserva avance, comentario, evidencia y solicitud
   assert.equal(options.status, 200);
   assert.ok((await options.json()).evidence.some((item) => item.id === evidence.id));
 
-  const progress = await fetch(`${path}/progress`, json(5, "PATCH", {
+  const progressRequest = json(5, "PATCH", {
     version: action.storageVersion, progressPercent: 50,
     note: "Se corrigió la mitad de las excepciones detectadas.", evidenceId: evidence.id
-  }));
+  });
+  progressRequest.headers["Idempotency-Key"] = "87f4a2a2-781f-4a3c-80f8-7bf8dbdc9ee1";
+  const progress = await fetch(`${path}/progress`, progressRequest);
   assert.equal(progress.status, 200);
   action = (await progress.json()).action;
   assert.equal(action.progressPercent, 50);
   assert.deepEqual(action.evidenceIds, [evidence.id]);
+  const progressReplay = await fetch(`${path}/progress`, progressRequest);
+  assert.equal(progressReplay.status, 200);
+  assert.equal((await progressReplay.json()).action.storageVersion, action.storageVersion);
+  assert.equal(action.history.filter((entry) => entry.operationId === progressRequest.headers["Idempotency-Key"]).length, 1);
+  const changedProgress = json(5, "PATCH", { version: action.storageVersion - 1,
+    progressPercent: 80, note: "Se corrigió la mitad de las excepciones detectadas.", evidenceId: evidence.id });
+  changedProgress.headers["Idempotency-Key"] = progressRequest.headers["Idempotency-Key"];
+  assert.equal((await fetch(`${path}/progress`, changedProgress)).status, 409);
   assert.equal((await fetch(`${path}/progress`, json(5, "PATCH", {
     version: action.storageVersion - 1, progressPercent: 70, note: "Este cambio usa una versión antigua."
   }))).status, 409);
 
-  const comment = await fetch(`${path}/comments`, json(5, "POST", {
+  const commentRequest = json(5, "POST", {
     version: action.storageVersion, note: "Se revisó la primera muestra."
-  }));
+  });
+  commentRequest.headers["Idempotency-Key"] = "50df27c8-4524-4afb-92a2-b1c25ea114ee";
+  const comment = await fetch(`${path}/comments`, commentRequest);
   assert.equal(comment.status, 200);
   action = (await comment.json()).action;
+  assert.equal((await fetch(`${path}/comments`, commentRequest)).status, 200);
+  const changedComment = json(5, "POST", { version: action.storageVersion - 1,
+    note: "Otro comentario para la misma clave." });
+  changedComment.headers["Idempotency-Key"] = commentRequest.headers["Idempotency-Key"];
+  assert.equal((await fetch(`${path}/comments`, changedComment)).status, 409);
+  assert.equal((await fetch(`${path}/comments`, { ...commentRequest,
+    headers: { ...commentRequest.headers, Authorization: `Bearer ${jwt.sign({ id: 3 }, process.env.JWT_SECRET)}` } })).status, 409);
+  assert.equal((await fetch(`${path}/comments`, { ...commentRequest,
+    headers: { ...commentRequest.headers, Authorization: `Bearer ${jwt.sign({ id: 4 }, process.env.JWT_SECRET)}` } })).status, 403);
   const full = await fetch(`${path}/progress`, json(5, "PATCH", {
     version: action.storageVersion, progressPercent: 100,
     note: "Todas las excepciones de la muestra quedaron corregidas."
@@ -128,6 +149,10 @@ test("HU-21: plan de hallazgo conserva avance, comentario, evidencia y solicitud
   assert.equal(finished.status, 200);
   action = (await finished.json()).action;
   assert.equal(action.progressPercent, 100);
+  assert.equal((await fetch(`${path}/progress`, progressRequest)).status, 200);
+  assert.equal((await fetch(`${path}/comments`, commentRequest)).status, 200);
+  assert.equal((await fetch(path, json(5)).then((response) => response.json())).action.storageVersion,
+    action.storageVersion);
   assert.equal((await fetch(`${path}/progress`, json(5, "PATCH", {
     version: action.storageVersion, progressPercent: 100,
     note: "Una acción terminada no admite otro avance."
