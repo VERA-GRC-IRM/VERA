@@ -115,4 +115,4 @@ Estas son agrupaciones funcionales de la implementación sin conexión; no susti
 | Preparación de hallazgos | [#321](https://github.com/VERA-GRC-IRM/VERA/pull/321) | Borrador cifrado, nueva validación y bloqueo de respuestas inciertas |
 | Recuperación de hallazgos y planes | [#332](https://github.com/VERA-GRC-IRM/VERA/pull/332), [#333](https://github.com/VERA-GRC-IRM/VERA/pull/333), [#337](https://github.com/VERA-GRC-IRM/VERA/pull/337) | Reintento explícito con la misma clave y comprobación de actor, versión y contenido |
 | Preparación y búsqueda local | [#334](https://github.com/VERA-GRC-IRM/VERA/pull/334), [#335](https://github.com/VERA-GRC-IRM/VERA/pull/335), [#336](https://github.com/VERA-GRC-IRM/VERA/pull/336) | Conjuntos seleccionables, acceso contextual y búsqueda en copias vigentes |
-| Respaldo portátil cifrado | Este cambio | Exportación y restauración con la misma cuenta, origen y frase; sin reemplazo silencioso |
+| Respaldo portátil cifrado | [#338](https://github.com/VERA-GRC-IRM/VERA/pull/338) | Exportación y restauración con la misma cuenta, origen y frase; sin reemplazo silencioso |
