@@ -66,6 +66,7 @@ La misma tarjeta muestra el uso aproximado de almacenamiento del sitio que infor
 
 1. Con conexión, inicia sesión y abre **Sin conexión**. Crea una frase local exclusiva para ese dispositivo y conserva la frase por tu cuenta.
 2. Selecciona las secciones necesarias y pulsa **Actualizar secciones elegidas**. Las otras secciones guardadas permanecen; puedes quitarlas individualmente. Verifica los resultados y la hora de la copia antes de desconectar.
+   Para reducir pasos, puedes usar los conjuntos **Portafolio y pendientes**, **Trabajo de auditoría** o **Informe local** y ajustar después las casillas. Elegir un conjunto no descarga nada por sí solo ni concede permisos; la API autoriza cada sección al actualizarla. Cada resultado muestra si se guardó, falló o conservó su copia anterior.
 3. Sin red, desbloquea el espacio, consulta las vistas guardadas y prepara notas, avances o archivos. Una recarga vuelve a bloquear el espacio.
 4. Al reconectar, revisa cada borrador y pulsa el envío solo cuando corresponda. Un conflicto o confirmación incierta exige consultar el registro actual; no se reintenta automáticamente.
 5. Borra la copia en el dispositivo cuando deje de necesitarse. El borrado local no elimina datos de Supabase.

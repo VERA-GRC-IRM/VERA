@@ -43,3 +43,34 @@ test("selected authorized data opens offline and an online denial is never repla
   await expect(page.getByRole("alert")).toContainText("Sin permiso vigente");
   await expect(page.getByRole("heading", { name: "Panel guardado de prueba" })).not.toBeVisible();
 });
+
+test("preparation packs select sections without downloading or bypassing authorization", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("token", "browser-test-token");
+    localStorage.setItem("user", JSON.stringify({ id: 202, name: "Auditor", role: "AUDITOR" }));
+  });
+  await page.route("**/api/dashboard", (route) => route.fulfill({ status: 200, json: dashboard }));
+  await page.route("**/api/actions", (route) => route.fulfill({ status: 200, json: { actions: [] } }));
+  let restrictedReads = 0;
+  for (const path of ["planning", "planning/active", "notifications"]) {
+    await page.route(`**/api/${path}`, (route) => {
+      restrictedReads += 1;
+      return route.fulfill({ status: 403, json: { message: "Sin permiso" } });
+    });
+  }
+  await page.goto("/sin-conexion");
+  await page.getByLabel("Frase local", { exact: true }).fill("Frase exclusiva para preparar 2026");
+  await page.getByLabel("Repetir frase local").fill("Frase exclusiva para preparar 2026");
+  await page.getByRole("button", { name: "Crear espacio" }).click();
+  await page.getByRole("button", { name: "Portafolio y pendientes" }).click();
+  await expect(page.getByRole("checkbox", { name: "Panel de Portafolio" })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "Pendientes" })).toBeChecked();
+  await expect(page.getByText(/4 de \d+ secciones seleccionadas/)).toBeVisible();
+  expect(restrictedReads).toBe(0);
+  await page.getByRole("button", { name: "Actualizar secciones elegidas" }).click();
+  await expect(page.getByText("Panel de Portafolio: guardado")).toBeVisible();
+  await expect(page.getByText("Planificación: Sin permiso")).toBeVisible();
+  expect(restrictedReads).toBe(3);
+  await page.getByRole("button", { name: "Limpiar selección" }).click();
+  await expect(page.getByText(/0 de \d+ secciones seleccionadas/)).toBeVisible();
+});
