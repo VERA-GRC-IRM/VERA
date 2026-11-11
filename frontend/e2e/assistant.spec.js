@@ -57,6 +57,11 @@ test("Espacio de IA: la lista lateral permite cambiar de conversación y cerrars
     return route.abort();
   });
   await page.goto("/asistente");
+  const skipToQuestion = page.getByRole("button", { name: "Ir al campo de pregunta" });
+  await expect(skipToQuestion).toBeEnabled();
+  await skipToQuestion.focus();
+  await skipToQuestion.press("Enter");
+  await expect(page.getByLabel("Tu pregunta")).toBeFocused();
   await showHistory(page);
   const recent = page.getByRole("navigation", { name: "Conversaciones privadas" });
   await expect(recent.getByRole("button", { name: "Riesgos del trimestre" })).toBeVisible();
@@ -66,6 +71,7 @@ test("Espacio de IA: la lista lateral permite cambiar de conversación y cerrars
   await expect(recent.getByRole("button", { name: "Pendientes de auditoría" })).toHaveAttribute("aria-current", "page");
   await hideHistoryOnNarrow(page);
   await openComposerContext(page);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole("button", { name: "Añadir contexto" }).press("Escape");
   await expect(page.getByRole("button", { name: "Añadir contexto" })).toHaveAttribute("aria-expanded", "false");
   await expect(page.getByRole("button", { name: "Añadir contexto" })).toBeFocused();
