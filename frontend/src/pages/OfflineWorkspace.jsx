@@ -4,8 +4,8 @@ import Sidebar from "../components/Sidebar";
 import { useDocumentTitle } from "../contexts/useDocumentTitle";
 import { createOfflineVault, deleteOfflineVault, exportOfflineVault, hasOfflineVault,
   importOfflineVault, lockOfflineVault, unlockOfflineVault } from "../services/offlineVault";
-import { captureOfflineSnapshots, getOfflineSnapshots, SNAPSHOT_MODULES,
-  SNAPSHOT_TTL_MS, removeOfflineSnapshot } from "../services/offlineSnapshots";
+import { captureOfflineSnapshots, getOfflineSnapshots, purgeDeniedOfflineSnapshots,
+  SNAPSHOT_MODULES, SNAPSHOT_TTL_MS, removeOfflineSnapshot } from "../services/offlineSnapshots";
 import { searchOfflineRecords } from "../services/offlineSearch";
 import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts,
   getEvidenceDraftTargets, getFindingDraftTargets, saveOfflineDraft, saveOfflineEvidenceDraft,
@@ -141,6 +141,7 @@ function OfflineWorkspace() {
     event.preventDefault(); setError(""); setBusy(true);
     try {
       await importOfflineVault(user.id, backupFile, restorePhrase);
+      await purgeDeniedOfflineSnapshots();
       setExists(true); setOpen(true);
       setSnapshots(getOfflineSnapshots()); setDrafts(getOfflineDrafts());
       try { setDraftableActions(getDraftableActions()); } catch { setDraftableActions([]); }
@@ -166,6 +167,7 @@ function OfflineWorkspace() {
         await createOfflineVault(user.id, phrase);
         setExists(true);
       } else await unlockOfflineVault(user.id, phrase);
+      await purgeDeniedOfflineSnapshots();
       setOpen(true);
       setSnapshots(getOfflineSnapshots());
       setDrafts(getOfflineDrafts());
@@ -195,12 +197,12 @@ function OfflineWorkspace() {
     finally { setBusy(false); }
   };
 
-  const capture = async () => {
+  const capture = async (moduleIds = selected) => {
     setBusy(true);
     setError("");
     setCaptureResults([]);
     try {
-      const results = await captureOfflineSnapshots(selected);
+      const results = await captureOfflineSnapshots(moduleIds);
       setCaptureResults(results);
       setSnapshots(getOfflineSnapshots());
       try { setDraftableActions(getDraftableActions()); } catch { setDraftableActions([]); }
@@ -389,9 +391,13 @@ function OfflineWorkspace() {
                 })}
               </fieldset>
               <div className="offline-vault-actions">
-                <button type="button" className="primary-action" onClick={capture} disabled={busy || !selected.length || !online}>
+                <button type="button" className="primary-action" onClick={() => capture()} disabled={busy || !selected.length || !online}>
                   {busy ? "Actualizando copia…" : "Actualizar secciones elegidas"}
                 </button>
+                {Object.keys(snapshots).length > 0 && <button type="button" className="secondary-action"
+                  onClick={() => capture(Object.keys(snapshots))} disabled={busy || !online}>
+                  Revalidar copias guardadas
+                </button>}
                 <button type="button" className="secondary-action" onClick={() => { lockOfflineVault(); setOpen(false); setSnapshots({}); setCaptureResults([]); }}>Bloquear espacio local</button>
               </div>
               {captureResults.length > 0 && <div className="offline-snapshot-results" role="status">
