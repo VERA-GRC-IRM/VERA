@@ -76,6 +76,12 @@ El [piloto real inicial](testing/offline-production-pilot.md) registra los pasos
 
 En el caso de reabrir un borrador, el modo `setOffline` de Playwright para Firefox rechazó incluso la navegación cacheada con `NS_ERROR_OFFLINE` en Windows. Ese escenario de Firefox corta las solicitudes de red ordinarias después de instalar el service worker y verifica que la API privada no responde; los demás escenarios mantienen la emulación de desconexión. Este ajuste de ensayo no acredita por sí solo una recarga con el Wi-Fi físico apagado.
 
+## Preparación local de hallazgos
+
+Los roles que pueden registrar hallazgos pueden preparar un borrador con título y descripción a partir de un control insuficiente y un riesgo asociado incluidos en copias locales vigentes de **Controles** y **Riesgos**. El borrador se cifra en el espacio de la cuenta y no crea todavía un registro. En el caso de Auditor, la lista local solo ofrece riesgos donde aparece como responsable; el backend sigue siendo quien decide los permisos definitivos.
+
+Tras recuperar conexión, **Registrar hallazgo** consulta controles, riesgos y hallazgos actuales. Si cambió el número de evaluaciones del control, la relación o ya hay un hallazgo para esa evaluación, detiene el envío y pide revisión. Si la respuesta de creación es incierta, etiqueta el borrador **Confirmación pendiente** y evita reintentos automáticos. El backend recibe además la versión de evaluación observada al guardar el borrador y la verifica de nuevo justo al crear. La consulta previa no sustituye esa comprobación del servidor. No se modifican aprobaciones ni estados de hallazgos sin red.
+
 ### Límites conocidos
 
 - Se requiere la primera sesión en línea. Google, Microsoft, recuperación de contraseña, aprobación de cambios, IA de Azure y permisos actuales no funcionan sin red.
@@ -95,3 +101,6 @@ Estas son agrupaciones funcionales de la implementación sin conexión; no susti
 | Borradores y envío controlado | [#313](https://github.com/VERA-GRC-IRM/VERA/pull/313), [#314](https://github.com/VERA-GRC-IRM/VERA/pull/314) | Persistencia local, versión concurrente y respuesta incierta sin reintento |
 | Evidencias e informes | [#315](https://github.com/VERA-GRC-IRM/VERA/pull/315), [#316](https://github.com/VERA-GRC-IRM/VERA/pull/316) | Archivo local cifrado, carga expresa, CSV e impresión sin red |
 | Ensayo y operación | [#317](https://github.com/VERA-GRC-IRM/VERA/pull/317) | Actualización con aviso y ejecución manual reproducible en Actions |
+| Estado y resistencia del espacio | [#318](https://github.com/VERA-GRC-IRM/VERA/pull/318), [#319](https://github.com/VERA-GRC-IRM/VERA/pull/319) | Vigencia, trabajos pendientes, almacenamiento, borrado y concurrencia local |
+| Matriz manual de navegadores | [#320](https://github.com/VERA-GRC-IRM/VERA/pull/320) | Seis perfiles automatizados, separados de pruebas físicas |
+| Preparación de hallazgos | [#321](https://github.com/VERA-GRC-IRM/VERA/pull/321) | Borrador cifrado, nueva validación y bloqueo de respuestas inciertas |
