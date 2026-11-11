@@ -46,6 +46,8 @@
   font: inherit;
 }
 .offline-vault-form button { justify-self: start; }
+.offline-backup-restore { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--vera-border); }
+.offline-backup-restore h3 { margin: 0; font-size: 1rem; }
 .offline-vault-form textarea { min-height: 100px; resize: vertical; }
 .offline-vault-delete { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--vera-border); }
 .offline-snapshot-options { display: grid; gap: 4px; margin: 22px 0; padding: 0; border: 0; }

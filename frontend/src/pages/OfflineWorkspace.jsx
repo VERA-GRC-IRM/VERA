@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useDocumentTitle } from "../contexts/useDocumentTitle";
-import { createOfflineVault, deleteOfflineVault, hasOfflineVault,
-  lockOfflineVault, unlockOfflineVault } from "../services/offlineVault";
+import { createOfflineVault, deleteOfflineVault, exportOfflineVault, hasOfflineVault,
+  importOfflineVault, lockOfflineVault, unlockOfflineVault } from "../services/offlineVault";
 import { captureOfflineSnapshots, getOfflineSnapshots, SNAPSHOT_MODULES,
   SNAPSHOT_TTL_MS, removeOfflineSnapshot } from "../services/offlineSnapshots";
 import { searchOfflineRecords } from "../services/offlineSearch";
@@ -70,6 +70,9 @@ function OfflineWorkspace() {
   const [storageMessage, setStorageMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [searchModule, setSearchModule] = useState("");
+  const [backupFile, setBackupFile] = useState(null);
+  const [restorePhrase, setRestorePhrase] = useState("");
+  const [backupMessage, setBackupMessage] = useState("");
   const currentTime = checkedAt;
   const savedSections = Object.values(snapshots);
   const readySections = savedSections.filter((item) => {
@@ -118,6 +121,34 @@ function OfflineWorkspace() {
         ? "El navegador concedió conservación reforzada. Borrar los datos del sitio seguirá eliminando la copia."
         : "El navegador no concedió conservación reforzada. Mantén suficiente espacio y no borres los datos del sitio.");
     } catch { setStorageMessage("No se pudo solicitar conservación al navegador."); }
+  };
+
+  const downloadBackup = async () => {
+    setError(""); setBackupMessage(""); setBusy(true);
+    try {
+      const backup = await exportOfflineVault(user.id);
+      const url = URL.createObjectURL(new Blob([backup.json], { type: "application/json" }));
+      const link = document.createElement("a");
+      link.href = url; link.download = backup.fileName;
+      document.body.append(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setBackupMessage("Copia cifrada descargada. Guarda el archivo y la frase local por separado.");
+    } catch (cause) { setError(cause.message); }
+    finally { setBusy(false); }
+  };
+
+  const restoreBackup = async (event) => {
+    event.preventDefault(); setError(""); setBusy(true);
+    try {
+      await importOfflineVault(user.id, backupFile, restorePhrase);
+      setExists(true); setOpen(true);
+      setSnapshots(getOfflineSnapshots()); setDrafts(getOfflineDrafts());
+      try { setDraftableActions(getDraftableActions()); } catch { setDraftableActions([]); }
+      setEvidenceTargets(getEvidenceDraftTargets()); setFindingTargets(getFindingDraftTargets());
+      setCheckedAt(Date.now()); setBackupFile(null); setRestorePhrase("");
+      setBackupMessage("Copia restaurada en este dispositivo. Revisa la vigencia de cada sección antes de usarla.");
+    } catch (cause) { setError(cause.message); }
+    finally { setBusy(false); }
   };
 
   const submit = async (event) => {
@@ -307,6 +338,9 @@ function OfflineWorkspace() {
                     <button type="button" className="secondary-action" onClick={requestStoragePersistence}>Solicitar conservación al navegador</button>}
                   {storageMessage && <p role="status">{storageMessage}</p>}
                   <p>El espacio indicado incluye datos y archivos de este sitio; es una estimación, no una reserva. Si borras los datos del navegador, perderás la copia local.</p>
+                  <button type="button" className="secondary-action" disabled={busy} onClick={downloadBackup}>Descargar copia cifrada</button>
+                  {backupMessage && <p role="status">{backupMessage}</p>}
+                  <p>El archivo se guarda en tu dispositivo, nunca en el servidor. Quien tenga el archivo y la frase podrá leerlo; consérvalos por separado.</p>
                 </div>
               </section>
               <section className="offline-local-search" aria-labelledby="offline-local-search-title">
@@ -446,6 +480,15 @@ function OfflineWorkspace() {
                   onChange={(event) => setConfirmation(event.target.value)} minLength={15} required /></label>}
                 <button className="primary-action" type="submit" disabled={busy}>{exists ? "Desbloquear" : "Crear espacio"}</button>
               </form>
+              {!exists && <form onSubmit={restoreBackup} className="offline-vault-form offline-backup-restore">
+                <h3>Restaurar una copia cifrada</h3>
+                <p>Usa un archivo descargado para esta misma cuenta y dirección de VERA. No reemplaza una copia existente ni recupera datos ya enviados al servidor.</p>
+                <label>Archivo de copia<input type="file" accept=".json,application/json"
+                  onChange={(event) => setBackupFile(event.target.files?.[0] || null)} required /></label>
+                <label>Frase local original<input type="password" autoComplete="off" value={restorePhrase}
+                  onChange={(event) => setRestorePhrase(event.target.value)} minLength={15} required /></label>
+                <button className="secondary-action" type="submit" disabled={busy || !backupFile}>Restaurar copia</button>
+              </form>}
             </>}
             {exists && <div className="offline-vault-delete">
               <button type="button" className="secondary-action" disabled={busy} onClick={remove}>
