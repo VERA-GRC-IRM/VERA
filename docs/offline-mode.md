@@ -72,6 +72,10 @@ La misma tarjeta muestra el uso aproximado de almacenamiento del sitio que infor
 
 El [ensayo manual en GitHub Actions](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/offline-rehearsal.yml) ejecuta el build de producción y escenarios sintéticos de Chromium con API simulada. La matriz Chrome/Edge/Firefox/móvil sigue en el [workflow manual de navegadores](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/e2e.yml) y su [deuda documentada](testing/browser-e2e-debt.md); un resultado verde del ensayo offline no sustituye esas comprobaciones ni la aceptación con cuentas reales.
 
+El [piloto real inicial](testing/offline-production-pilot.md) registra los pasos observados con una sesión de producción sin conservar datos privados en la bitácora. La [matriz manual específica del modo sin conexión](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/offline-browser-matrix.yml) separa Chromium, Firefox, Chrome, Edge y emulaciones móvil/tablet. Sus resultados no equivalen a pruebas en dispositivos físicos.
+
+En el caso de reabrir un borrador, el modo `setOffline` de Playwright para Firefox rechazó incluso la navegación cacheada con `NS_ERROR_OFFLINE` en Windows. Ese escenario de Firefox corta las solicitudes de red ordinarias después de instalar el service worker y verifica que la API privada no responde; los demás escenarios mantienen la emulación de desconexión. Este ajuste de ensayo no acredita por sí solo una recarga con el Wi-Fi físico apagado.
+
 ### Límites conocidos
 
 - Se requiere la primera sesión en línea. Google, Microsoft, recuperación de contraseña, aprobación de cambios, IA de Azure y permisos actuales no funcionan sin red.

@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("a draft remains encrypted and available offline after reload without claiming server persistence", async ({ page, context }) => {
+test("a draft remains encrypted and available after reopening without claiming server persistence", async ({ page, context, browserName }) => {
   await page.addInitScript(() => {
     if (!localStorage.getItem("token")) localStorage.setItem("token", "browser-test-token");
     if (!localStorage.getItem("user")) localStorage.setItem("user", JSON.stringify({ id: 301, name: "Auditor", role: "AUDITOR" }));
@@ -9,6 +9,7 @@ test("a draft remains encrypted and available offline after reload without claim
   await page.goto("/sin-conexion");
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload();
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   await page.getByLabel("Frase local", { exact: true }).fill("Frase exclusiva para borradores 2026");
   await page.getByLabel("Repetir frase local").fill("Frase exclusiva para borradores 2026");
   await page.getByRole("button", { name: "Crear espacio" }).click();
@@ -28,7 +29,18 @@ test("a draft remains encrypted and available offline after reload without claim
     open.onerror = reject;
   }));
   expect(revision).toBe(2);
+  if (browserName === "firefox") {
+    // Firefox's force-offline emulation rejects even cached navigations; abort
+    // network requests instead to verify the installed service worker path.
+    await context.setOffline(false);
+    await page.route("**/*", (route) => route.abort("internetdisconnected"));
+  }
   await page.reload();
+  if (browserName === "firefox") {
+    const apiStatus = await page.evaluate(() => fetch("/api/dashboard")
+      .then((response) => response.status).catch(() => 0));
+    expect(apiStatus).toBe(0);
+  }
   await expect(page.getByRole("heading", { name: "Desbloquear copia local" })).toBeVisible();
   await page.getByLabel("Frase local", { exact: true }).fill("Frase exclusiva para borradores 2026");
   await page.getByRole("button", { name: "Desbloquear" }).click();

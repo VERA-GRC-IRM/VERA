@@ -1,0 +1,88 @@
+name: Offline browser matrix
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offline-browser-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browsers:
+    name: Offline / ${{ matrix.label }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { project: desktop-chromium, browser: chromium, label: desktop-chromium }
+          - { project: desktop-firefox, browser: firefox, label: desktop-firefox }
+          - { project: mobile-chromium, browser: chromium, label: mobile-chromium }
+          - { project: tablet-chromium, browser: chromium, label: tablet-chromium }
+          - { project: google-chrome, browser: chrome, label: google-chrome }
+          - { project: microsoft-edge, browser: msedge, label: microsoft-edge }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Install browser and system dependencies
+        run: npx playwright install --with-deps "${{ matrix.browser }}"
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Exercise offline scenarios
+        run: npx playwright test --config playwright.offline.matrix.config.js --project="${{ matrix.project }}"
+        working-directory: frontend
+        env:
+          CI: "true"
+
+      - name: Summarize measured scope
+        if: always()
+        run: |
+          echo "## Offline browser matrix" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Commit: %s\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Project: ${{ matrix.label }}. Automated browser/viewport with mocked API; not a physical-device or authenticated Production test." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vera-offline-${{ matrix.label }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: frontend/test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  matrix-result:
+    name: Offline browser matrix complete
+    needs: browsers
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require all browser projects
+        run: |
+          if [ "${{ needs.browsers.result }}" != "success" ]; then
+            echo "At least one browser or viewport failed. Review the six jobs and traces."
+            exit 1
+          fi
+          echo "All six automated browser and viewport projects passed."
