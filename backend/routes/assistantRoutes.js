@@ -3,6 +3,7 @@ const { rateLimit } = require("express-rate-limit");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { buildAssistantContext } = require("../services/assistantContextService");
 const { readiness } = require("../services/azureOpenAiService");
+const { speechConfiguration, issueSpeechToken } = require("../services/assistantSpeechService");
 const { answerAssistant } = require("../services/assistantAnswerService");
 const { handleAssistantAction, isActionCommand, isCommitmentList } = require("../services/assistantActionService");
 const { createAction } = require("../services/actionService");
@@ -77,7 +78,8 @@ router.use((req, res, next) => { res.set("Cache-Control", "no-store"); next(); }
 
 router.get("/status", (req, res) => {
   try {
-    res.json({ ...readiness(), mode: process.env.VERA_AI_CONVERSATIONS_ENABLED === "true" &&
+    res.json({ ...readiness(), speech: Boolean(speechConfiguration()),
+      mode: process.env.VERA_AI_CONVERSATIONS_ENABLED === "true" &&
       !req.user.roleTour && RECORD_CREATE_ROLES.includes(req.user.role)
       ? "consult-and-confirm" : "read-only",
       ...(process.env.VERA_AI_CONVERSATIONS_ENABLED === "true" && !req.user.roleTour
@@ -94,6 +96,13 @@ router.get("/status", (req, res) => {
   } catch {
     res.json({ available: false, reason: "invalid-configuration", mode: "read-only" });
   }
+});
+
+router.get("/speech/token", rateLimit({ windowMs: 15 * 60 * 1000, limit: 6,
+  keyGenerator: (req) => String(req.user.id), standardHeaders: "draft-8", legacyHeaders: false }),
+async (req, res) => {
+  try { res.json(await issueSpeechToken()); }
+  catch (error) { res.status(error.status || 503).json({ message: error.message }); }
 });
 
 const conversationEnabled = (req, res, next) => {

@@ -7,6 +7,13 @@ export const getAssistantStatus = async () => {
   return data;
 };
 
+export const getAssistantSpeechToken = async () => {
+  const response = await fetch("/api/assistant/speech/token", { headers: headers(), cache: "no-store" });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "No se pudo iniciar el dictado.");
+  return data;
+};
+
 const conversationRequest = async (path = "", options = {}) => {
   const response = await fetch(`/api/assistant/conversations${path}`, {
     ...options, headers: { ...headers(), ...(options.body ? { "Content-Type": "application/json" } : {}) },

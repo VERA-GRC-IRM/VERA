@@ -18,6 +18,7 @@ const stages = [
   { area: "Backend", name: "Auditoría de dependencias", args: ["run", "audit", "--prefix", "backend"] },
   { area: "IA", name: "Regresión sintética sin red", args: ["run", "ai:eval:offline", "--prefix", "backend"] },
   { area: "Frontend", name: "ESLint", args: ["run", "lint", "--prefix", "frontend"] },
+  { area: "Frontend", name: "Pruebas unitarias de voz", args: ["run", "test:unit", "--prefix", "frontend"] },
   { area: "Frontend", name: "Build de producción", args: ["run", "build", "--prefix", "frontend"] },
   { area: "Frontend", name: "Auditoría de dependencias", args: ["run", "audit", "--prefix", "frontend"] }
 ];

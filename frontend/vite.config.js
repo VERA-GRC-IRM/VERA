@@ -23,6 +23,8 @@ export default defineConfig({
     },
     workbox: {
       globPatterns: ['**/*.{js,css,html,svg,png}'],
+      // El dictado necesita Azure en línea; no ocupa espacio en la copia local.
+      globIgnores: ['**/microsoft.cognitiveservices.speech.sdk-*.js'],
       maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       cleanupOutdatedCaches: true,
       navigateFallback: '/index.html',

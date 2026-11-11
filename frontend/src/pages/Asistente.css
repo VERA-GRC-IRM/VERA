@@ -232,6 +232,9 @@
 .assistant-form .assistant-compose-add,.assistant-form .assistant-compose-send { width: 44px; height: 44px; }
 .assistant-form .assistant-compose-add { border: 1px solid var(--vera-border); background: var(--vera-surface); color: var(--vera-text); }
 .assistant-form .assistant-compose-add:hover:not(:disabled) { background: var(--vera-surface-tint); }
+.assistant-form .assistant-compose-mic { width: 44px; height: 44px; border: 1px solid transparent; background: transparent; color: var(--vera-text-muted); }
+.assistant-form .assistant-compose-mic:hover:not(:disabled),.assistant-form .assistant-compose-mic.is-listening { border-color: var(--vera-accent); background: var(--vera-accent-soft); color: var(--vera-accent); }
+.assistant-form .assistant-voice-status { margin-top: 6px; color: var(--vera-text-muted); font-size: 11px; }
 .assistant-context-menu { display: grid; gap: 6px; width: min(310px, 100%); margin-bottom: 8px; padding: 9px; border: 1px solid var(--vera-border); border-radius: 12px; background: var(--vera-surface); box-shadow: var(--vera-shadow); }
 .assistant-form .assistant-context-menu button { display: block; width: 100%; height: auto; min-height: 40px; margin: 0; padding: 9px 11px; border: 0; background: transparent; color: var(--vera-text); font: inherit; font-size: 12px; text-align: left; }
 .assistant-context-menu button:hover { background: var(--vera-surface-tint); }

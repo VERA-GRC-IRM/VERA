@@ -1,7 +1,8 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, Copy, FileText, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Plus, RotateCcw, Send, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
-import { askAssistant, askAssistantConversation, createAssistantConversation, createAssistantProject, deleteAssistantAttachment, deleteAssistantConversation, deleteAssistantProject, deleteAssistantProjectFile, getAssistantAttachmentDownload, getAssistantBrief, getAssistantConversation, getAssistantInsights, getAssistantProjectFileDownload, getAssistantStatus, getAuditDossier, getProposalDraft, indexAssistantProjectFile, listAssistantAttachments, listAssistantConversations, listAssistantProjectFiles, listAssistantProjects, moveAssistantConversation, ocrAssistantAttachment, ocrAssistantProjectFile, renameAssistantConversation, searchAssistantEvidence, submitAssistantFeedback, updateAssistantProject, uploadAssistantAttachment, uploadAssistantProjectFile } from "../services/assistantService";
+import { ArrowRight, Copy, FileText, Mic, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Plus, RotateCcw, Send, Square, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
+import { askAssistant, askAssistantConversation, createAssistantConversation, createAssistantProject, deleteAssistantAttachment, deleteAssistantConversation, deleteAssistantProject, deleteAssistantProjectFile, getAssistantAttachmentDownload, getAssistantBrief, getAssistantConversation, getAssistantInsights, getAssistantProjectFileDownload, getAssistantSpeechToken, getAssistantStatus, getAuditDossier, getProposalDraft, indexAssistantProjectFile, listAssistantAttachments, listAssistantConversations, listAssistantProjectFiles, listAssistantProjects, moveAssistantConversation, ocrAssistantAttachment, ocrAssistantProjectFile, renameAssistantConversation, searchAssistantEvidence, submitAssistantFeedback, updateAssistantProject, uploadAssistantAttachment, uploadAssistantProjectFile } from "../services/assistantService";
+import { createSpeechRecognition } from "../services/assistantSpeechClient";
 import { AssistantConversationContext } from "../contexts/AssistantConversationContext";
 import AssistantMemoryPanel from "./AssistantMemoryPanel";
 import { downloadPortfolioReport } from "../services/planningService";
@@ -44,6 +45,9 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
   const [pendingAlertsUnavailable, setPendingAlertsUnavailable] = useState(false);
   const [insights, setInsights] = useState(null);
   const [question, setQuestion] = useState(initialQuestion);
+  const [speechAvailable, setSpeechAvailable] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState("");
   const [withEvidence, setWithEvidence] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -91,10 +95,14 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
   const [historyOpen, setHistoryOpen] = useState(() => !compact && window.matchMedia("(min-width: 1080px)").matches);
   const streamRef = useRef(null);
   const questionRef = useRef(null);
+  const speechSessionRef = useRef(null);
+  const voiceRunRef = useRef(0);
   const threadMenuRef = useRef(null);
   const threadMenuButtonRef = useRef(null);
   const contextMenuRef = useRef(null);
   const contextMenuButtonRef = useRef(null);
+
+  useEffect(() => () => { voiceRunRef.current += 1; speechSessionRef.current?.cancel(); }, []);
 
   useEffect(() => {
     if (!threadMenuOpen) return undefined;
@@ -129,6 +137,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
     let active = true;
     getAssistantStatus().then((result) => {
       if (active) { setAvailable(result.available); setReason(result.reason);
+        setSpeechAvailable(Boolean(result.speech));
         setPersistent(Boolean(result.conversations)); setHistoryBusy(Boolean(result.conversations));
         setProjectMode(Boolean(result.projects)); setMemoryMode(Boolean(result.memory));
         setAttachmentMode(Boolean(result.attachments)); setProjectFilesMode(Boolean(result.projectFiles));
@@ -422,7 +431,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
   const submit = async (event) => {
     event.preventDefault();
     const value = question.trim();
-    if (!available || busy || historyBusy || historyError || historyStale ||
+    if (!available || busy || voiceBusy || historyBusy || historyError || historyStale ||
         value.length < 3 || value.length > (withEvidence ? 500 : 800)) return;
     setContextMenuOpen(false); setAttachmentsOpen(false);
     const history = messages.slice(-6).map(({ role, text }) => ({ role, text: text.slice(0, 800) }));
@@ -503,6 +512,45 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
       setCopyStatus({ id: message.id, text: "Respuesta copiada" });
     } catch {
       setCopyStatus({ id: message.id, text: "No se pudo copiar. Selecciona el texto para copiarlo." });
+    }
+  };
+
+  const stopDictation = () => {
+    voiceRunRef.current += 1;
+    speechSessionRef.current?.cancel();
+    speechSessionRef.current = null;
+    setVoiceBusy(false);
+    setVoiceStatus("Dictado detenido. Revisa el texto antes de enviarlo.");
+  };
+
+  const startDictation = async () => {
+    if (voiceBusy) { stopDictation(); return; }
+    if (!speechAvailable || !available || busy || historyBusy || historyStale) return;
+    const run = ++voiceRunRef.current;
+    setVoiceBusy(true); setVoiceStatus("Preparando micrófono..."); setContextMenuOpen(false);
+    try {
+      const temporarySession = await getAssistantSpeechToken();
+      if (run !== voiceRunRef.current) return;
+      const speechSession = await createSpeechRecognition(temporarySession);
+      if (run !== voiceRunRef.current) { speechSession.cancel(); return; }
+      speechSessionRef.current = speechSession;
+      setVoiceStatus("Escuchando... Di una pregunta breve.");
+      const transcript = await speechSession.result;
+      if (run !== voiceRunRef.current) return;
+      if (!transcript) { setVoiceStatus("No detecté voz. Intenta de nuevo o escribe tu pregunta."); return; }
+      const next = [questionRef.current?.value?.trim(), transcript].filter(Boolean).join(" ");
+      if (next.length > (withEvidence ? 500 : 800)) {
+        setVoiceStatus("La transcripción supera el límite. Acorta la pregunta y vuelve a dictar.");
+        return;
+      }
+      setQuestion(next);
+      setVoiceStatus("Transcripción lista. Revísala antes de enviarla.");
+      questionRef.current?.focus();
+    } catch (cause) {
+      if (run === voiceRunRef.current) setVoiceStatus(/^(El servicio de voz|El dictado)/.test(cause?.message || "")
+        ? cause.message : "No pude usar el micrófono. Revisa el permiso e intenta de nuevo.");
+    } finally {
+      if (run === voiceRunRef.current) { speechSessionRef.current = null; setVoiceBusy(false); }
     }
   };
 
@@ -728,10 +776,12 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
             <button ref={contextMenuButtonRef} className="assistant-compose-add" type="button" onClick={() => setContextMenuOpen((open) => !open)} aria-label="Añadir contexto" aria-expanded={contextMenuOpen} aria-controls="assistant-context-menu" disabled={!available || busy || historyBusy || attachmentBusy || historyStale}><Plus size={19} aria-hidden="true" /></button>
           </div>
           <textarea ref={questionRef} id="assistant-question" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} maxLength={withEvidence ? 500 : 800} rows={2} placeholder={selectedAttachmentId === PROJECT_LIBRARY ? "Pregunta sobre fragmentos de la biblioteca..." : selectedAttachmentId ? "Pregunta sobre el archivo seleccionado..." : "Escribe una pregunta sobre VERA..."} disabled={!available || busy || historyBusy || attachmentBusy || Boolean(historyError) || historyStale} />
-          <button className="assistant-compose-send" type="submit" disabled={!available || busy || historyBusy || attachmentBusy || Boolean(historyError) || historyStale || question.trim().length < 3 || question.trim().length > (withEvidence ? 500 : 800)} aria-label="Enviar pregunta"><Send size={19} aria-hidden="true" /></button>
+          {speechAvailable && <button className={`assistant-compose-mic${voiceBusy ? " is-listening" : ""}`} type="button" onClick={startDictation} disabled={!voiceBusy && (!available || busy || historyBusy || historyStale)} aria-label={voiceBusy ? "Detener dictado" : "Dictar pregunta"} aria-pressed={voiceBusy} title={voiceBusy ? "Detener dictado" : "Dictar pregunta"}>{voiceBusy ? <Square size={17} aria-hidden="true" /> : <Mic size={19} aria-hidden="true" />}</button>}
+          <button className="assistant-compose-send" type="submit" disabled={!available || busy || voiceBusy || historyBusy || attachmentBusy || Boolean(historyError) || historyStale || question.trim().length < 3 || question.trim().length > (withEvidence ? 500 : 800)} aria-label="Enviar pregunta"><Send size={19} aria-hidden="true" /></button>
           </div>
         </div>
         <small>{question.length > 0 ? `${question.length}/${withEvidence ? 500 : 800} caracteres · ` : ""}Enter para enviar · Shift + Enter para nueva línea · Verifica las fuentes.</small>
+        {voiceStatus && <small className="assistant-voice-status" role="status">{voiceStatus}</small>}
       </form>
       </div>
     </div>

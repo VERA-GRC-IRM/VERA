@@ -147,7 +147,7 @@ test("HU-34: la API exige sesión, valida la pregunta y muestra estado sin secre
   const status = await fetch(`${base}/api/assistant/status`, auth(5));
   assert.equal(status.status, 200);
   assert.equal(status.headers.get("cache-control"), "no-store");
-  assert.deepEqual(await status.json(), { available: false, reason: "azure-not-configured", mode: "read-only" });
+  assert.deepEqual(await status.json(), { available: false, reason: "azure-not-configured", speech: false, mode: "read-only" });
   assert.equal((await fetch(`${base}/api/assistant/ask`, auth(5, "POST", { question: "x" }))).status, 400);
   assert.equal((await fetch(`${base}/api/assistant/ask`, auth(5, "POST", { question: "riesgos", history: Array(7).fill({ role: "user", text: "hola" }) }))).status, 400);
   const brief = await fetch(`${base}/api/assistant/brief`, auth(5));
