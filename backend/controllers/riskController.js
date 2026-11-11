@@ -3,7 +3,7 @@ const planningRepository = require("../repositories/planningRepository");
 const { evaluateRiskForUser } = require("../services/riskEvaluationService");
 const { proposeResponseForUser } = require("../services/riskResponseService");
 const { activeUsers, createRiskForUser } = require("../services/riskCreationService");
-const { updateCoreForUser } = require("../services/recordEditService");
+const { updateCoreForUser, updateOfflineDescriptionForUser } = require("../services/recordEditService");
 const { normalizeArea } = require("../utils/normalizeArea");
 const { filterByVisibleScope, projectVisibleAuditLinks } = require("../services/recordScopeVisibility");
 const riskAuditService = require("../services/riskAuditService");
@@ -39,6 +39,14 @@ const createRisk = async (req, res) => {
 
 const updateRisk = async (req, res) => {
   try { return res.json({ risk: await updateCoreForUser(req.user, "RISK", req.params.id, req.body) }); }
+  catch (error) {
+    if ([400, 403, 404, 409].includes(error.status)) return res.status(error.status).json({ message: error.message });
+    throw error;
+  }
+};
+
+const updateRiskOfflineDescription = async (req, res) => {
+  try { return res.json({ risk: await updateOfflineDescriptionForUser(req.user, "RISK", req.params.id, req.body) }); }
   catch (error) {
     if ([400, 403, 404, 409].includes(error.status)) return res.status(error.status).json({ message: error.message });
     throw error;
@@ -102,5 +110,6 @@ const evaluateAuditRisk = async (req, res, next) => {
   }
 };
 
-module.exports = { listRisks, listOwners, createRisk, updateRisk, evaluateRisk, proposeResponse,
+module.exports = { listRisks, listOwners, createRisk, updateRisk, updateRiskOfflineDescription,
+  evaluateRisk, proposeResponse,
   auditRisks, createAuditRisk, updateAuditRisk, unlinkAuditRisk, evaluateAuditRisk };

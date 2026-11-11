@@ -3,7 +3,7 @@ const router = express.Router();
 const { verifyToken } = require("../middleware/authMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
 const { RISK_CONTROL_MANAGE_ROLES, ROLES } = require("../config/roles");
-const { listRisks, listOwners, createRisk, updateRisk, evaluateRisk, proposeResponse,
+const { listRisks, listOwners, createRisk, updateRisk, updateRiskOfflineDescription, evaluateRisk, proposeResponse,
   auditRisks, createAuditRisk, updateAuditRisk, unlinkAuditRisk, evaluateAuditRisk } = require("../controllers/riskController");
 const { LEGACY_RISK_METHOD } = require("../config/riskMethods");
 const { previewQualitativeMethod } = require("../services/riskMethodPreviewService");
@@ -42,6 +42,7 @@ router.post("/methods/preview", verifyToken, allowRoles(ROLES.SUPER_ADMIN), (req
 router.get("/owners", verifyToken, allowRoles(...RISK_CONTROL_MANAGE_ROLES), listOwners);
 router.post("/", verifyToken, allowRoles(...RISK_CONTROL_MANAGE_ROLES), createRisk);
 router.put("/:id", verifyToken, allowRoles(...RISK_CONTROL_MANAGE_ROLES), updateRisk);
+router.patch("/:id/offline-description", verifyToken, allowRoles(...RISK_CONTROL_MANAGE_ROLES), updateRiskOfflineDescription);
 router.post("/:id/evaluate", verifyToken, allowRoles(...RISK_CONTROL_MANAGE_ROLES), evaluateRisk);
 router.post("/:id/response", verifyToken, allowRoles(...RISK_CONTROL_MANAGE_ROLES), proposeResponse);
 

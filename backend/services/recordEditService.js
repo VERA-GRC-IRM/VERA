@@ -57,6 +57,10 @@ const updateCoreForUser = async (user, type, id, input, options = {}) => {
   if (options.expectedUpdatedAt !== undefined && current.updatedAt !== options.expectedUpdatedAt) {
     throw fail("El registro cambió desde la vista previa. Vuelve a revisarlo.", 409);
   }
+  if (options.expectedStorageVersion !== undefined &&
+      current.storageVersion !== options.expectedStorageVersion) {
+    throw fail("El registro cambió desde la vista previa. Vuelve a revisarlo.", 409);
+  }
   if (options.expectedField && current[options.expectedField] !== options.expectedValue) {
     throw fail("El campo cambió desde la vista previa. Vuelve a revisarlo.", 409);
   }
@@ -110,4 +114,37 @@ const updateSingleFieldForUser = async (user, type, id, field, value, reason, ex
   });
 };
 
-module.exports = { fields, prepareRecordEdit, updateCoreForUser, updateSingleFieldForUser };
+const updateOfflineDescriptionForUser = async (user, type, id, input) => {
+  const expected = input?.expected;
+  const reason = input?.reason;
+  if (!Number.isSafeInteger(expected?.storageVersion) || expected.storageVersion < 1 ||
+      !(expected.updatedAt === null || typeof expected.updatedAt === "string") ||
+      typeof expected.description !== "string") {
+    throw fail("Indica la versión y descripción original del registro.");
+  }
+  if (typeof reason !== "string" || reason.trim().length < 10 || reason.trim().length > 300) {
+    throw fail("Explica el motivo de la edición en 10 a 300 caracteres.");
+  }
+  await activeEditor(user);
+  const current = await repositoryFor(type)?.findById(id);
+  if (!current) throw fail("El registro no existe o dejó de estar disponible.", 404);
+  await assertWritable(user, type, current);
+  if (current.storageVersion !== expected.storageVersion ||
+      current.updatedAt !== expected.updatedAt || current.description !== expected.description) {
+    throw fail("El registro cambió desde que preparaste el borrador. Revisa el valor actual.", 409);
+  }
+  const prepared = await prepareRecordEdit(user, type, id, "description", input.description);
+  if (prepared.current.storageVersion !== expected.storageVersion ||
+      prepared.current.updatedAt !== expected.updatedAt ||
+      prepared.current.description !== expected.description) {
+    throw fail("El registro cambió desde que preparaste el borrador. Revisa el valor actual.", 409);
+  }
+  return updateCoreForUser(user, type, id, { ...prepared.current, description: prepared.value }, {
+    expectedUpdatedAt: expected.updatedAt, expectedStorageVersion: expected.storageVersion,
+    expectedField: "description", expectedValue: expected.description,
+    field: "description", reason: reason.trim()
+  });
+};
+
+module.exports = { fields, prepareRecordEdit, updateCoreForUser, updateSingleFieldForUser,
+  updateOfflineDescriptionForUser };

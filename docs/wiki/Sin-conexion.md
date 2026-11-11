@@ -5,7 +5,7 @@ VERA permite continuar una parte del trabajo después de una sesión inicial con
 | Disponible después de preparar la copia | Requiere volver a conectarse |
 | --- | --- |
 | Abrir la interfaz y consultar secciones elegidas | Iniciar una sesión nueva o recuperar acceso |
-| Redactar notas, comentarios y avances de planes como borradores | Confirmar cambios, aprobaciones y permisos actuales |
+| Redactar notas, comentarios, avances de planes y descripciones de riesgos/controles como borradores | Confirmar cambios, aprobaciones y permisos actuales |
 | Preparar archivos de evidencia cifrados y consultar hasta dos archivos ya registrados que se hayan elegido con conexión | Vincular archivos nuevos en Supabase y consultar archivos no preparados |
 | Filtrar un informe guardado, descargar CSV e imprimir/guardar PDF local | Obtener datos nuevos, el PDF oficial y consultar la IA de Azure |
 
