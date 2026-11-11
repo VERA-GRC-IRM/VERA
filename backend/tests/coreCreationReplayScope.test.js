@@ -26,17 +26,22 @@ test("una clave de operación ajena no recupera propuestas, riesgos, controles n
     riskIds: [risk.id], effectiveness: 2, note: "Evaluación sintética insuficiente.",
     createdBy: { id: manager.id }, aiOperationId: operationIds[2] });
   const finding = findingRepository.create({ title: `Hallazgo ${operationIds[3]}`,
+    description: "Descripción verificable del hallazgo sintético.",
     riskId: risk.id, controlId: control.id, createdBy: { id: manager.id },
     aiOperationId: operationIds[3] });
 
   assert.equal((await createProposalForUser(manager, {}, operationIds[0])).id, proposal.id);
   assert.equal((await createRiskForUser(manager, {}, operationIds[1])).id, risk.id);
   assert.equal((await createControlForUser(manager, {}, operationIds[2])).id, control.id);
-  assert.equal((await createFindingForUser(manager, {}, operationIds[3])).id, finding.id);
+  const findingInput = { title: finding.title, description: finding.description,
+    riskId: risk.id, controlId: control.id };
+  assert.equal((await createFindingForUser(manager, findingInput, operationIds[3])).id, finding.id);
   await assert.rejects(() => createProposalForUser(lead, {}, operationIds[0]), { status: 404 });
   await assert.rejects(() => createRiskForUser(admin, {}, operationIds[1]), { status: 404 });
   await assert.rejects(() => createControlForUser(admin, {}, operationIds[2]), { status: 404 });
-  await assert.rejects(() => createFindingForUser(admin, {}, operationIds[3]), { status: 404 });
+  await assert.rejects(() => createFindingForUser(admin, findingInput, operationIds[3]), { status: 404 });
+  await assert.rejects(() => createFindingForUser(manager,
+    { ...findingInput, title: "Otro hallazgo" }, operationIds[3]), { status: 409 });
 });
 
 test("un reintento de comentario pertenece al autor, expediente y texto originales", async () => {
