@@ -1,0 +1,9 @@
+{
+  "format": "vera-offline-backup-v1",
+  "scope": "http://127.0.0.1:4173|706",
+  "createdAt": "2026-11-11T00:00:00.000Z",
+  "exportedAt": "2026-11-11T00:00:00.000Z",
+  "salt": "/RjzLCq2jDcexwY7AJG1LQ==",
+  "iv": "VF0gRN0Ehgxeb+ZT",
+  "ciphertext": "qcIcMjF2xnh4JdeObn7cHFtcWOYmRq/eclnkCz/0ElPkqptsN2geeSJ088VSVBElx3+ImvDdosNLmGiyolWcW+WiEMRhemSfs83JTDkwklLlEX8WmQsOlYQMJnIF9pN7qWEhauCAt4/z3Zg1dtGBk0vr1uG2pohcNiOpx8+PdLg8B3nqjmgYMBnVPppQuJOsdG8SMAIMN30P+MD0ImY+7sFO2IuxueBA33XTEWL4KZuzyhviRzb4FMENKI7BR4Cb+HXJltzqafhsimMNZujGWieggPYzy+1x8elhYLDw+OyvvIIJXFNjlP9wGDo0Ey59dot+JgrzCsEonBK/ST73edSu0fPY8bWtBNNe6DhEAFAu6frVwhgf+KYVVQHVGmp8MlWsc52PLtJErw=="
+}
