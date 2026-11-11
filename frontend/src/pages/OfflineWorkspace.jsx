@@ -6,6 +6,7 @@ import { createOfflineVault, deleteOfflineVault, hasOfflineVault,
   lockOfflineVault, unlockOfflineVault } from "../services/offlineVault";
 import { captureOfflineSnapshots, getOfflineSnapshots, SNAPSHOT_MODULES,
   SNAPSHOT_TTL_MS, removeOfflineSnapshot } from "../services/offlineSnapshots";
+import { searchOfflineRecords } from "../services/offlineSearch";
 import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts,
   getEvidenceDraftTargets, getFindingDraftTargets, saveOfflineDraft, saveOfflineEvidenceDraft,
   saveOfflineFindingDraft, syncOfflineDraft, syncOfflineEvidenceDraft,
@@ -67,6 +68,8 @@ function OfflineWorkspace() {
   const [findingDescription, setFindingDescription] = useState("");
   const [storageStatus, setStorageStatus] = useState(null);
   const [storageMessage, setStorageMessage] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchModule, setSearchModule] = useState("");
   const currentTime = checkedAt;
   const savedSections = Object.values(snapshots);
   const readySections = savedSections.filter((item) => {
@@ -75,6 +78,9 @@ function OfflineWorkspace() {
   });
   const pendingDrafts = drafts.filter((item) => item.state === "DRAFT" && item.type !== "GENERAL_NOTE").length;
   const reviewDrafts = drafts.filter((item) => ["CONFLICT", "NEEDS_REVIEW"].includes(item.state)).length;
+  const searchResults = open ? searchOfflineRecords(snapshots, SNAPSHOT_MODULES, {
+    query: searchTerm, moduleId: searchModule, now: currentTime, ttlMs: SNAPSHOT_TTL_MS
+  }) : [];
 
   useEffect(() => {
     let active = true;
@@ -302,6 +308,27 @@ function OfflineWorkspace() {
                   {storageMessage && <p role="status">{storageMessage}</p>}
                   <p>El espacio indicado incluye datos y archivos de este sitio; es una estimación, no una reserva. Si borras los datos del navegador, perderás la copia local.</p>
                 </div>
+              </section>
+              <section className="offline-local-search" aria-labelledby="offline-local-search-title">
+                <h3 id="offline-local-search-title">Buscar en copias vigentes</h3>
+                <p>La búsqueda ocurre solo en este dispositivo y no consulta al servidor. Incluye únicamente las secciones guardadas y vigentes.</p>
+                <div className="offline-local-search-fields">
+                  <label>Buscar registro<input type="search" value={searchTerm} maxLength={120}
+                    onChange={(event) => setSearchTerm(event.target.value)} placeholder="Nombre, folio, área o estado" /></label>
+                  <label>Sección<select value={searchModule} onChange={(event) => setSearchModule(event.target.value)}>
+                    <option value="">Todas las copias</option>
+                    {SNAPSHOT_MODULES.filter((module) => module.listKey && snapshots[module.id])
+                      .map((module) => <option key={module.id} value={module.id}>{module.label}</option>)}
+                  </select></label>
+                </div>
+                {searchTerm.trim().length >= 2 && <div role="status" aria-live="polite">
+                  <p>{searchResults.length ? `${searchResults.length}${searchResults.length === 50 ? " o más" : ""} ${searchResults.length === 1 ? "coincidencia" : "coincidencias"} en copias locales.`
+                    : "No hay coincidencias en las copias vigentes. Amplía la búsqueda o actualiza las secciones con conexión."}</p>
+                  {searchResults.length > 0 && <ul>{searchResults.map((result, index) => <li key={`${result.moduleId}:${result.id}:${index}`}>
+                    <div><strong>{result.title}</strong><small>{result.moduleLabel}{result.id ? ` · ${result.id}` : ""}{result.status ? ` · ${result.status}` : ""} · copia del {new Date(result.savedAt).toLocaleString("es-MX")}</small></div>
+                    <Link to={result.link}>Abrir sección</Link>
+                  </li>)}</ul>}
+                </div>}
               </section>
               <fieldset className="offline-snapshot-options">
                 <legend>Secciones para consultar sin conexión</legend>
