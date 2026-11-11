@@ -39,3 +39,9 @@ En la cabecera del chat, el control «Activar lectura automática» permite escu
 | Cuota agotada o permiso denegado no bloquean el chat escrito | Unidad de error del servicio y E2E de fallo de síntesis | Simular límite F0 y denegar micrófono |
 
 Los casos de dispositivo real se registrarán como aprobados solo después de ejecutarlos. Ninguna prueba sintética equivale a validar captura o reproducción física en Production.
+
+### Resultado de Production
+
+En la sesión de aceptación del 10 de noviembre de 2026 (hora de México), el usuario confirmó que pudo dictar una pregunta y escuchar una respuesta en el sitio público de VERA. La confirmación ocurrió después de desplegar `main` con Azure Speech configurado; no se informó el modelo de dispositivo ni el navegador. La última versión de esta etapa, `766ad58`, quedó `READY` en Vercel y el sitio respondió HTTP 200; la ruta de estado del asistente devolvió HTTP 401 sin sesión, como corresponde.
+
+Quedan por ejecutar y registrar por separado: permiso de micrófono denegado, silencio, cancelación con Escape en dispositivo físico, agotamiento de cuota F0 y comprobación en otros dispositivos y navegadores. El resultado informado no valida por sí solo esos escenarios.
