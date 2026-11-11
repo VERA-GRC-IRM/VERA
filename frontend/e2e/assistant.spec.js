@@ -169,6 +169,31 @@ test("Voz: escuchar una respuesta requiere una acción explícita", async ({ pag
   expect(speechRequests).toBe(1);
 });
 
+test("Voz: la lectura de cada respuesta nueva es optativa y empieza apagada", async ({ page }) => {
+  await useSession(page, "AUDITOR", 5);
+  await page.route("**/api/assistant/status", (route) => route.fulfill({ json: {
+    available: true, mode: "read-only", conversations: false, speech: true
+  } }));
+  let speechRequests = 0;
+  await page.route("**/api/assistant/speech/token", (route) => {
+    speechRequests += 1;
+    return route.fulfill({ status: 503, json: { message: "El servicio de voz no está disponible. Intenta más tarde." } });
+  });
+  await page.route("**/api/assistant/ask", (route) => route.fulfill({ json: {
+    answer: "Respuesta autorizada.", mode: "generated", citations: []
+  } }));
+  await page.goto("/asistente");
+  await page.getByLabel("Tu pregunta").fill("Resume mi portafolio");
+  await page.getByRole("button", { name: "Enviar pregunta" }).click();
+  await expect(page.getByRole("button", { name: "Escuchar respuesta" })).toBeVisible();
+  expect(speechRequests).toBe(0);
+  await page.getByRole("button", { name: "Activar lectura automática" }).click();
+  await expect(page.getByRole("button", { name: "Desactivar lectura automática" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByLabel("Tu pregunta").fill("Resume mis pendientes");
+  await page.getByRole("button", { name: "Enviar pregunta" }).click();
+  await expect.poll(() => speechRequests).toBe(1);
+});
+
 test("Espacio de IA: explora expedientes y continúa sin salir del chat", async ({ page }) => {
   await useSession(page, "AUDITOR", 5);
   await page.route("**/api/assistant/status", (route) => route.fulfill({ json: {
