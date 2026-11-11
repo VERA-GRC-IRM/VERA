@@ -1,9 +1,28 @@
 const DATABASE = "vera-offline-v1";
 const STORE = "vaults";
 const ITERATIONS = 310000;
+const MAX_BACKUP_BYTES = 40 * 1024 * 1024;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 let unlocked = null;
+
+const toBase64 = (bytes) => {
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 32768) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 32768));
+  }
+  return btoa(binary);
+};
+
+const fromBase64 = (value, maxBytes) => {
+  if (typeof value !== "string" || value.length > Math.ceil(maxBytes / 3) * 4 + 4 ||
+      !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
+    throw new Error("El archivo de copia no tiene un formato válido.");
+  }
+  const bytes = Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+  if (bytes.length > maxBytes) throw new Error("El archivo de copia supera el límite permitido.");
+  return bytes;
+};
 
 const scopeFor = (userId) => {
   const id = String(userId ?? "").trim();
@@ -160,4 +179,53 @@ export const deleteOfflineVault = async (userId) => {
   const scope = scopeFor(userId);
   if (unlocked?.scope === scope) unlocked = null;
   await removeRecord(scope);
+};
+
+export const exportOfflineVault = async (userId) => {
+  const scope = scopeFor(userId);
+  if (!unlocked || unlocked.scope !== scope) throw new Error("Desbloquea tu espacio local antes de exportar.");
+  const record = await getRecord(scope);
+  if (!record || record.revision !== unlocked.revision) {
+    lockOfflineVault();
+    throw new Error("La copia cambió en otra pestaña. Desbloquéala antes de exportar.");
+  }
+  const backup = { format: "vera-offline-backup-v1", scope, createdAt: record.createdAt,
+    exportedAt: new Date().toISOString(), salt: toBase64(new Uint8Array(record.salt)),
+    iv: toBase64(new Uint8Array(record.iv)),
+    ciphertext: toBase64(new Uint8Array(record.ciphertext)) };
+  return { fileName: `vera-copia-cifrada-${new Date().toISOString().slice(0, 10)}.json`,
+    json: JSON.stringify(backup) };
+};
+
+export const importOfflineVault = async (userId, file, passphrase) => {
+  const scope = scopeFor(userId);
+  if (!(file instanceof File) || !file.size || file.size > MAX_BACKUP_BYTES) {
+    throw new Error("Selecciona una copia cifrada de hasta 40 MiB.");
+  }
+  if (typeof passphrase !== "string" || passphrase.normalize("NFC").length < 15) {
+    throw new Error("Escribe la frase local de la copia original.");
+  }
+  if (await getRecord(scope)) throw new Error("Ya existe una copia en este dispositivo. No se reemplazó.");
+  let backup;
+  try { backup = JSON.parse(await file.text()); }
+  catch { throw new Error("El archivo de copia no es JSON válido."); }
+  if (backup?.format !== "vera-offline-backup-v1" || backup.scope !== scope) {
+    throw new Error("La copia pertenece a otra cuenta o dirección de VERA.");
+  }
+  const salt = fromBase64(backup.salt, 16);
+  const iv = fromBase64(backup.iv, 12);
+  const ciphertext = fromBase64(backup.ciphertext, 30 * 1024 * 1024);
+  if (salt.length !== 16 || iv.length !== 12 || ciphertext.length < 17) {
+    throw new Error("El archivo de copia está incompleto.");
+  }
+  let key;
+  let data;
+  try {
+    key = await deriveKey(passphrase, salt);
+    data = await decrypt({ scope, iv, ciphertext }, key);
+  } catch { throw new Error("La frase local no coincide o el archivo está dañado."); }
+  if (!data.snapshots || !Array.isArray(data.drafts)) throw new Error("La copia local no es compatible.");
+  await addRecord({ scope, salt, iv, ciphertext, revision: 1, createdAt: backup.createdAt || new Date().toISOString() });
+  unlocked = { scope, key, revision: 1, data };
+  return structuredClone(data);
 };

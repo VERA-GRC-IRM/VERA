@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+import { Buffer } from "node:buffer";
+import { readFile } from "node:fs/promises";
 
 const phrase = "Frase local exclusiva de resiliencia 2026";
 
@@ -75,4 +77,46 @@ test("a stale second tab cannot overwrite a newer encrypted vault revision", asy
   await expect(page.getByText("Primera pestaña")).toBeVisible();
   await expect(page.getByText("Segunda pestaña")).toHaveCount(0);
   await second.close();
+});
+
+test("an encrypted backup restores only with the original phrase and never exposes draft text", async ({ page, context }) => {
+  await prepare(page, 703);
+  await page.getByLabel("Frase local", { exact: true }).fill(phrase);
+  await page.getByLabel("Repetir frase local").fill(phrase);
+  await page.getByRole("button", { name: "Crear espacio" }).click();
+  await page.getByLabel("Título").fill("Nota de recuperación");
+  await page.getByLabel("Nota", { exact: true }).fill("Conservar el borrador durante un cambio de dispositivo.");
+  await page.getByRole("button", { name: "Guardar borrador local" }).click();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Descargar copia cifrada" }).click()
+  ]);
+  const buffer = await readFile(await download.path());
+  const backup = JSON.parse(buffer.toString("utf8"));
+  expect(backup.format).toBe("vera-offline-backup-v1");
+  expect(buffer.toString("utf8")).not.toContain("Nota de recuperación");
+  await page.getByRole("button", { name: "Borrar copia de este dispositivo" }).click();
+  await page.getByRole("button", { name: "Confirmar borrado de esta copia" }).click();
+  await expect(page.getByRole("heading", { name: "Habilitar copia local" })).toBeVisible();
+  await context.setOffline(true);
+  await page.getByLabel("Archivo de copia").setInputFiles({ name: "otra-cuenta.json",
+    mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ ...backup, scope: `${backup.scope}-other` })) });
+  await page.getByLabel("Frase local original").fill(phrase);
+  await page.getByRole("button", { name: "Restaurar copia" }).click();
+  await expect(page.getByRole("alert")).toContainText("otra cuenta");
+  await page.getByLabel("Archivo de copia").setInputFiles({ name: download.suggestedFilename(),
+    mimeType: "application/json", buffer });
+  await page.getByLabel("Frase local original").fill("Frase equivocada para recuperar");
+  await page.getByRole("button", { name: "Restaurar copia" }).click();
+  await expect(page.getByRole("alert")).toContainText("no coincide");
+  await expect(page.getByRole("heading", { name: "Habilitar copia local" })).toBeVisible();
+  await page.getByLabel("Frase local original").fill(phrase);
+  await page.getByRole("button", { name: "Restaurar copia" }).click();
+  await expect(page.getByText("Nota de recuperación")).toBeVisible();
+  await expect(page.getByText(/Revisa la vigencia de cada sección/)).toBeVisible();
+  await context.setOffline(false);
+  await page.reload();
+  await page.getByLabel("Frase local", { exact: true }).fill(phrase);
+  await page.getByRole("button", { name: "Desbloquear" }).click();
+  await expect(page.getByText("Nota de recuperación")).toBeVisible();
 });
