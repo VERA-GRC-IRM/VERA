@@ -45,3 +45,9 @@ Los borradores **no se envían ni se aplican al servidor** en esta etapa. Las no
 Al recuperar la conexión, la persona puede enviar manualmente un comentario o avance de plan. VERA consulta la versión actual con una sesión vigente y solo intenta el cambio si coincide con la versión del borrador. El backend vuelve a validar permisos y reglas, y rechaza cambios simultáneos. Una respuesta `409` marca **Conflicto de versión**. Si la red se corta después de enviar la solicitud y no se conoce el resultado, el borrador pasa a **Confirmación pendiente** y no se vuelve a enviar automáticamente; debe revisarse el historial del plan para evitar duplicados. Una respuesta confirmada muestra **Enviado al servidor**.
 
 Las notas generales siguen siendo personales y no tienen envío automático. Tampoco se habilitan aprobaciones, cambios de rol ni cargas de archivos sin red.
+
+## Etapa 6: archivos de evidencia preparados localmente
+
+Con una copia vigente del riesgo, control o auditoría, los roles que pueden registrar evidencias preparan hasta tres archivos pendientes de 3 MiB cada uno. VERA valida extensión, tamaño, tipo, descripción y expediente; el archivo se guarda dentro del espacio local cifrado y aparece como **Pendiente de usar**. El archivo no está publicado ni relacionado con el expediente todavía. Al recuperar la conexión, la persona pulsa **Cargar evidencia**; el backend confirma permiso, entidad y archivo. Solo una respuesta con ID de evidencia cambia el estado a **Enviado al servidor** y retira el contenido binario de la copia local.
+
+Si se pierde la respuesta tras el envío, VERA marca **Confirmación pendiente** y exige revisar Evidencias antes de decidir qué hacer. No reintenta la carga automáticamente, porque crear otra evidencia podría duplicar el registro. Los archivos permanecen en el dispositivo hasta que se envían o se borran; la persona debe proteger el dispositivo y evitar preparar información que no deba conservarse localmente.

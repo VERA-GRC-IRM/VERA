@@ -2,13 +2,86 @@ import { readOfflineVault, saveOfflineVault } from "./offlineVault";
 import { getOfflineSnapshot } from "./offlineSnapshots";
 
 const MAX_DRAFTS = 50;
+const MAX_FILES = 3;
+const MAX_FILE_BYTES = 3 * 1024 * 1024;
+const FILE_MIME = {
+  pdf: "application/pdf", xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  csv: "text/csv", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
+  webp: "image/webp", txt: "text/plain"
+};
 const currentUser = () => {
   const user = JSON.parse(localStorage.getItem("user") || "null");
   if (!user?.id || user.roleTour) throw new Error("No hay una cuenta autorizada para este borrador.");
   return user.id;
 };
 
-export const getOfflineDrafts = () => readOfflineVault(currentUser()).drafts || [];
+export const getOfflineDrafts = () => (readOfflineVault(currentUser()).drafts || [])
+  .map((draft) => { const metadata = { ...draft }; delete metadata.fileBase64; return metadata; });
+
+export const getEvidenceDraftTargets = () => {
+  const sources = [
+    { id: "risks", type: "RISK", field: "risks" },
+    { id: "controls", type: "CONTROL", field: "controls" },
+    { id: "activeAudits", type: "AUDIT", field: "audits" }
+  ];
+  return sources.flatMap((source) => {
+    try { return getOfflineSnapshot(source.id).data[source.field].map((item) => ({
+      entityType: source.type, entityId: item.id, title: item.title
+    })); }
+    catch { return []; }
+  });
+};
+
+const toBase64 = (bytes) => {
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 32768) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 32768));
+  }
+  return btoa(binary);
+};
+
+const fromBase64 = (value) => Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+
+export const saveOfflineEvidenceDraft = async (details, file) => {
+  const userId = currentUser();
+  const vault = readOfflineVault(userId);
+  const drafts = vault.drafts || [];
+  if (drafts.length >= MAX_DRAFTS || drafts.filter((item) => item.type === "EVIDENCE_UPLOAD" && item.state !== "SYNCED").length >= MAX_FILES) {
+    throw new Error("Alcanzaste el límite de borradores o archivos pendientes.");
+  }
+  const title = String(details.title ?? "").trim();
+  const description = String(details.description ?? "").trim();
+  const evidenceType = String(details.evidenceType ?? "");
+  const entityType = String(details.entityType ?? "");
+  const entityId = String(details.entityId ?? "");
+  if (title.length < 3 || title.length > 120 || description.length < 10 || description.length > 1000) {
+    throw new Error("Revisa el nombre (3–120) y la descripción (10–1,000 caracteres).");
+  }
+  if (!["DOCUMENT", "SCREENSHOT", "REPORT", "OTHER"].includes(evidenceType)) throw new Error("Tipo de evidencia inválido.");
+  if (!["RISK", "CONTROL", "AUDIT"].includes(entityType)
+    || !getEvidenceDraftTargets().some((item) => item.entityType === entityType && String(item.entityId) === entityId)) {
+    throw new Error("El expediente no está en una copia local vigente.");
+  }
+  if (entityType === "AUDIT" && !["SUPER_ADMIN", "GERENTE"].includes(JSON.parse(localStorage.getItem("user") || "null")?.role)) {
+    throw new Error("Tu rol no puede adjuntar archivos a auditorías.");
+  }
+  if (!(file instanceof File) || file.size === 0 || file.size > MAX_FILE_BYTES) {
+    throw new Error("Selecciona un archivo de hasta 3 MiB.");
+  }
+  const extension = file.name.split(".").at(-1)?.toLowerCase();
+  const mime = FILE_MIME[extension];
+  if (!mime) throw new Error("Tipo de archivo no admitido.");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const draft = {
+    id: crypto.randomUUID(), type: "EVIDENCE_UPLOAD", state: "DRAFT", createdAt: new Date().toISOString(),
+    title, description, evidenceType, entityType, entityId, fileName: file.name, mime,
+    fileBytes: bytes.byteLength, fileBase64: toBase64(bytes)
+  };
+  await saveOfflineVault(userId, { ...vault, drafts: [...drafts, draft] });
+  return { ...draft, fileBase64: undefined };
+};
 
 export const getDraftableActions = () => {
   const snapshot = getOfflineSnapshot("actions");
@@ -123,4 +196,45 @@ export const syncOfflineDraft = async (draftId) => {
   await markDraft(userId, draftId, { state: "SYNCED", syncedAt: new Date().toISOString(),
     serverVersion: body.action.storageVersion });
   return body.action;
+};
+
+export const syncOfflineEvidenceDraft = async (draftId) => {
+  if (!navigator.onLine) throw new Error("Conéctate antes de cargar la evidencia.");
+  const userId = currentUser();
+  const draft = (readOfflineVault(userId).drafts || []).find((item) => item.id === draftId);
+  if (!draft || draft.type !== "EVIDENCE_UPLOAD" || draft.state !== "DRAFT") {
+    throw new Error("Este archivo requiere revisión antes de volver a enviarse.");
+  }
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Inicia sesión antes de cargar la evidencia.");
+  const params = new URLSearchParams({ title: draft.title, description: draft.description,
+    evidenceType: draft.evidenceType, entityType: draft.entityType, entityId: draft.entityId });
+  let response;
+  try {
+    response = await fetch(`/api/evidence/upload?${params}`, {
+      method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": draft.mime },
+      body: fromBase64(draft.fileBase64), cache: "no-store", signal: AbortSignal.timeout(30000)
+    });
+  } catch {
+    await markDraft(userId, draftId, { state: "NEEDS_REVIEW" });
+    throw new Error("La carga pudo haberse completado. Revisa Evidencias antes de repetirla.");
+  }
+  if (response.status >= 500) {
+    await markDraft(userId, draftId, { state: "NEEDS_REVIEW" });
+    throw new Error("El servidor no confirmó la carga. Revisa Evidencias antes de repetirla.");
+  }
+  if (!response.ok) throw new Error(await responseMessage(response));
+  let body;
+  try { body = await response.json(); }
+  catch {
+    await markDraft(userId, draftId, { state: "NEEDS_REVIEW" });
+    throw new Error("El servidor respondió, pero no confirmó el archivo. Revisa Evidencias.");
+  }
+  if (!body.evidence?.id) {
+    await markDraft(userId, draftId, { state: "NEEDS_REVIEW" });
+    throw new Error("El servidor no confirmó el ID de evidencia. Revisa Evidencias.");
+  }
+  await markDraft(userId, draftId, { state: "SYNCED", syncedAt: new Date().toISOString(),
+    evidenceId: body.evidence.id, fileBase64: undefined });
+  return body.evidence;
 };
