@@ -266,18 +266,22 @@ export const syncOfflineDraft = async (draftId) => {
   if (!draft || !["ACTION_COMMENT", "ACTION_PROGRESS"].includes(draft.type)) {
     throw new Error("Este borrador no se puede enviar automáticamente.");
   }
-  if (draft.state !== "DRAFT") throw new Error("Este borrador requiere revisión antes de volver a enviarse.");
+  if (!["DRAFT", "NEEDS_REVIEW"].includes(draft.state)) {
+    throw new Error("Este borrador requiere revisión antes de volver a enviarse.");
+  }
   const token = localStorage.getItem("token");
   if (!token) throw new Error("Inicia sesión antes de enviar.");
   const url = `/api/actions/${encodeURIComponent(draft.actionId)}`;
-  const current = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(15000)
-  });
-  if (!current.ok) throw new Error(await responseMessage(current));
-  const action = (await current.json()).action;
-  if (!action || action.storageVersion !== draft.version) {
-    await markDraft(userId, draftId, { state: "CONFLICT" });
-    throw new Error("El plan cambió desde que guardaste el borrador. Revisa el plan antes de editarlo de nuevo.");
+  if (draft.state === "DRAFT") {
+    const current = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(15000)
+    });
+    if (!current.ok) throw new Error(await responseMessage(current));
+    const action = (await current.json()).action;
+    if (!action || action.storageVersion !== draft.version) {
+      await markDraft(userId, draftId, { state: "CONFLICT" });
+      throw new Error("El plan cambió desde que guardaste el borrador. Revisa el plan antes de editarlo de nuevo.");
+    }
   }
   const payload = { version: draft.version, note: draft.note,
     ...(draft.type === "ACTION_PROGRESS" ? { progressPercent: draft.progressPercent } : {}) };
@@ -285,7 +289,8 @@ export const syncOfflineDraft = async (draftId) => {
   try {
     response = await fetch(`${url}/${draft.type === "ACTION_PROGRESS" ? "progress" : "comments"}`, {
       method: draft.type === "ACTION_PROGRESS" ? "PATCH" : "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json",
+        "Idempotency-Key": draft.id },
       body: JSON.stringify(payload), cache: "no-store", signal: AbortSignal.timeout(15000)
     });
   } catch {
@@ -295,6 +300,10 @@ export const syncOfflineDraft = async (draftId) => {
   if (response.status === 409) {
     await markDraft(userId, draftId, { state: "CONFLICT" });
     throw new Error("El plan cambió durante el envío. Revisa su versión actual.");
+  }
+  if (response.status >= 500) {
+    await markDraft(userId, draftId, { state: "NEEDS_REVIEW" });
+    throw new Error("El servidor no confirmó el plan. Comprueba o reintenta la misma operación.");
   }
   if (!response.ok) throw new Error(await responseMessage(response));
   let body;

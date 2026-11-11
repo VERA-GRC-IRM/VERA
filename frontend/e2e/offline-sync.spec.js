@@ -32,6 +32,7 @@ test("manual sync sends the original version once and confirms server acceptance
   let writes = 0;
   await page.route("**/api/actions/plan-1/progress", (route) => {
     writes += 1;
+    expect((route.request().headers())["idempotency-key"]).toMatch(/^[0-9a-f-]{36}$/i);
     expect(route.request().postDataJSON()).toEqual({ version: 3, progressPercent: 75,
       note: "Se completó la revisión de evidencia y el plan continúa." });
     return route.fulfill({ status: 200, contentType: "application/json",
@@ -64,4 +65,25 @@ test("uncertain network result requires review and never retries automatically",
   await expect(page.getByText("Confirmación pendiente")).toBeVisible();
   await expect(page.getByRole("button", { name: "Enviar al servidor" })).toHaveCount(0);
   expect(writes).toBe(1);
+});
+
+test("an explicit retry of uncertain progress uses the same operation without preflight version rejection", async ({ page, context }) => {
+  await prepareDraft(page, context, 404);
+  let latestVersion = 3;
+  await page.route("**/api/actions/plan-1", (route) => route.fulfill({ status: 200,
+    contentType: "application/json", body: JSON.stringify({ action: { id: "plan-1", storageVersion: latestVersion } }) }));
+  const keys = [];
+  await page.route("**/api/actions/plan-1/progress", async (route) => {
+    keys.push((await route.request().allHeaders())["idempotency-key"]);
+    if (keys.length === 1) { latestVersion = 4; return route.abort("failed"); }
+    return route.fulfill({ status: 200, contentType: "application/json",
+      body: JSON.stringify({ action: { id: "plan-1", storageVersion: 4 } }) });
+  });
+  await page.getByRole("button", { name: "Enviar al servidor" }).click();
+  await expect(page.getByText("Confirmación pendiente")).toBeVisible();
+  await page.getByRole("button", { name: "Comprobar o reintentar plan" }).click();
+  await expect(page.getByText("Enviado al servidor")).toBeVisible();
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/i);
+  expect(keys[1]).toBe(keys[0]);
 });

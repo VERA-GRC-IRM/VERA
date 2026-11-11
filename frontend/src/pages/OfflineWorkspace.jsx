@@ -426,6 +426,10 @@ function OfflineWorkspace() {
                       <p>La respuesta anterior se perdió. Al continuar, VERA comprobará la misma operación; si no se había guardado, intentará registrarla ahora.</p>
                       <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>Comprobar o reintentar hallazgo</button>
                     </>}
+                    {["ACTION_PROGRESS", "ACTION_COMMENT"].includes(draft.type) && draft.state === "NEEDS_REVIEW" && <>
+                      <p>La respuesta anterior se perdió. VERA comprobará la misma operación antes de aplicar algún cambio.</p>
+                      <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>Comprobar o reintentar plan</button>
+                    </>}
                     {draft.type !== "GENERAL_NOTE" && ["CONFLICT", "NEEDS_REVIEW"].includes(draft.state) && <Link to={{ EVIDENCE_UPLOAD: "/evidencias", FINDING_CREATE: "/controles" }[draft.type] || "/notificaciones"}>Revisar {{ EVIDENCE_UPLOAD: "evidencias", FINDING_CREATE: "hallazgos" }[draft.type] || "plan"}</Link>}
                     <button type="button" className="secondary-action" disabled={busy} onClick={() => removeDraft(draft.id)}>{deleteDraftId === draft.id ? "Confirmar borrado" : "Borrar borrador"}</button>
                   </div>

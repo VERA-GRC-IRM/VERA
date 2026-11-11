@@ -81,6 +81,8 @@ En el caso de reabrir un borrador, el modo `setOffline` de Playwright para Firef
 
 ## Preparación local de hallazgos
 
+Los avances y comentarios de planes de acción preparados sin red también llevan una clave única de operación al enviarse. Si se pierde la respuesta, el borrador queda en **Confirmación pendiente**. La persona puede pulsar **Comprobar o reintentar plan**: el backend verifica que la misma cuenta, versión y contenido ya se aplicaron y devuelve el plan existente, o intenta la operación con la versión original. Una clave reutilizada con otros datos se rechaza; un cambio concurrente conserva el conflicto. No hay reintento automático ni sobrescritura silenciosa.
+
 Los roles que pueden registrar hallazgos pueden preparar un borrador con título y descripción a partir de un control insuficiente y un riesgo asociado incluidos en copias locales vigentes de **Controles** y **Riesgos**. El borrador se cifra en el espacio de la cuenta y no crea todavía un registro. En el caso de Auditor, la lista local solo ofrece riesgos donde aparece como responsable; el backend sigue siendo quien decide los permisos definitivos.
 
 Tras recuperar conexión, **Registrar hallazgo** consulta controles, riesgos y hallazgos actuales. Si cambió el número de evaluaciones del control, la relación o ya hay un hallazgo para esa evaluación, detiene el envío y pide revisión. Si la respuesta de creación es incierta, etiqueta el borrador **Confirmación pendiente** y evita reintentos automáticos. El backend recibe además la versión de evaluación observada al guardar el borrador y la verifica de nuevo justo al crear. La consulta previa no sustituye esa comprobación del servidor. No se modifican aprobaciones ni estados de hallazgos sin red.
