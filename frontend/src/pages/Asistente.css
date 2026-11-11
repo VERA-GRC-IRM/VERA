@@ -141,6 +141,7 @@
 .assistant-rail-heading span { color: var(--vera-text-muted); font-size: 11px; }
 .assistant-rail-heading button,.assistant-conversation-tools button,.assistant-icon-button { display: inline-grid; place-items: center; flex: 0 0 auto; width: 42px; height: 42px; padding: 0; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--vera-text-muted); cursor: pointer; }
 .assistant-rail-heading button:hover,.assistant-conversation-tools button:hover,.assistant-icon-button:hover { border-color: var(--vera-border); background: var(--vera-surface-tint); color: var(--vera-text-strong); }
+.assistant-conversation-tools .assistant-icon-button[aria-pressed="true"] { border-color: var(--vera-accent); background: var(--vera-surface-tint); color: var(--vera-accent); }
 .assistant-new-button { display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; min-height: 44px; padding: 9px 12px; border: 1px solid var(--vera-border); border-radius: 11px; background: var(--vera-surface); color: var(--vera-text-strong); cursor: pointer; font-weight: 700; text-align: left; box-shadow: 0 2px 9px #1427310b; }
 .assistant-new-button:hover { border-color: var(--vera-accent); background: var(--vera-surface-tint); }
 .assistant-new-button:disabled { opacity: .55; cursor: not-allowed; }

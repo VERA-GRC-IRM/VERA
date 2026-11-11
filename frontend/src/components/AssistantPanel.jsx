@@ -51,6 +51,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
   const [voiceStatus, setVoiceStatus] = useState("");
   const [readingId, setReadingId] = useState(null);
   const [readingStatus, setReadingStatus] = useState("");
+  const [autoRead, setAutoRead] = useState(false);
   const [withEvidence, setWithEvidence] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -445,6 +446,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
     const value = question.trim();
     if (!available || busy || voiceBusy || historyBusy || historyError || historyStale ||
         value.length < 3 || value.length > (withEvidence ? 500 : 800)) return;
+    if (readingId) stopReading(false);
     setContextMenuOpen(false); setAttachmentsOpen(false);
     const history = messages.slice(-6).map(({ role, text }) => ({ role, text: text.slice(0, 800) }));
     if (!persistent) setMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", text: value }]);
@@ -458,6 +460,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
           selectedAttachmentId === PROJECT_LIBRARY ? null : selectedAttachmentId,
           selectedAttachmentId === PROJECT_LIBRARY);
         setMessages((current) => [...current, saved.userMessage, saved.message]);
+        if (autoRead && speechAvailable && saved.message?.text?.length <= 1800) readAnswer(saved.message);
         setThread((item) => ({ ...item, version: saved.version, updatedAt: new Date().toISOString() }));
         if (saved.downloadCsv) saveReportCsv(saved.downloadCsv);
         if (saved.downloadFromReportEndpoint) await downloadPortfolioReport();
@@ -473,12 +476,14 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
           lastBrowse: messages.at(-1)?.browse || null });
       if (result.downloadCsv) saveReportCsv(result.downloadCsv);
       if (result.downloadFromReportEndpoint) await downloadPortfolioReport();
-      setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", text: result.answer,
+      const answer = { id: crypto.randomUUID(), role: "assistant", text: result.answer,
         mode: result.mode, metric: result.metric,
         citations: result.citations || [], references: result.references || [], browse: result.browse || null,
         coverage: result.coverage,
         asOf: result.asOf,
-        durationMs: result.durationMs, feedbackToken: result.feedbackToken || null }]);
+        durationMs: result.durationMs, feedbackToken: result.feedbackToken || null };
+      setMessages((current) => [...current, answer]);
+      if (autoRead && speechAvailable && answer.text?.length <= 1800) readAnswer(answer);
     } catch (cause) { setError(cause.message); if (persistent) setQuestion(value); }
     finally { setBusy(false); }
   };
@@ -684,6 +689,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
         {persistent && <button className="assistant-icon-button" type="button" onClick={() => setHistoryOpen((open) => !open)} aria-label={historyOpen ? "Ocultar historial" : "Mostrar historial"} aria-expanded={historyOpen} aria-controls="assistant-history-panel">{historyOpen ? <PanelLeftClose size={19} aria-hidden="true" /> : <PanelLeftOpen size={19} aria-hidden="true" />}</button>}
         <div><span className="assistant-kicker">VERA · ASISTENTE</span><h2>{thread?.title || (focus ? "Consulta de expediente" : "Nueva conversación")}</h2></div>
       </div><div className="assistant-conversation-tools"><span className="assistant-availability">{available === null ? "Conectando" : available ? persistent && user?.role !== "DIRECTOR" ? "Consultas y acciones" : "Solo lectura" : "No disponible"}</span>
+        {speechAvailable && <button className="assistant-icon-button" type="button" onClick={() => { if (autoRead && readingId) stopReading(false); setAutoRead((enabled) => !enabled); }} aria-label={autoRead ? "Desactivar lectura automática" : "Activar lectura automática"} aria-pressed={autoRead} title={autoRead ? "Desactivar lectura automática" : "Leer en voz alta cada respuesta nueva, usando Azure Speech"}><Volume2 size={19} aria-hidden="true" /></button>}
         {persistent && <button className="assistant-icon-button" type="button" onClick={newThread} disabled={historyBusy || busy} aria-label="Iniciar chat nuevo" title="Iniciar chat nuevo"><Plus size={19} aria-hidden="true" /></button>}
         {thread && <div className="assistant-thread-menu" ref={threadMenuRef} onKeyDown={(event) => {
           if (event.key !== "Escape" || !threadMenuOpen) return;
