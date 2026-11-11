@@ -40,3 +40,5 @@
 .offline-draft-list li { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding: 14px; border: 1px solid var(--vera-border); border-radius: 10px; }
 .offline-draft-list p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; }
 .offline-draft-list small { display: block; color: var(--vera-text-muted); }
+.offline-draft-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.offline-draft-actions a { color: var(--vera-accent); }

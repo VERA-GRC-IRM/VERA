@@ -39,3 +39,9 @@ Al fallar la red, las consultas iniciales de esas vistas pueden leer la copia el
 El espacio local permite escribir notas de trabajo y preparar comentarios o avances de planes de acción vinculados a un hallazgo. Estos últimos usan la copia vigente del plan para guardar su ID y versión. Cada borrador queda cifrado, separado por cuenta, limitado en tamaño y etiquetado **Pendiente de usar**. Crear o borrar un borrador funciona sin red; cerrar la pestaña lo bloquea hasta introducir la frase local de nuevo.
 
 Los borradores **no se envían ni se aplican al servidor** en esta etapa. Las notas generales pueden servir de referencia para cualquier módulo, pero no se convierten automáticamente en registros. La sincronización posterior tendrá que revalidar sesión, permisos, versión y reglas de negocio antes de modificar un plan.
+
+## Etapa 5: envío controlado de planes
+
+Al recuperar la conexión, la persona puede enviar manualmente un comentario o avance de plan. VERA consulta la versión actual con una sesión vigente y solo intenta el cambio si coincide con la versión del borrador. El backend vuelve a validar permisos y reglas, y rechaza cambios simultáneos. Una respuesta `409` marca **Conflicto de versión**. Si la red se corta después de enviar la solicitud y no se conoce el resultado, el borrador pasa a **Confirmación pendiente** y no se vuelve a enviar automáticamente; debe revisarse el historial del plan para evitar duplicados. Una respuesta confirmada muestra **Enviado al servidor**.
+
+Las notas generales siguen siendo personales y no tienen envío automático. Tampoco se habilitan aprobaciones, cambios de rol ni cargas de archivos sin red.
