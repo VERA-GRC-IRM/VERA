@@ -13,7 +13,7 @@ import { getEditableOfflineRecords, inspectOfflineRecordConflict,
   saveOfflineRecordDescription, syncOfflineRecordDescription } from "../services/offlineRecordDrafts";
 import { cleanupOfflineVault } from "../services/offlineCleanup";
 import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts, inspectOfflineActionConflict,
-  inspectOfflineFindingConflict,
+  inspectOfflineFindingConflict, isFindingDraftComplete,
   getEvidenceDraftTargets, getFindingDraftTargets, saveOfflineDraft, saveOfflineEvidenceDraft,
   saveOfflineFindingDraft, syncOfflineDraft, syncOfflineEvidenceDraft,
   syncOfflineFindingDraft } from "../services/offlineDrafts";
@@ -38,6 +38,10 @@ const PREPARATION_PACKS = [
   { id: "fieldwork", label: "Trabajo de auditoría", sections: ["activeAudits", "risks", "riskOwners", "controls", "findings", "actions", "evidence"] },
   { id: "report", label: "Informe local", sections: ["report"] }
 ];
+const isReadyToSend = (draft) => draft.state === "DRAFT" && draft.type !== "GENERAL_NOTE"
+  && (draft.type !== "FINDING_CREATE" || isFindingDraftComplete(draft));
+const needsReview = (draft) => ["CONFLICT", "NEEDS_REVIEW"].includes(draft.state)
+  || (draft.state === "DRAFT" && draft.type === "FINDING_CREATE" && !isFindingDraftComplete(draft));
 
 function OfflineWorkspace() {
   useDocumentTitle("Sin conexión");
@@ -77,6 +81,8 @@ function OfflineWorkspace() {
   const [findingTargetIndex, setFindingTargetIndex] = useState("");
   const [findingTitle, setFindingTitle] = useState("");
   const [findingDescription, setFindingDescription] = useState("");
+  const [findingRootCause, setFindingRootCause] = useState("");
+  const [findingSeverity, setFindingSeverity] = useState("MEDIUM");
   const [storageStatus, setStorageStatus] = useState(null);
   const [storageMessage, setStorageMessage] = useState("");
   const [confirmCleanup, setConfirmCleanup] = useState(false);
@@ -103,8 +109,8 @@ function OfflineWorkspace() {
     const age = currentTime - Date.parse(item.savedAt);
     return Number.isFinite(age) && age >= 0 && age <= SNAPSHOT_TTL_MS;
   });
-  const pendingDrafts = drafts.filter((item) => item.state === "DRAFT" && item.type !== "GENERAL_NOTE").length;
-  const reviewDrafts = drafts.filter((item) => ["CONFLICT", "NEEDS_REVIEW"].includes(item.state)).length;
+  const pendingDrafts = drafts.filter(isReadyToSend).length;
+  const reviewDrafts = drafts.filter(needsReview).length;
   const completedDrafts = drafts.filter((item) => item.state === "SYNCED").length;
   const noteDrafts = drafts.filter((item) => item.type === "GENERAL_NOTE").length;
   const queueFilters = [
@@ -115,8 +121,8 @@ function OfflineWorkspace() {
     { id: "sent", label: "Enviados", count: completedDrafts }
   ];
   const visibleDrafts = drafts.filter((draft) => {
-    if (queueFilter === "ready") return draft.state === "DRAFT" && draft.type !== "GENERAL_NOTE";
-    if (queueFilter === "review") return ["CONFLICT", "NEEDS_REVIEW"].includes(draft.state);
+    if (queueFilter === "ready") return isReadyToSend(draft);
+    if (queueFilter === "review") return needsReview(draft);
     if (queueFilter === "notes") return draft.type === "GENERAL_NOTE";
     if (queueFilter === "sent") return draft.state === "SYNCED";
     return true;
@@ -400,9 +406,11 @@ function OfflineWorkspace() {
     try {
       const target = findingTargets[Number(findingTargetIndex)];
       if (!target) throw new Error("Selecciona un control y riesgo guardados.");
-      await saveOfflineFindingDraft({ ...target, title: findingTitle, description: findingDescription });
+      await saveOfflineFindingDraft({ ...target, title: findingTitle, description: findingDescription,
+        rootCause: findingRootCause, severity: findingSeverity });
       setDrafts(getOfflineDrafts());
-      setFindingTitle(""); setFindingDescription(""); setFindingTargetIndex("");
+      setFindingTitle(""); setFindingDescription(""); setFindingRootCause("");
+      setFindingSeverity("MEDIUM"); setFindingTargetIndex("");
     } catch (cause) { setError(cause.message); }
     finally { setBusy(false); }
   };
@@ -593,6 +601,11 @@ function OfflineWorkspace() {
                   </select></label>
                   <label>Nombre del hallazgo<input value={findingTitle} onChange={(event) => setFindingTitle(event.target.value)} minLength={3} maxLength={120} required /></label>
                   <label>Descripción del hallazgo<textarea value={findingDescription} onChange={(event) => setFindingDescription(event.target.value)} minLength={10} maxLength={2000} required /></label>
+                  <label>Causa raíz<textarea value={findingRootCause} onChange={(event) => setFindingRootCause(event.target.value)} minLength={10} maxLength={2000} required /></label>
+                  <label>Severidad<select value={findingSeverity} onChange={(event) => setFindingSeverity(event.target.value)} required>
+                    <option value="LOW">Baja</option><option value="MEDIUM">Media</option>
+                    <option value="HIGH">Alta</option><option value="CRITICAL">Crítica</option>
+                  </select></label>
                   {!findingTargets.length && <p role="status">Actualiza primero Controles y Riesgos con conexión. Solo aparecerán relaciones elegibles en las copias vigentes.</p>}
                   <button type="submit" className="primary-action" disabled={busy || !findingTargets.length}>Guardar hallazgo local</button>
                 </form>}
@@ -623,15 +636,20 @@ function OfflineWorkspace() {
                   <p role="status" aria-live="polite">{visibleDrafts.length} de {drafts.length} trabajos locales visibles.</p>
                   {visibleDrafts.length === 0 && <p>No hay trabajos en esta vista. Elige otro filtro para ver los demás.</p>}
                   {visibleDrafts.length > 0 && <ul className="offline-draft-list">{visibleDrafts.map((draft) => <li key={draft.id}>
-                  <div><strong>{draft.title}</strong><small>{{ GENERAL_NOTE: "Nota", ACTION_PROGRESS: "Avance", ACTION_COMMENT: "Comentario", EVIDENCE_UPLOAD: "Archivo de evidencia", FINDING_CREATE: "Hallazgo", RECORD_DESCRIPTION: "Descripción de registro" }[draft.type] || draft.type} · {new Date(draft.createdAt).toLocaleString("es-MX")} · {{ DRAFT: "Pendiente de usar", SYNCED: "Enviado al servidor", CONFLICT: "Conflicto de versión", NEEDS_REVIEW: "Confirmación pendiente" }[draft.state] || draft.state}</small>
+                  <div><strong>{draft.title}</strong><small>{{ GENERAL_NOTE: "Nota", ACTION_PROGRESS: "Avance", ACTION_COMMENT: "Comentario", EVIDENCE_UPLOAD: "Archivo de evidencia", FINDING_CREATE: "Hallazgo", RECORD_DESCRIPTION: "Descripción de registro" }[draft.type] || draft.type} · {new Date(draft.createdAt).toLocaleString("es-MX")} · {draft.type === "FINDING_CREATE" && !isFindingDraftComplete(draft) && draft.state === "DRAFT" ? "Requiere completar" : ({ DRAFT: "Pendiente de usar", SYNCED: "Enviado al servidor", CONFLICT: "Conflicto de versión", NEEDS_REVIEW: "Confirmación pendiente" }[draft.state] || draft.state)}</small>
                     {draft.note && <p>{draft.note}</p>}{draft.type === "ACTION_PROGRESS" && <small>Avance propuesto: {draft.progressPercent}%</small>}
-                    {draft.type === "FINDING_CREATE" && <><p>{draft.description}</p><small>{draft.controlTitle} · {draft.riskTitle}</small></>}
+                    {draft.type === "FINDING_CREATE" && <><p>{draft.description}</p>
+                      {isFindingDraftComplete(draft) && <><p>Causa raíz: {draft.rootCause}</p><small>Severidad: {draft.severity}</small></>}
+                      <small>{draft.controlTitle} · {draft.riskTitle}</small>
+                      {!isFindingDraftComplete(draft) && <p role="status">Este borrador anterior no tiene causa raíz y severidad. Conserva el texto; prepara un hallazgo nuevo con los campos actuales. Si hubo un envío incierto, revisa Hallazgos antes de crear otro.</p>}</>}
                     {draft.type === "RECORD_DESCRIPTION" && <><p>{draft.description}</p><small>{draft.recordType === "RISK" ? "Riesgo" : "Control"} {draft.recordId} · versión de origen {draft.expected.storageVersion} · Motivo: {draft.reason}</small></>}
                     {draft.type === "EVIDENCE_UPLOAD" && <small>{draft.fileName} · {Math.ceil(draft.fileBytes / 1024)} KiB · {draft.entityType} {draft.entityId}</small>}</div>
                   <div className="offline-draft-actions">
-                    {draft.type !== "GENERAL_NOTE" && draft.state === "DRAFT" && <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>{{ EVIDENCE_UPLOAD: "Cargar evidencia", FINDING_CREATE: "Registrar hallazgo", RECORD_DESCRIPTION: "Enviar descripción" }[draft.type] || "Enviar al servidor"}</button>}
+                    {draft.type !== "GENERAL_NOTE" && draft.state === "DRAFT" &&
+                      (draft.type !== "FINDING_CREATE" || isFindingDraftComplete(draft)) &&
+                      <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>{{ EVIDENCE_UPLOAD: "Cargar evidencia", FINDING_CREATE: "Registrar hallazgo", RECORD_DESCRIPTION: "Enviar descripción" }[draft.type] || "Enviar al servidor"}</button>}
                     {draft.type === "RECORD_DESCRIPTION" && draft.state === "NEEDS_REVIEW" && <p>La respuesta del envío se perdió. Revisa el registro actual; VERA no repetirá esta edición automáticamente.</p>}
-                    {draft.type === "FINDING_CREATE" && draft.state === "NEEDS_REVIEW" && <>
+                    {draft.type === "FINDING_CREATE" && draft.state === "NEEDS_REVIEW" && isFindingDraftComplete(draft) && <>
                       <p>La respuesta anterior se perdió. Al continuar, VERA comprobará la misma operación; si no se había guardado, intentará registrarla ahora.</p>
                       <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>Comprobar o reintentar hallazgo</button>
                     </>}

@@ -12,6 +12,11 @@ const FILE_MIME = {
   csv: "text/csv", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
   webp: "image/webp", txt: "text/plain"
 };
+const FINDING_SEVERITIES = new Set(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
+export const isFindingDraftComplete = (draft) => draft?.type === "FINDING_CREATE"
+  && String(draft.rootCause ?? "").trim().length >= 10
+  && String(draft.rootCause ?? "").trim().length <= 2000
+  && FINDING_SEVERITIES.has(draft.severity);
 const currentUser = () => {
   const user = JSON.parse(localStorage.getItem("user") || "null");
   if (!user?.id || user.roleTour) throw new Error("No hay una cuenta autorizada para este borrador.");
@@ -64,14 +69,19 @@ export const saveOfflineFindingDraft = async (input) => {
   if (!target) throw new Error("El control y riesgo no están disponibles en copias locales vigentes.");
   const title = String(input.title ?? "").trim();
   const description = String(input.description ?? "").trim();
+  const rootCause = String(input.rootCause ?? "").trim();
+  const severity = String(input.severity ?? "").trim().toUpperCase();
   if (title.length < 3 || title.length > 120 || description.length < 10 || description.length > 2000) {
     throw new Error("Revisa el título (3–120) y la descripción (10–2,000 caracteres).");
+  }
+  if (rootCause.length < 10 || rootCause.length > 2000 || !FINDING_SEVERITIES.has(severity)) {
+    throw new Error("La causa raíz debe tener entre 10 y 2,000 caracteres y una severidad válida.");
   }
   const vault = readOfflineVault(userId);
   const drafts = vault.drafts || [];
   if (drafts.length >= MAX_DRAFTS) throw new Error("Alcanzaste el límite de 50 borradores locales.");
   const draft = { id: crypto.randomUUID(), type: "FINDING_CREATE", state: "DRAFT",
-    createdAt: new Date().toISOString(), title, description, ...target };
+    createdAt: new Date().toISOString(), title, description, rootCause, severity, ...target };
   await saveOfflineVault(userId, { ...vault, drafts: [...drafts, draft] });
   return draft;
 };
@@ -192,6 +202,9 @@ export const syncOfflineFindingDraft = async (draftId) => {
   if (!draft || draft.type !== "FINDING_CREATE" || !["DRAFT", "NEEDS_REVIEW"].includes(draft.state)) {
     throw new Error("Este hallazgo requiere revisión antes de volver a enviarse.");
   }
+  if (!isFindingDraftComplete(draft)) {
+    throw new Error("Este borrador usa el formato anterior. Revisa Hallazgos y prepara uno nuevo con causa raíz y severidad; el original se conserva.");
+  }
   const token = localStorage.getItem("token");
   if (!token) throw new Error("Inicia sesión antes de registrar el hallazgo.");
   const headers = { Authorization: `Bearer ${token}` };
@@ -227,6 +240,7 @@ export const syncOfflineFindingDraft = async (draftId) => {
       method: "POST", headers: { ...headers, "Content-Type": "application/json", "Idempotency-Key": draft.id },
       body: JSON.stringify({ controlId: draft.controlId, riskId: draft.riskId,
         title: draft.title, description: draft.description,
+        rootCause: draft.rootCause, severity: draft.severity,
         expectedControlVersion: draft.controlVersion }),
       cache: "no-store", signal: AbortSignal.timeout(15000)
     });
