@@ -22,10 +22,14 @@ test("selected authorized data opens offline and an online denial is never repla
   await page.getByLabel("Repetir frase local").fill("Frase exclusiva de prueba 2026");
   await page.getByRole("button", { name: "Crear espacio" }).click();
   await page.getByRole("checkbox", { name: "Panel de Portafolio" }).check();
-  await page.getByRole("checkbox", { name: "Planes de acción" }).check();
   await page.getByRole("button", { name: "Actualizar secciones elegidas" }).click();
   await expect(page.getByText("Resultado de la actualización")).toBeVisible();
   await expect(page.getByText("Panel de Portafolio: guardado")).toBeVisible();
+  await page.getByRole("checkbox", { name: "Panel de Portafolio" }).uncheck();
+  await page.getByRole("checkbox", { name: "Planes de acción" }).check();
+  await page.getByRole("button", { name: "Actualizar secciones elegidas" }).click();
+  await expect(page.getByText("Planes de acción: guardado (0 registros)")).toBeVisible();
+  await expect(page.getByText(/Panel de Portafolio.*Guardado/)).toBeVisible();
   await page.unroute("**/api/dashboard");
   await page.unroute("**/api/actions");
   await context.setOffline(true);

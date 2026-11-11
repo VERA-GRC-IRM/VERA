@@ -61,7 +61,7 @@ El informe local indica la hora de la copia y es preliminar: no demuestra el est
 ## Uso y verificación del corte
 
 1. Con conexión, inicia sesión y abre **Sin conexión**. Crea una frase local exclusiva para ese dispositivo y conserva la frase por tu cuenta.
-2. Selecciona las secciones necesarias y pulsa **Actualizar secciones elegidas**. Verifica los resultados y la hora de la copia antes de desconectar.
+2. Selecciona las secciones necesarias y pulsa **Actualizar secciones elegidas**. Las otras secciones guardadas permanecen; puedes quitarlas individualmente. Verifica los resultados y la hora de la copia antes de desconectar.
 3. Sin red, desbloquea el espacio, consulta las vistas guardadas y prepara notas, avances o archivos. Una recarga vuelve a bloquear el espacio.
 4. Al reconectar, revisa cada borrador y pulsa el envío solo cuando corresponda. Un conflicto o confirmación incierta exige consultar el registro actual; no se reintenta automáticamente.
 5. Borra la copia en el dispositivo cuando deje de necesitarse. El borrado local no elimina datos de Supabase.
@@ -74,3 +74,16 @@ El [ensayo manual en GitHub Actions](https://github.com/VERA-GRC-IRM/VERA/action
 - Solo se leen secciones seleccionadas, dentro de su vigencia. Las consultas de detalle y filtros no guardados requieren conexión; el servidor siempre conserva prioridad al responder.
 - El modo local no es una réplica de Supabase. Una copia puede perderse al limpiar datos del navegador o por falta de cuota. El navegador y la protección del dispositivo siguen siendo parte de la seguridad de datos.
 - La actualización de la aplicación pide confirmación para evitar recargas imprevistas mientras se redacta. La persona debe terminar o guardar su trabajo antes de instalar la nueva versión.
+
+## Trazabilidad de este corte
+
+Estas son agrupaciones funcionales de la implementación sin conexión; no sustituyen las HU ni los estados de aceptación de Azure Boards.
+
+| Capacidad | Entregas | Comprobación principal |
+| --- | --- | --- |
+| Interfaz disponible tras una visita | [#309](https://github.com/VERA-GRC-IRM/VERA/pull/309) | Apertura de ruta con Chromium desconectado; API privada fuera de la caché |
+| Espacio local protegido | [#311](https://github.com/VERA-GRC-IRM/VERA/pull/311) | Cifrado, separación por cuenta, bloqueo y borrado |
+| Consulta autorizada con caducidad | [#312](https://github.com/VERA-GRC-IRM/VERA/pull/312) | Captura explícita, lectura offline y rechazo servidor respetado |
+| Borradores y envío controlado | [#313](https://github.com/VERA-GRC-IRM/VERA/pull/313), [#314](https://github.com/VERA-GRC-IRM/VERA/pull/314) | Persistencia local, versión concurrente y respuesta incierta sin reintento |
+| Evidencias e informes | [#315](https://github.com/VERA-GRC-IRM/VERA/pull/315), [#316](https://github.com/VERA-GRC-IRM/VERA/pull/316) | Archivo local cifrado, carga expresa, CSV e impresión sin red |
+| Ensayo y operación | [#317](https://github.com/VERA-GRC-IRM/VERA/pull/317) | Actualización con aviso y ejecución manual reproducible en Actions |

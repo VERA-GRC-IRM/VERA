@@ -5,7 +5,7 @@ import { useDocumentTitle } from "../contexts/useDocumentTitle";
 import { createOfflineVault, deleteOfflineVault, hasOfflineVault,
   lockOfflineVault, unlockOfflineVault } from "../services/offlineVault";
 import { captureOfflineSnapshots, getOfflineSnapshots, SNAPSHOT_MODULES,
-  SNAPSHOT_TTL_MS } from "../services/offlineSnapshots";
+  SNAPSHOT_TTL_MS, removeOfflineSnapshot } from "../services/offlineSnapshots";
 import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts,
   getEvidenceDraftTargets, saveOfflineDraft, saveOfflineEvidenceDraft,
   syncOfflineDraft, syncOfflineEvidenceDraft } from "../services/offlineDrafts";
@@ -122,6 +122,17 @@ function OfflineWorkspace() {
   const toggleSelection = (id) => setSelected((current) => current.includes(id)
     ? current.filter((value) => value !== id) : [...current, id]);
 
+  const removeSnapshot = async (id) => {
+    setBusy(true);
+    setError("");
+    try {
+      await removeOfflineSnapshot(id);
+      setSnapshots(getOfflineSnapshots());
+      setSelected((current) => current.filter((value) => value !== id));
+    } catch (cause) { setError(cause.message); }
+    finally { setBusy(false); }
+  };
+
   const submitDraft = async (event) => {
     event.preventDefault();
     setBusy(true);
@@ -198,13 +209,14 @@ function OfflineWorkspace() {
                 {SNAPSHOT_MODULES.map((module) => {
                   const snapshot = snapshots[module.id];
                   const fresh = snapshot && checkedAt - Date.parse(snapshot.savedAt) <= SNAPSHOT_TTL_MS;
-                  return <label key={module.id}>
-                    <input type="checkbox" checked={selected.includes(module.id)} onChange={() => toggleSelection(module.id)} />
-                    <span><strong>{module.label}</strong>{snapshot && <small>
-                      {fresh ? "Guardado" : "Caducado"} · {new Date(snapshot.savedAt).toLocaleString("es-MX")}
-                    </small>}</span>
+                  return <div className="offline-snapshot-row" key={module.id}>
+                    <label><input type="checkbox" checked={selected.includes(module.id)} onChange={() => toggleSelection(module.id)} />
+                      <span><strong>{module.label}</strong>{snapshot && <small>
+                        {fresh ? "Guardado" : "Caducado"} · {new Date(snapshot.savedAt).toLocaleString("es-MX")}
+                      </small>}</span></label>
                     {fresh && <Link to={module.link}>Abrir</Link>}
-                  </label>;
+                    {snapshot && <button type="button" className="secondary-action" disabled={busy} onClick={() => removeSnapshot(module.id)}>Quitar copia</button>}
+                  </div>;
                 })}
               </fieldset>
               <div className="offline-vault-actions">
@@ -217,7 +229,7 @@ function OfflineWorkspace() {
                 <strong>Resultado de la actualización</strong>
                 <ul>{captureResults.map((result) => <li key={result.id}>
                   {SNAPSHOT_MODULES.find((module) => module.id === result.id)?.label}: {result.ok
-                    ? `guardado${result.count === null ? "" : ` (${result.count} registros)`}` : result.message}
+                    ? `guardado${result.count === null ? "" : ` (${result.count} registros)`}` : `${result.message}${result.retained ? " (la copia anterior permanece)" : ""}`}
                 </li>)}</ul>
               </div>}
               <div className="offline-drafts">
