@@ -57,7 +57,8 @@ test("RF-29: report includes linked facts and filtered CSV with UTF-8 headings",
   const control = (await controlResponse.json()).control;
   const findingResponse = await fetch(`${base}/api/findings`, auth(3, "POST", {
     controlId: control.id, riskId: risk.id, title: "Excepción regional",
-    description: "Se identificó una excepción durante la revisión."
+    description: "Se identificó una excepción durante la revisión.",
+    rootCause: "El procedimiento no registra la segunda revisión requerida.", severity: "MEDIUM"
   }));
   assert.equal(findingResponse.status, 201);
 

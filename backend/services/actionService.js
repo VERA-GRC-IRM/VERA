@@ -129,8 +129,8 @@ const createAction = async (user, body, { operationId } = {}) => {
   const sourceId = text(body.sourceId);
   const source = await requiredSource(user, sourceType, sourceId);
   await assertWritableSourceScope(user, sourceType, source);
-  if (sourceType === "FINDING" && source.status === "CLOSED") {
-    throw new ActionError("El hallazgo está cerrado; no se pueden añadir acciones.", 409);
+  if (sourceType === "FINDING" && source.status !== "OPEN") {
+    throw new ActionError("El hallazgo no está abierto; no se pueden añadir acciones.", 409);
   }
   const title = text(body.title);
   const rationale = text(body.rationale);
@@ -188,10 +188,10 @@ const changeStatus = async (user, id, body) => {
     throw new ActionError("Solo el responsable o quien dirige la planeación puede cambiar el estado.", 403);
   }
   const status = text(body.status);
-  if (action.sourceType === "FINDING" && status !== "DONE") {
+  if (action.sourceType === "FINDING") {
     const finding = await findingRepository.findById(action.sourceId);
-    if (finding?.status === "CLOSED") {
-      throw new ActionError("El hallazgo está cerrado; no se puede reabrir esta acción.", 409);
+    if (finding?.status !== "OPEN") {
+      throw new ActionError("El hallazgo no está abierto; no se puede modificar esta acción.", 409);
     }
   }
   const note = text(body.note);
@@ -242,7 +242,7 @@ const editableFindingPlan = async (user, id, { assigneeOnly = false, allowClosed
   if (action.sourceType !== "FINDING") throw new ActionError("Selecciona un plan vinculado a un hallazgo.", 400);
   const finding = await requiredSource(user, "FINDING", action.sourceId);
   await assertWritableSourceScope(user, "FINDING", finding);
-  const closed = finding.status === "CLOSED" || ["DONE", "CANCELLED"].includes(action.status);
+  const closed = finding.status !== "OPEN" || ["DONE", "CANCELLED"].includes(action.status);
   if (closed && !allowClosedReplay) {
     throw new ActionError("Este plan ya no admite cambios de avance.", 409);
   }

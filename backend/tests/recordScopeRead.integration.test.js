@@ -235,6 +235,7 @@ test("scope read projections use direct grants and hide denied records from list
     entityType: "RISK", entityId: firstRisk.id };
   await assert.rejects(() => createEvidenceForUser(manager, evidenceInput), { status: 403 });
   const findingInput = { title: `Nuevo hallazgo ${stamp}`, description: "Descripción sintética válida.",
+    rootCause: "El flujo no define quién verifica la excepción.", severity: "MEDIUM",
     riskId: firstRisk.id, controlId: allowedControl.id };
   await assert.rejects(() => createFindingForUser(manager, findingInput), { status: 403 });
   await assert.rejects(() => closeFindingForUser(manager, allowedFinding.id,

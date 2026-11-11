@@ -32,7 +32,8 @@ test("HU-21: plan de hallazgo conserva avance, comentario, evidencia y solicitud
   const control = (await controlResponse.json()).control;
   const findingResponse = await fetch(`${base}/api/findings`, json(3, "POST", {
     controlId: control.id, riskId: risk.id, title: "Excepción del plan",
-    description: "El responsable debe corregir y documentar la excepción."
+    description: "El responsable debe corregir y documentar la excepción.",
+    rootCause: "La validación de cambios no contempla las excepciones del proceso.", severity: "HIGH"
   }));
   assert.equal(findingResponse.status, 201);
   const finding = (await findingResponse.json()).finding;

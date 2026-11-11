@@ -20,7 +20,7 @@ const conversation = async (base, id) => {
   return `${base}/api/assistant/conversations/${(await response.json()).conversation.id}/ask`;
 };
 const ask = (url, id, question) => fetch(url, options(id, { question }));
-const fields = (title, controlId, riskId) => `Título: ${title}\nDescripción: La revisión no cubrió todos los accesos durante el periodo\nControl: ${controlId}\nRiesgo: ${riskId}`;
+const fields = (title, controlId, riskId) => `Título: ${title}\nDescripción: La revisión no cubrió todos los accesos durante el periodo\nCausa raíz: El proceso no asigna responsables para revisar los accesos\nSeveridad: Alta\nControl: ${controlId}\nRiesgo: ${riskId}`;
 const fixture = (ownerId = 5, rating = 2) => {
   const risk = riskRepository.create({ title: `Riesgo hallazgo ${Date.now()}-${Math.random()}`,
     description: "Riesgo de revisión incompleta de permisos", area: "Operaciones",
@@ -46,6 +46,7 @@ test("un idempotente de hallazgo no revela el registro a otro actor", async () =
   const { risk, control } = fixture(3);
   const operationId = "c726ae9f-1732-4f5d-bdbb-d0cc81fc4394";
   const input = { title: `Hallazgo permiso ${Date.now()}`, description: "Control insuficiente para el riesgo.",
+    rootCause: "Falta una revisión independiente del control.", severity: "HIGH", responsibleId: 3,
     controlId: control.id, riskId: risk.id };
   const created = await createFindingForUser({ id: 3, username: "gerente", role: "GERENTE" },
     input, operationId);
@@ -77,7 +78,7 @@ test("Auditor dueño crea un hallazgo para control ineficaz tras confirmarlo", a
   assert.equal(finding.title, title);
   assert.equal(finding.riskId, risk.id);
   assert.equal(finding.controlId, control.id);
-  assert.equal(finding.auditId, "AUD-01");
+  assert.equal(finding.auditId, null);
   assert.equal(finding.createdBy.id, 5);
   assert.equal((await (await ask(url, 5, "Confirmar hallazgo")).json()).message.mode,
     "action-guidance");
@@ -93,14 +94,14 @@ test("Control eficaz, rol ajeno y evaluación alterada bloquean la creación", a
   const { risk, control } = fixture(3, 2);
   const auditorUrl = await conversation(base, 5);
   const denied = await ask(auditorUrl, 5, `Registrar hallazgo\n${fields("Ajeno", control.id, risk.id)}`);
-  assert.match((await denied.json()).message.text, /No encontré un único control y riesgo/);
+  assert.match((await denied.json()).message.text, /No encontré un único control, riesgo o auditoría/);
   const directorUrl = await conversation(base, 2);
   assert.match((await (await ask(directorUrl, 2, "Registrar hallazgo")).json()).message.text,
     /no registrarlos/);
   const effective = fixture(5, 4);
   const adminUrl = await conversation(base, 1);
   assert.match((await (await ask(adminUrl, 1, `Registrar hallazgo\n${fields("Eficaz", effective.control.id, effective.risk.id)}`)).json()).message.text,
-    /efectividad insuficiente/);
+    /evaluado como efectivo/);
   const title = `Hallazgo cambiante ${Date.now()}`;
   assert.equal((await (await ask(adminUrl, 1, `Registrar hallazgo\n${fields(title, control.id, risk.id)}`)).json()).message.mode,
     "action-preview");

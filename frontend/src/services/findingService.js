@@ -19,3 +19,7 @@ export const createFinding = async (finding) => (await request("/", {
 export const closeFinding = async (id, version, note) => (await request(`/${encodeURIComponent(id)}/close`, {
   method: "PATCH", body: JSON.stringify({ version, note })
 })).finding;
+export const reviewFindingClosure = async (id, decision, version, reason = "") =>
+  (await request(`/${encodeURIComponent(id)}/closure-decision`, {
+    method: "POST", body: JSON.stringify({ decision, version, reason })
+  })).finding;

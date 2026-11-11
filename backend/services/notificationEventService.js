@@ -75,7 +75,9 @@ const planValidationRequested = async (action) => {
   });
 };
 
-const findingCreated = (finding, risk, control) => deliver([risk.ownerId, control.ownerId],
+const findingCreated = (finding, risk, control, audit) => deliver([
+  finding.responsibleId, risk?.ownerId, control?.ownerId, audit?.responsibleId
+],
   "FINDING", finding.id, {
     id: `FINDING_CREATED:${finding.id}`, type: "FINDING_CREATED", title: "Hallazgo registrado",
     description: finding.title, entityId: finding.id, priority: "HIGH",

@@ -13,9 +13,13 @@ const intent = (question) => /^(?:registra|registrar|crea|crear)\s+(?:un\s+)?hal
 const confirm = (question) => /^(confirmar hallazgo|confirmo el hallazgo)$/i.test(question.trim());
 const isFindingCreateCommand = (question, thread) => intent(question) || confirm(question) ||
   thread.messages.at(-1)?.actionDraft?.type === "FINDING_FIELDS" && /^t[ií]tulo\s*:/i.test(question.trim());
-const FIELD_NAMES = { titulo: "title", descripcion: "description", control: "control", riesgo: "risk" };
-const FIELD_LABELS = "Título, Descripción, Control y Riesgo";
-const template = `Para registrar un hallazgo, envía estos campos en un solo mensaje (uno por línea):\nTítulo: Revisión de accesos incompleta\nDescripción: El control no cubrió todos los accesos y requiere seguimiento\nControl: CTL-001\nRiesgo: RSK-001\nEl control debe estar vinculado a ese riesgo y tener efectividad insuficiente (1–3). Puedes usar el identificador exacto o un título único. En caso de duda, consulta primero controles y riesgos en el chat.`;
+const FIELD_NAMES = {
+  titulo: "title", descripcion: "description", "causa raiz": "rootCause",
+  severidad: "severity", auditoria: "audit", control: "control", riesgo: "risk"
+};
+const FIELD_LABELS = "Título, Descripción, Causa raíz, Severidad y al menos una relación (Auditoría, Riesgo o Control)";
+const SEVERITY_VALUES = { baja: "LOW", media: "MEDIUM", alta: "HIGH", critica: "CRITICAL" };
+const template = `Para registrar un hallazgo, envía estos campos en un solo mensaje (uno por línea):\nTítulo: Revisión de accesos incompleta\nDescripción: La revisión no cubrió todas las cuentas durante el periodo\nCausa raíz: El proceso no define una revisión periódica de cuentas privilegiadas\nSeveridad: Alta\nControl: CTL-001\nRiesgo: RSK-001\nAuditoría, Riesgo y Control son relaciones opcionales; indica al menos una. El control debe tener una evaluación inefectiva (1–3). Puedes usar el identificador exacto o un título único.`;
 
 const parseFields = (question) => {
   const lines = question.trim().split(/\r?\n/);
@@ -30,7 +34,12 @@ const parseFields = (question) => {
     }
     fields[key] = match[2].trim();
   }
-  if (["title", "description", "control", "risk"].some((key) => !fields[key])) {
+  if (fields.severity) {
+    const severity = SEVERITY_VALUES[normalize(fields.severity)] || fields.severity.toUpperCase();
+    fields.severity = severity;
+  }
+  if (["title", "description", "rootCause", "severity"].some((key) => !fields[key]) ||
+      !["audit", "control", "risk"].some((key) => fields[key])) {
     return { error: `Faltan campos. Indica ${FIELD_LABELS}.` };
   }
   return { fields };
@@ -70,22 +79,31 @@ const handleFindingCreate = async (user, question, thread) => {
   if (parsed.error) return response(`${parsed.error}\n${template}`, "action-guidance", fieldsDraft());
   const fields = parsed.fields;
   const visible = await visibleCollectionsForUser(user);
-  const control = await resolveOne(visible.CONTROL, fields.control);
-  const risk = await resolveOne(visible.RISK, fields.risk);
-  if (!control || !risk) {
-    return response("No encontré un único control y riesgo con esos nombres o identificadores. Usa sus identificadores exactos.",
+  const [control, risk, audit] = await Promise.all([
+    fields.control ? resolveOne(visible.CONTROL, fields.control) : null,
+    fields.risk ? resolveOne(visible.RISK, fields.risk) : null,
+    fields.audit ? resolveOne(visible.AUDIT, fields.audit) : null
+  ]);
+  if ((fields.control && !control) || (fields.risk && !risk) || (fields.audit && !audit)) {
+    return response("No encontré un único control, riesgo o auditoría con esos nombres o identificadores. Usa sus identificadores exactos.",
       "action-guidance", fieldsDraft());
   }
-  const input = { title: fields.title, description: fields.description,
-    controlId: control.id, riskId: risk.id };
+  const input = { title: fields.title, description: fields.description, rootCause: fields.rootCause,
+    severity: fields.severity, responsibleId: user.id,
+    auditId: audit?.id || null, controlId: control?.id || null, riskId: risk?.id || null };
   let prepared;
   try { prepared = await prepareFinding(user, input); }
   catch (error) { if (error.status) return response(`${error.message} Envía los campos de nuevo.`,
     "action-guidance", fieldsDraft()); throw error; }
   const draft = { type: "FINDING_CREATE", data: input,
-    controlEvaluationVersion: prepared.control.evaluations.length,
+    ...(prepared.control ? { controlEvaluationVersion: prepared.control.evaluations.length } : {}),
     operationId: randomUUID(), expiresAt: new Date(Date.now() + 5 * 60_000).toISOString() };
-  return response(`Revisa antes de registrar el hallazgo:\nTítulo: ${prepared.title}\nDescripción: ${prepared.description}\nControl: ${control.title} (${control.id}), efectividad ${control.effectiveness}/5, evaluación ${draft.controlEvaluationVersion}.\nRiesgo: ${risk.title} (${risk.id}).\nAuditoría relacionada: ${risk.linkedAuditId || "ninguna"}.\nEscribe «Confirmar hallazgo» en los próximos cinco minutos; cualquier otra pregunta descarta esta vista previa.`,
+  const sources = [
+    audit && `Auditoría: ${audit.title} (${audit.id})`,
+    risk && `Riesgo: ${risk.title} (${risk.id})`,
+    control && `Control: ${control.title} (${control.id}), efectividad ${control.effectiveness}/5, evaluación ${draft.controlEvaluationVersion}`
+  ].filter(Boolean).join("\n");
+  return response(`Revisa antes de registrar el hallazgo:\nTítulo: ${prepared.title}\nDescripción: ${prepared.description}\nCausa raíz: ${prepared.rootCause}\nSeveridad: ${prepared.severity}\n${sources}\nEscribe «Confirmar hallazgo» en los próximos cinco minutos; cualquier otra pregunta descarta esta vista previa.`,
     "action-preview", { actionDraft: draft });
 };
 

@@ -14,7 +14,8 @@ const buildDecisionInsights = ({ visibleRecords, asOf = new Date().toISOString()
   for (const risk of risks) {
     const relatedControls = controls.filter((control) => Array.isArray(control.riskIds) && control.riskIds.includes(risk.id));
     const weakControls = relatedControls.filter((control) => finiteScore(control.effectiveness) < 4);
-    const openFindings = findings.filter((finding) => finding.riskId === risk.id && finding.status === "OPEN");
+    const openFindings = findings.filter((finding) =>
+      finding.riskId === risk.id && ["OPEN", "PENDING_CLOSURE"].includes(finding.status));
     if (risk.level !== "Alto" && weakControls.length === 0 && openFindings.length === 0) continue;
     const factors = [
       `Nivel registrado: ${short(risk.level || "sin evaluar")}`,

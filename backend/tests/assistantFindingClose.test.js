@@ -9,6 +9,7 @@ const riskRepository = require("../repositories/riskRepository");
 const controlRepository = require("../repositories/controlRepository");
 const findingRepository = require("../repositories/findingRepository");
 const { createAction, changeStatus } = require("../services/actionService");
+const { reviewFindingClosureForUser } = require("../services/findingClosureService");
 
 const user = { id: 3, role: "GERENTE", username: "gerente", name: "Gerente de prueba" };
 const auditor = { id: 5, role: "AUDITOR", username: "auditor", name: "Auditor Demo" };
@@ -36,7 +37,7 @@ const fixture = async (ownerId = 5) => {
   const finding = findingRepository.create({ title: `Hallazgo cierre ${Date.now()}-${Math.random()}`,
     description: "La revisión de accesos requiere corrección documentada", controlId: control.id,
     controlTitle: control.title, riskId: risk.id, riskTitle: risk.title,
-    auditId: "AUD-01", proposalId: "AUD-01", evaluationVersion: 1,
+    auditId: null, proposalId: "AUD-01", evaluationVersion: 1,
     createdBy: { id: 3, username: "gerente", role: "GERENTE" } });
   const action = await createAction(user, { sourceType: "FINDING", sourceId: finding.id,
     title: `Resolver hallazgo ${finding.id}`, rationale: "Corregir el acceso y documentar el resultado.",
@@ -50,7 +51,7 @@ test("Cerrar un hallazgo requiere expediente exacto y motivo", () => {
   assert.equal(parseFindingCloseCommand("Cierra todos los hallazgos"), null);
 });
 
-test("El chat exige acciones terminadas y confirma cierre con bitácora", async (t) => {
+test("El chat exige acciones terminadas y solicita cierre para su aprobación", async (t) => {
   const previous = process.env.VERA_AI_CONVERSATIONS_ENABLED;
   process.env.VERA_AI_CONVERSATIONS_ENABLED = "true";
   t.after(() => { if (previous === undefined) delete process.env.VERA_AI_CONVERSATIONS_ENABLED;
@@ -59,7 +60,7 @@ test("El chat exige acciones terminadas y confirma cierre con bitácora", async 
   const { finding, action } = await fixture();
   const url = await conversation(base, 5);
   const command = `Cierra el hallazgo ${finding.id} porque las acciones de corrección terminaron y fueron revisadas.`;
-  assert.match((await (await ask(url, 5, command)).json()).message.text, /Termina todas las acciones/);
+  assert.match((await (await ask(url, 5, command)).json()).message.text, /Termina o cancela todas las acciones/);
   await changeStatus(auditor, action.id, { status: "DONE",
     note: "Se corrigieron los accesos y se revisó el resultado.", version: action.storageVersion });
   assert.equal((await (await ask(url, 5, command)).json()).message.mode, "action-preview");
@@ -67,9 +68,14 @@ test("El chat exige acciones terminadas y confirma cierre con bitácora", async 
   const confirmed = await ask(url, 5, "Confirmar cierre de hallazgo");
   assert.equal(confirmed.status, 200);
   assert.equal((await confirmed.json()).message.mode, "action-executed");
-  const closed = await findingRepository.findById(finding.id);
+  const requested = await findingRepository.findById(finding.id);
+  assert.equal(requested.status, "PENDING_CLOSURE");
+  assert.equal(requested.closureHistory.at(-1).requestedBy.id, 5);
+  const closed = await reviewFindingClosureForUser(user, finding.id, {
+    decision: "APPROVE", version: requested.storageVersion
+  });
   assert.equal(closed.status, "CLOSED");
-  assert.equal(closed.closedBy.id, 5);
+  assert.equal(closed.closedBy.id, 3);
   assert.equal((await (await ask(url, 5, "Confirmar cierre de hallazgo")).json()).message.mode,
     "action-guidance");
   const ephemeral = await fetch(`${base}/api/assistant/ask`, options(5, { question: command }));

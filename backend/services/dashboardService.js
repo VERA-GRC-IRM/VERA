@@ -43,8 +43,7 @@ const getDashboardForUser = (user, proposals, findings = [], selectedPeriod = { 
     ? proposals.filter((proposal) => proposal.responsibleId === user.id && inPeriod(proposal, selectedPeriod))
     : proposals.filter((proposal) => inPeriod(proposal, selectedPeriod));
   const activeAudits = visibleProposals.filter((proposal) => proposal.status === "ACTIVE");
-  const visibleAuditIds = new Set(visibleProposals.map((proposal) => proposal.id));
-  const openFindings = findings.filter((finding) => finding.status === "OPEN" && visibleAuditIds.has(finding.auditId));
+  const openFindings = findings.filter((finding) => ["OPEN", "PENDING_CLOSURE"].includes(finding.status));
   const executingAudits = visibleProposals.filter((proposal) => ["ACTIVE", "CLOSED"].includes(proposal.status));
   const statusCounts = ["OPEN", "APPROVED", "ACTIVE", "CLOSED", "REJECTED"].map((status) => ({
     status,

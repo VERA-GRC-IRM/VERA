@@ -1,7 +1,11 @@
 const findings = [];
 
 const clone = (item) => item ? ({ ...item, createdBy: { ...item.createdBy },
-  closedBy: item.closedBy ? { ...item.closedBy } : null }) : null;
+  closedBy: item.closedBy ? { ...item.closedBy } : null,
+  closureHistory: (item.closureHistory || []).map((entry) => ({ ...entry,
+    requestedBy: entry.requestedBy ? { ...entry.requestedBy } : null,
+    decidedBy: entry.decidedBy ? { ...entry.decidedBy } : null })),
+  evidenceIds: [...(item.evidenceIds || [])] }) : null;
 const getAll = () => findings.map(clone);
 const findById = (id) => clone(findings.find((item) => item.id === id));
 const create = (data) => {
