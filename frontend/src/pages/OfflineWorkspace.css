@@ -42,3 +42,5 @@
 .offline-draft-list small { display: block; color: var(--vera-text-muted); }
 .offline-draft-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .offline-draft-actions a { color: var(--vera-accent); }
+.offline-evidence-form { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--vera-border); }
+.offline-evidence-form h4 { margin: 0; }
