@@ -11,4 +11,6 @@ VERA permite continuar una parte del trabajo después de una sesión inicial con
 
 Al reconectar, los comentarios, avances y archivos se envían solo cuando la persona lo indica. Si la versión del plan cambió o la respuesta del servidor es incierta, VERA pide revisión antes de repetir una acción. Los borradores locales no equivalen a registros confirmados.
 
+La vista informa el uso y la cuota aproximada del navegador. Con una segunda confirmación, **Limpiar datos finalizados** elimina copias caducadas y borradores ya enviados, conservando el trabajo pendiente o en revisión. No modifica Supabase.
+
 **Guía paso a paso:** [alcance, protección, límites y ensayos](https://github.com/VERA-GRC-IRM/VERA/blob/main/docs/offline-mode.md) · [ensayo manual del modo local](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/offline-rehearsal.yml).

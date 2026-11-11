@@ -11,6 +11,7 @@ import { getOfflineEvidenceBlob, getOfflineEvidenceFiles,
   removeOfflineEvidenceFile, saveOfflineEvidenceFile } from "../services/offlineEvidenceFiles";
 import { getEditableOfflineRecords, inspectOfflineRecordConflict,
   saveOfflineRecordDescription, syncOfflineRecordDescription } from "../services/offlineRecordDrafts";
+import { cleanupOfflineVault } from "../services/offlineCleanup";
 import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts, inspectOfflineActionConflict,
   getEvidenceDraftTargets, getFindingDraftTargets, saveOfflineDraft, saveOfflineEvidenceDraft,
   saveOfflineFindingDraft, syncOfflineDraft, syncOfflineEvidenceDraft,
@@ -23,7 +24,7 @@ const readStorageStatus = async () => {
     const [estimate, persistent] = await Promise.all([
       navigator.storage.estimate(), navigator.storage.persisted()
     ]);
-    return { available: true, persistent, usage: estimate.usage };
+    return { available: true, persistent, usage: estimate.usage, quota: estimate.quota };
   } catch { return { available: false }; }
 };
 const readSavedEvidenceFiles = () => {
@@ -76,6 +77,8 @@ function OfflineWorkspace() {
   const [findingDescription, setFindingDescription] = useState("");
   const [storageStatus, setStorageStatus] = useState(null);
   const [storageMessage, setStorageMessage] = useState("");
+  const [confirmCleanup, setConfirmCleanup] = useState(false);
+  const [cleanupMessage, setCleanupMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [searchModule, setSearchModule] = useState("");
   const [backupFile, setBackupFile] = useState(null);
@@ -100,6 +103,7 @@ function OfflineWorkspace() {
   });
   const pendingDrafts = drafts.filter((item) => item.state === "DRAFT" && item.type !== "GENERAL_NOTE").length;
   const reviewDrafts = drafts.filter((item) => ["CONFLICT", "NEEDS_REVIEW"].includes(item.state)).length;
+  const completedDrafts = drafts.filter((item) => item.state === "SYNCED").length;
   const searchResults = open ? searchOfflineRecords(snapshots, SNAPSHOT_MODULES, {
     query: searchTerm, moduleId: searchModule, now: currentTime, ttlMs: SNAPSHOT_TTL_MS
   }) : [];
@@ -171,6 +175,21 @@ function OfflineWorkspace() {
         ? "El navegador concedió conservación reforzada. Borrar los datos del sitio seguirá eliminando la copia."
         : "El navegador no concedió conservación reforzada. Mantén suficiente espacio y no borres los datos del sitio.");
     } catch { setStorageMessage("No se pudo solicitar conservación al navegador."); }
+  };
+
+  const cleanCompletedLocalData = async () => {
+    if (!confirmCleanup) { setConfirmCleanup(true); return; }
+    setBusy(true); setError(""); setCleanupMessage("");
+    try {
+      const result = await cleanupOfflineVault();
+      setSnapshots(getOfflineSnapshots()); setDrafts(getOfflineDrafts());
+      setSavedEvidenceFiles(readSavedEvidenceFiles()); setCheckedAt(Date.now());
+      try { setDraftableActions(getDraftableActions()); } catch { setDraftableActions([]); }
+      setEvidenceTargets(getEvidenceDraftTargets()); setFindingTargets(getFindingDraftTargets());
+      setCleanupMessage(`Limpieza local terminada: ${result.removedSections} secciones caducadas, ${result.removedDrafts} borradores enviados y ${result.removedFiles} archivos sin copia vigente. Los pendientes y conflictos se conservaron.`);
+      setConfirmCleanup(false);
+    } catch (cause) { setError(cause.message); }
+    finally { setBusy(false); }
   };
 
   const downloadBackup = async () => {
@@ -417,7 +436,7 @@ function OfflineWorkspace() {
                 <div className="offline-storage-status">
                   <strong>Conservación en este navegador</strong>
                   <p>{!storageStatus ? "Consultando almacenamiento…" : storageStatus.available
-                    ? `Uso estimado de este sitio: ${typeof storageStatus.usage === "number" ? `${(storageStatus.usage / 1048576).toFixed(1)} MiB` : "no disponible"}. Conservación reforzada: ${storageStatus.persistent ? "concedida" : "no concedida"}.`
+                    ? `Uso estimado de este sitio: ${typeof storageStatus.usage === "number" ? `${(storageStatus.usage / 1048576).toFixed(1)} MiB` : "no disponible"}${typeof storageStatus.quota === "number" ? ` de ${(storageStatus.quota / 1048576).toFixed(0)} MiB informados por el navegador` : ""}. Conservación reforzada: ${storageStatus.persistent ? "concedida" : "no concedida"}.`
                     : "Este navegador no informa si puede conservar la copia de forma reforzada."}</p>
                   {storageStatus?.available && !storageStatus.persistent && navigator.storage?.persist &&
                     <button type="button" className="secondary-action" onClick={requestStoragePersistence}>Solicitar conservación al navegador</button>}
@@ -426,6 +445,14 @@ function OfflineWorkspace() {
                   <button type="button" className="secondary-action" disabled={busy} onClick={downloadBackup}>Descargar copia cifrada</button>
                   {backupMessage && <p role="status">{backupMessage}</p>}
                   <p>El archivo se guarda en tu dispositivo, nunca en el servidor. Quien tenga el archivo y la frase podrá leerlo; consérvalos por separado.</p>
+                  {(savedSections.length - readySections.length > 0 || completedDrafts > 0) && <div className="offline-cleanup">
+                    <p>Hay {savedSections.length - readySections.length} secciones caducadas y {completedDrafts} borradores ya enviados que puedes retirar de este dispositivo. Los trabajos pendientes y con conflicto se conservarán.</p>
+                    <button type="button" className="secondary-action" disabled={busy} onClick={cleanCompletedLocalData}>
+                      {confirmCleanup ? "Confirmar limpieza local" : "Limpiar datos finalizados"}
+                    </button>
+                    {confirmCleanup && <button type="button" className="secondary-action" disabled={busy} onClick={() => setConfirmCleanup(false)}>Cancelar</button>}
+                  </div>}
+                  {cleanupMessage && <p role="status">{cleanupMessage}</p>}
                 </div>
               </section>
               <section className="offline-local-search" aria-labelledby="offline-local-search-title">
