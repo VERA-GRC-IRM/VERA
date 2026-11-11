@@ -22,6 +22,12 @@ async function hideHistoryOnNarrow(page) {
   if (await toggle.isVisible()) await toggle.click();
 }
 
+async function openConversationOptions(page) {
+  const toggle = page.getByRole("button", { name: "Opciones de conversación" });
+  if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+}
+
 test("Espacio de IA: la lista lateral permite cambiar de conversación y cerrarse", async ({ page }) => {
   await useSession(page, "AUDITOR", 5);
   await page.route("**/api/assistant/status", (route) => route.fulfill({ json: {
@@ -46,6 +52,15 @@ test("Espacio de IA: la lista lateral permite cambiar de conversación y cerrars
   await expect(page.getByRole("heading", { name: "Pendientes de auditoría" })).toBeVisible();
   await showHistory(page);
   await expect(recent.getByRole("button", { name: "Pendientes de auditoría" })).toHaveAttribute("aria-current", "page");
+  await hideHistoryOnNarrow(page);
+  await openConversationOptions(page);
+  await page.getByRole("button", { name: "Opciones de conversación" }).press("Escape");
+  await expect(page.getByRole("button", { name: "Opciones de conversación" })).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("button", { name: "Opciones de conversación" })).toBeFocused();
+  await openConversationOptions(page);
+  await page.getByRole("heading", { name: "Pendientes de auditoría" }).click();
+  await expect(page.getByRole("button", { name: "Opciones de conversación" })).toHaveAttribute("aria-expanded", "false");
+  await showHistory(page);
   await page.locator(".assistant-rail-heading").getByRole("button", { name: "Ocultar historial" }).click();
   await expect(page.locator(".assistant-conversation-header").getByRole("button", { name: "Mostrar historial" })).toBeVisible();
 });
@@ -419,6 +434,7 @@ test("Copiloto: proyectos privados agrupan hilos y borrarlos conserva el histori
   await page.getByRole("button", { name: "Guardar proyecto" }).click();
   await expect(page.getByLabel("Proyecto", { exact: true })).toHaveValue(projectId);
   await page.getByRole("button", { name: "Nueva conversación" }).click();
+  await openConversationOptions(page);
   await expect(page.getByRole("button", { name: "Renombrar conversación" })).toBeVisible();
   await showHistory(page);
   await expect(page.getByRole("navigation", { name: "Conversaciones privadas" }).getByRole("button", { name: "Nueva conversación" })).toHaveAttribute("aria-current", "page");
@@ -600,6 +616,7 @@ test("Copiloto: reabre, renombra y elimina un historial privado persistente", as
   await expect(page.getByText("Riesgos altos en tu alcance: 2.")).toBeVisible();
   const access = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(access.violations.map(({ id }) => id)).toEqual([]);
+  await openConversationOptions(page);
   await page.getByRole("button", { name: "Renombrar conversación" }).click();
   await page.getByLabel("Nuevo nombre").fill("Riesgos del período");
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
@@ -612,6 +629,7 @@ test("Copiloto: reabre, renombra y elimina un historial privado persistente", as
   await page.getByLabel("Buscar conversaciones por título").clear();
   await hideHistoryOnNarrow(page);
   const downloadPromise = page.waitForEvent("download");
+  await openConversationOptions(page);
   await page.getByRole("button", { name: "Exportar conversación privada" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe(`vera-conversacion-${id}.json`);
@@ -622,7 +640,9 @@ test("Copiloto: reabre, renombra y elimina un historial privado persistente", as
   expect(exported.messages.map((item) => item.role)).toEqual(["user", "assistant"]);
   expect(exported.messages[1].feedbackToken).toBeUndefined();
   stale = true;
+  await openConversationOptions(page);
   await page.getByRole("button", { name: "Exportar conversación privada" }).click();
+  await openConversationOptions(page);
   await expect(page.getByRole("button", { name: "Exportar conversación privada" })).toBeDisabled();
   await expect(page.getByText(/Cambió tu alcance de datos/).first()).toBeVisible();
   await page.getByRole("button", { name: "Eliminar conversación" }).click();
