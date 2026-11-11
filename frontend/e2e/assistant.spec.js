@@ -121,6 +121,31 @@ test("Espacio de IA: Enter envía y Shift+Enter conserva una nueva línea", asyn
   expect(await page.evaluate(() => window.__copiedAnswer)).toBe("Respuesta de prueba");
 });
 
+test("Voz: detener el dictado antes de recibir sesión no envía una pregunta", async ({ page }) => {
+  await useSession(page, "AUDITOR", 5);
+  await page.route("**/api/assistant/status", (route) => route.fulfill({ json: {
+    available: true, mode: "read-only", conversations: false, speech: true
+  } }));
+  let releaseToken;
+  const gate = new Promise((resolve) => { releaseToken = resolve; });
+  await page.route("**/api/assistant/speech/token", async (route) => {
+    await gate;
+    return route.fulfill({ json: { token: "temporary-test-token", region: "eastus2", expiresIn: 600 } });
+  });
+  let sent = 0;
+  await page.route("**/api/assistant/ask", (route) => { sent += 1; return route.abort(); });
+  await page.goto("/asistente");
+  const requested = page.waitForRequest("**/api/assistant/speech/token");
+  await page.getByRole("button", { name: "Dictar pregunta" }).click();
+  await requested;
+  await expect(page.getByRole("button", { name: "Detener dictado" })).toBeVisible();
+  await page.getByRole("button", { name: "Detener dictado" }).click();
+  releaseToken();
+  await expect(page.getByLabel("Tu pregunta")).toHaveValue("");
+  await expect(page.getByText("Dictado detenido. Revisa el texto antes de enviarlo.")).toBeVisible();
+  expect(sent).toBe(0);
+});
+
 test("Espacio de IA: explora expedientes y continúa sin salir del chat", async ({ page }) => {
   await useSession(page, "AUDITOR", 5);
   await page.route("**/api/assistant/status", (route) => route.fulfill({ json: {
