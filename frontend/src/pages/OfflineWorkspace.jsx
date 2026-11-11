@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useDocumentTitle } from "../contexts/useDocumentTitle";
 import { createOfflineVault, deleteOfflineVault, hasOfflineVault,
   lockOfflineVault, unlockOfflineVault } from "../services/offlineVault";
+import { captureOfflineSnapshots, getOfflineSnapshots, SNAPSHOT_MODULES,
+  SNAPSHOT_TTL_MS } from "../services/offlineSnapshots";
 import "./OfflineWorkspace.css";
 
 function OfflineWorkspace() {
@@ -15,6 +18,10 @@ function OfflineWorkspace() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [selected, setSelected] = useState([]);
+  const [snapshots, setSnapshots] = useState({});
+  const [captureResults, setCaptureResults] = useState([]);
+  const [checkedAt, setCheckedAt] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -22,6 +29,11 @@ function OfflineWorkspace() {
       .catch((cause) => { if (active) setError(cause.message); });
     return () => { active = false; };
   }, [user.id]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCheckedAt(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -39,6 +51,8 @@ function OfflineWorkspace() {
         setExists(true);
       } else await unlockOfflineVault(user.id, phrase);
       setOpen(true);
+      setSnapshots(getOfflineSnapshots());
+      setCheckedAt(Date.now());
       setPhrase("");
       setConfirmation("");
     } catch (cause) { setError(cause.message); }
@@ -53,10 +67,28 @@ function OfflineWorkspace() {
       await deleteOfflineVault(user.id);
       setOpen(false);
       setExists(false);
+      setSnapshots({});
+      setCaptureResults([]);
       setConfirmDelete(false);
     } catch (cause) { setError(cause.message); }
     finally { setBusy(false); }
   };
+
+  const capture = async () => {
+    setBusy(true);
+    setError("");
+    setCaptureResults([]);
+    try {
+      const results = await captureOfflineSnapshots(selected);
+      setCaptureResults(results);
+      setSnapshots(getOfflineSnapshots());
+      setCheckedAt(Date.now());
+    } catch (cause) { setError(cause.message); }
+    finally { setBusy(false); }
+  };
+
+  const toggleSelection = (id) => setSelected((current) => current.includes(id)
+    ? current.filter((value) => value !== id) : [...current, id]);
 
   return <div className="dashboard-layout">
     <Sidebar active="offline" />
@@ -74,8 +106,34 @@ function OfflineWorkspace() {
             {error && <p className="planning-message error" role="alert">{error}</p>}
             {open ? <>
               <h2>Espacio desbloqueado</h2>
-              <p>La copia está cifrada en este dispositivo. En la siguiente etapa podrás guardar aquí expedientes autorizados; todavía no hay datos disponibles sin conexión.</p>
-              <button type="button" className="secondary-action" onClick={() => { lockOfflineVault(); setOpen(false); }}>Bloquear espacio local</button>
+              <p>Elige qué secciones autorizadas quieres guardar en este dispositivo. La copia caduca a las 24 horas y nunca confirma cambios en el servidor.</p>
+              <fieldset className="offline-snapshot-options">
+                <legend>Secciones para consultar sin conexión</legend>
+                {SNAPSHOT_MODULES.map((module) => {
+                  const snapshot = snapshots[module.id];
+                  const fresh = snapshot && checkedAt - Date.parse(snapshot.savedAt) <= SNAPSHOT_TTL_MS;
+                  return <label key={module.id}>
+                    <input type="checkbox" checked={selected.includes(module.id)} onChange={() => toggleSelection(module.id)} />
+                    <span><strong>{module.label}</strong>{snapshot && <small>
+                      {fresh ? "Guardado" : "Caducado"} · {new Date(snapshot.savedAt).toLocaleString("es-MX")}
+                    </small>}</span>
+                    {fresh && <Link to={module.link}>Abrir</Link>}
+                  </label>;
+                })}
+              </fieldset>
+              <div className="offline-vault-actions">
+                <button type="button" className="primary-action" onClick={capture} disabled={busy || !selected.length || !navigator.onLine}>
+                  {busy ? "Actualizando copia…" : "Actualizar secciones elegidas"}
+                </button>
+                <button type="button" className="secondary-action" onClick={() => { lockOfflineVault(); setOpen(false); setSnapshots({}); setCaptureResults([]); }}>Bloquear espacio local</button>
+              </div>
+              {captureResults.length > 0 && <div className="offline-snapshot-results" role="status">
+                <strong>Resultado de la actualización</strong>
+                <ul>{captureResults.map((result) => <li key={result.id}>
+                  {SNAPSHOT_MODULES.find((module) => module.id === result.id)?.label}: {result.ok
+                    ? `guardado${result.count === null ? "" : ` (${result.count} registros)`}` : result.message}
+                </li>)}</ul>
+              </div>}
             </> : exists !== null && <>
               <h2>{exists ? "Desbloquear copia local" : "Habilitar copia local"}</h2>
               <p>{exists ? "Introduce la frase que elegiste para este dispositivo." :

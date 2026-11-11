@@ -1,0 +1,41 @@
+import { test, expect } from "@playwright/test";
+
+const dashboard = {
+  role: "AUDITOR", scopeLabel: "Solo mis asignaciones", title: "Panel guardado de prueba",
+  description: "Datos guardados con autorización", selectedPeriod: { period: "all" },
+  permissions: { canCreate: false, canApprove: false },
+  metrics: { total: 0, pending: 0, active: 0, highRisk: 0, openFindings: 0, averageProgress: 0 },
+  statusCounts: [], riskMatrix: [], pendingItems: []
+};
+
+test("selected authorized data opens offline and an online denial is never replaced by a snapshot", async ({ page, context }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("token")) localStorage.setItem("token", "browser-test-token");
+    if (!localStorage.getItem("user")) localStorage.setItem("user", JSON.stringify({ id: 201, name: "Auditor", role: "AUDITOR" }));
+  });
+  await page.route("**/api/dashboard", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(dashboard) }));
+  await page.route("**/api/actions", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ actions: [] }) }));
+  await page.goto("/sin-conexion");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await page.getByLabel("Frase local", { exact: true }).fill("Frase exclusiva de prueba 2026");
+  await page.getByLabel("Repetir frase local").fill("Frase exclusiva de prueba 2026");
+  await page.getByRole("button", { name: "Crear espacio" }).click();
+  await page.getByRole("checkbox", { name: "Panel de Portafolio" }).check();
+  await page.getByRole("checkbox", { name: "Planes de acción" }).check();
+  await page.getByRole("button", { name: "Actualizar secciones elegidas" }).click();
+  await expect(page.getByText("Resultado de la actualización")).toBeVisible();
+  await expect(page.getByText("Panel de Portafolio: guardado")).toBeVisible();
+  await page.unroute("**/api/dashboard");
+  await page.unroute("**/api/actions");
+  await context.setOffline(true);
+  await page.getByRole("link", { name: "Abrir" }).first().click();
+  await expect(page.getByRole("heading", { name: "Panel guardado de prueba" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Mostrando copia local" })).toBeVisible();
+
+  await context.setOffline(false);
+  await page.route("**/api/dashboard", (route) => route.fulfill({ status: 403, contentType: "application/json", body: '{"message":"Sin permiso vigente"}' }));
+  await page.reload();
+  await expect(page.getByRole("alert")).toContainText("Sin permiso vigente");
+  await expect(page.getByRole("heading", { name: "Panel guardado de prueba" })).not.toBeVisible();
+});
