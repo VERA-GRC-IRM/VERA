@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, devices } from "@playwright/test";
 import { Buffer } from "node:buffer";
 import { readFile } from "node:fs/promises";
 
@@ -119,4 +119,44 @@ test("an encrypted backup restores only with the original phrase and never expos
   await page.getByLabel("Frase local", { exact: true }).fill(phrase);
   await page.getByRole("button", { name: "Desbloquear" }).click();
   await expect(page.getByText("Nota de recuperación")).toBeVisible();
+});
+
+test("an encrypted backup can be restored in a separate mobile browser context while offline", async ({ page, browser }) => {
+  await prepare(page, 704);
+  await page.getByLabel("Frase local", { exact: true }).fill(phrase);
+  await page.getByLabel("Repetir frase local").fill(phrase);
+  await page.getByRole("button", { name: "Crear espacio" }).click();
+  await page.getByLabel("Título").fill("Nota portátil");
+  await page.getByLabel("Nota", { exact: true }).fill("Este borrador debe seguir disponible sin red.");
+  await page.getByRole("button", { name: "Guardar borrador local" }).click();
+  await expect(page.getByText("Nota portátil")).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Descargar copia cifrada" }).click()
+  ]);
+  const buffer = await readFile(await download.path());
+
+  const mobile = await browser.newContext({ ...devices["Pixel 7"], baseURL: new URL(page.url()).origin });
+  try {
+    const mobilePage = await mobile.newPage();
+    await prepare(mobilePage, 704);
+    await expect(mobilePage.getByRole("heading", { name: "Habilitar copia local" })).toBeVisible();
+    await mobilePage.evaluate(() => navigator.serviceWorker.ready);
+    await mobilePage.reload();
+    await mobilePage.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+    await mobile.setOffline(true);
+    await mobilePage.getByLabel("Archivo de copia").setInputFiles({
+      name: download.suggestedFilename(), mimeType: "application/json", buffer
+    });
+    await mobilePage.getByLabel("Frase local original").fill(phrase);
+    await mobilePage.getByRole("button", { name: "Restaurar copia" }).click();
+    await expect(mobilePage.getByText("Nota portátil")).toBeVisible();
+    await mobilePage.reload();
+    await mobilePage.getByLabel("Frase local", { exact: true }).fill(phrase);
+    await mobilePage.getByRole("button", { name: "Desbloquear" }).click();
+    await expect(mobilePage.getByText("Nota portátil")).toBeVisible();
+  } finally {
+    await mobile.close();
+  }
+  await expect(page.getByText("Nota portátil")).toBeVisible();
 });

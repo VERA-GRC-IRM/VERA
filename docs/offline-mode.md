@@ -95,6 +95,8 @@ El [ensayo manual en GitHub Actions](https://github.com/VERA-GRC-IRM/VERA/action
 
 El [piloto real inicial](testing/offline-production-pilot.md) registra los pasos observados con una sesión de producción sin conservar datos privados en la bitácora. La [matriz manual específica del modo sin conexión](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/offline-browser-matrix.yml) separa Chromium, Firefox, Chrome, Edge y emulaciones móvil/tablet. Sus resultados no equivalen a pruebas en dispositivos físicos.
 
+El respaldo cifrado también se ensaya en un segundo contexto de navegador con tamaño móvil y almacenamiento independiente: se exporta desde el escritorio, se importa sin red y se comprueba que el borrador persiste tras recargar. Es una simulación reproducible; el traslado del archivo y la restauración entre dos dispositivos físicos con una cuenta de producción siguen pendientes de aceptación real.
+
 En el caso de reabrir un borrador, el modo `setOffline` de Playwright para Firefox rechazó incluso la navegación cacheada con `NS_ERROR_OFFLINE` en Windows. Ese escenario de Firefox corta las solicitudes de red ordinarias después de instalar el service worker y verifica que la API privada no responde; los demás escenarios mantienen la emulación de desconexión. Este ajuste de ensayo no acredita por sí solo una recarga con el Wi-Fi físico apagado.
 
 ## Preparación local de hallazgos
