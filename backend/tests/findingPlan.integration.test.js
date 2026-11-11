@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 process.env.JWT_SECRET ||= "finding-plan-test-secret-over-32-characters";
 const app = require("../server");
 const { startTestServer } = require("./helpers/testServer");
+const reads = require("../repositories/notificationReadRepository");
 
 const json = (id, method = "GET", body) => ({
   method,
@@ -97,6 +98,8 @@ test("HU-21: plan de hallazgo conserva avance, comentario, evidencia y solicitud
   assert.equal(requested.status, 200);
   action = (await requested.json()).action;
   assert.ok(action.validationRequestedAt);
+  assert.ok((await reads.getStoredForUser(3)).some((item) =>
+    item.id === `PLAN_VALIDATION_REQUESTED:${action.id}`));
   assert.deepEqual(action.history.slice(-3).map((entry) => entry.type),
     ["COMMENTED", "PROGRESS_UPDATED", "VALIDATION_REQUESTED"]);
   assert.equal((await fetch(`${path}/validation-request`, json(5, "POST", {

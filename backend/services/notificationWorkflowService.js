@@ -1,4 +1,5 @@
 const planningRepository = require("../repositories/planningRepository");
+const evidenceRepository = require("../repositories/evidenceRepository");
 const readRepository = require("../repositories/notificationReadRepository");
 const userRepository = require("../repositories/userRepository");
 const { listActions } = require("./actionService");
@@ -6,6 +7,7 @@ const { buildNotifications } = require("./notificationService");
 const { logActivity } = require("./auditLogger");
 const { RECORD_CREATE_ROLES } = require("../config/roles");
 const { filterByVisibleScope } = require("./recordScopeVisibility");
+const { visibleCollectionsForUser } = require("./recordReadAccessService");
 
 const fail = (message, status = 400) => Object.assign(new Error(message), { status });
 const activeUser = async (user) => {
@@ -18,13 +20,20 @@ const activeUser = async (user) => {
 const visibleNotifications = async (user, offsetMinutes = 0) => {
   await activeUser(user);
   const proposals = await filterByVisibleScope(user, await planningRepository.getAll());
+  const groups = await visibleCollectionsForUser(user);
+  const visibleIds = Object.fromEntries(Object.entries(groups).map(([type, items]) =>
+    [type, new Set(items.map((item) => item.id))]));
+  const evidence = (await evidenceRepository.getAll()).filter((item) =>
+    visibleIds[item.entityType]?.has(item.entityId));
   let actions = [];
   let actionAlertsAvailable = true;
   try { actions = await listActions(user); }
   catch { actionAlertsAvailable = false; }
-  const reads = new Map((await readRepository.getForUser(user.id))
+  const current = buildNotifications({ proposals, actions, risks: groups.RISK,
+    controls: groups.CONTROL, findings: groups.FINDING, evidence, user, offsetMinutes });
+  const reads = new Map((await readRepository.syncForUser(user.id, current))
     .map((item) => [item.notificationId, item.readAt]));
-  return { notifications: buildNotifications({ proposals, actions, user, offsetMinutes })
+  return { notifications: current
     .map((item) => ({ ...item, readAt: reads.get(item.id) || null })), actionAlertsAvailable };
 };
 
@@ -48,7 +57,9 @@ const changeReadStateForUser = async (user, notificationId, read, options = {}) 
   const readAt = read ? await readRepository.markRead(user.id, item.id) : null;
   if (!read) await readRepository.markUnread(user.id, item.id);
   const subject = item.type.startsWith("ACTION_") ? { actionId: item.entityId }
-    : { proposalId: item.entityId };
+    : item.type.startsWith("EVIDENCE_") ? { evidenceId: item.entityId }
+      : item.type.startsWith("FINDING_") ? { findingId: item.entityId }
+        : { proposalId: item.entityId };
   await logActivity({ actor: user, action: read ? "NOTIFICATION_READ" : "NOTIFICATION_UNREAD",
     details: { notificationId: item.id, ...subject } });
   return { notificationId: item.id, readAt };

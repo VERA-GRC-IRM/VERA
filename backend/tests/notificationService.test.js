@@ -58,3 +58,26 @@ test("action reminders follow the assigned user's local calendar and active stat
   assert.ok(nextDay.some(({ id }) => id === "ACTION_OVERDUE:ACT-TODAY"));
   assert.ok(!nextDay.some(({ id }) => id === "ACTION_DUE_SOON:ACT-TODAY"));
 });
+
+test("HU-17: assignments, decisions, findings and evidence target only their owner", () => {
+  const proposals = [{ id: "AUD-X", status: "APPROVED", title: "Revisión", area: "Operaciones",
+    createdBy: { id: 4 }, approvedAt: "2026-10-09T10:00:00Z" }];
+  const actions = [{ id: "ACT-X", title: "Corregir", sourceTitle: "Riesgo", assigneeId: 5,
+    createdBy: { id: 3 }, status: "OPEN", dueDate: "2026-12-31", createdAt: "2026-10-09T09:00:00Z" }];
+  const risks = [{ id: "RSK-X", ownerId: 5 }];
+  const controls = [{ id: "CTL-X", ownerId: 3 }];
+  const findings = [{ id: "FDG-X", riskId: "RSK-X", controlId: "CTL-X", title: "Excepción",
+    createdBy: { id: 3 }, createdAt: "2026-10-09T08:00:00Z" }];
+  const evidence = [{ id: "EVD-X", entityType: "RISK", entityId: "RSK-X", title: "Acta",
+    author: { id: 3 }, createdAt: "2026-10-09T07:00:00Z" }];
+  const data = { proposals, actions, risks, controls, findings, evidence, now };
+  const owner = buildNotifications({ ...data, user: { id: 5, role: "AUDITOR" } });
+  assert.ok(owner.some((item) => item.id === "ACTION_ASSIGNED:ACT-X"));
+  assert.ok(owner.some((item) => item.id === "FINDING_CREATED:FDG-X" && item.path === "/controles#finding-FDG-X"));
+  assert.ok(owner.some((item) => item.id === "EVIDENCE_CREATED:EVD-X" && item.path === "/evidencias#evidence-EVD-X"));
+  const creator = buildNotifications({ ...data, user: { id: 4, role: "JEFATURA" } });
+  assert.ok(creator.some((item) => item.id === "PROPOSAL_DECIDED:AUD-X"));
+  assert.ok(!creator.some((item) => item.id === "EVIDENCE_CREATED:EVD-X"));
+  const unrelated = buildNotifications({ ...data, user: { id: 2, role: "DIRECTOR" } });
+  assert.ok(!unrelated.some((item) => ["ACTION_ASSIGNED", "FINDING_CREATED", "EVIDENCE_CREATED", "PROPOSAL_DECIDED"].includes(item.type)));
+});

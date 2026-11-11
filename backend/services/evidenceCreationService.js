@@ -13,11 +13,22 @@ const { SEARCHABLE_MIME } = require("./evidenceTextExtraction");
 const { IMAGE_MIME } = require("./azureVisionOcrService");
 const evidenceIndexCoverage = require("../repositories/evidenceIndexCoverage");
 const { canReplayEvidence } = require("./creationReplayScope");
+const notificationEvents = require("./notificationEventService");
 
 const ENTITY_TYPES = ["RISK", "CONTROL", "AUDIT"];
 const EVIDENCE_TYPES = ["DOCUMENT", "SCREENSHOT", "REPORT", "OTHER"];
 const text = (value) => String(value ?? "").trim();
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
+
+const notifyEvidenceAfterCommit = async (evidence) => {
+  try {
+    const entity = await findEntity(evidence.entityType, evidence.entityId);
+    if (entity) await notificationEvents.evidenceCreated(evidence, entity);
+  } catch (error) {
+    console.error("[NOTIFICATION_DELIVERY_PENDING]", { type: "EVIDENCE_CREATED", entityId: evidence.id,
+      reason: error.message });
+  }
+};
 
 const findEntity = async (type, id) => {
   if (type === "RISK") return riskRepository.findById(id);
@@ -81,6 +92,7 @@ const createEvidenceForUser = async (user, body, operationId = null) => {
   await logActivity({ actor: user, action: "EVIDENCE_REGISTERED", details: {
     evidenceId: evidence.id, title: evidence.title, entityType: evidence.entityType,
     entityId: evidence.entityId, entityTitle: evidence.entityTitle } });
+  await notifyEvidenceAfterCommit(evidence);
   return evidence;
 };
 
@@ -117,6 +129,7 @@ const createFileEvidenceForUser = async (user, body, sourceFile, operationId) =>
   await logActivity({ actor: user, action: "EVIDENCE_FILE_UPLOADED", details: {
     evidenceId: evidence.id, entityType: data.entityType, entityId: data.entityId,
     size: file.size, mime: file.mime } });
+  await notifyEvidenceAfterCommit(evidence);
   let contentIndex = { status: "unsupported", chunks: 0, truncated: false };
   if (SEARCHABLE_MIME.has(file.mime)) {
     try { contentIndex = await indexFile(evidence, bytes); }

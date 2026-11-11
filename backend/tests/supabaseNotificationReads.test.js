@@ -40,11 +40,19 @@ test("HU-17: Supabase separa lecturas por usuario y conserva cambios", async (co
     }
     throw new Error(`Unexpected method ${options.method}`);
   };
+  const notification = { id: "PROPOSAL_REVIEW:AUD-01", type: "PROPOSAL_REVIEW",
+    title: "Propuesta pendiente", entityId: "AUD-01", path: "/planificacion" };
+  await reads.syncForUser(2, [notification]);
+  await reads.syncForUser(2, [notification]);
+  assert.equal(rows.size, 1);
+  assert.deepEqual(rows.get("2:PROPOSAL_REVIEW:AUD-01").payload.notification, notification);
+  assert.equal(rows.get("2:PROPOSAL_REVIEW:AUD-01").payload.readAt, null);
   const first = await reads.markRead(2, "PROPOSAL_REVIEW:AUD-01");
   assert.ok(first);
   assert.equal((await reads.getForUser(2))[0].readAt, first);
   assert.deepEqual(await reads.getForUser(1), []);
   await reads.markUnread(2, "PROPOSAL_REVIEW:AUD-01");
   assert.deepEqual(await reads.getForUser(2), []);
+  assert.ok(rows.get("2:PROPOSAL_REVIEW:AUD-01").payload.notification);
   assert.ok(await reads.markRead(2, "PROPOSAL_REVIEW:AUD-01"));
 });

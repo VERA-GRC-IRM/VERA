@@ -11,6 +11,7 @@ const evidenceTextIndex = require("../repositories/evidenceTextIndex");
 const evidenceIndexCoverage = require("../repositories/evidenceIndexCoverage");
 const { IMAGE_MIME, extractImageText } = require("../services/azureVisionOcrService");
 const { readiness } = require("../services/azureOpenAiService");
+const notificationEvents = require("../services/notificationEventService");
 
 const { PLANNING_APPROVE_ROLES } = require("../config/roles");
 
@@ -94,6 +95,7 @@ const uploadEvidence = async (req, res) => {
   await logActivity({ actor: req.user, action: "EVIDENCE_FILE_UPLOADED", details: {
     evidenceId: evidence.id, entityType, entityId, size: file.size, mime: file.mime
   } });
+  await notificationEvents.evidenceCreated(evidence, entity);
   let contentIndex = { status: "unsupported", chunks: 0, truncated: false };
   if (SEARCHABLE_MIME.has(file.mime)) {
     try { contentIndex = await indexFile(evidence, req.body); }

@@ -5,6 +5,7 @@ const { EDITABLE_FIELDS_BY_STATUS, FIELD_LABELS, STATUS_LABELS } = require("../c
 const { parseProposal } = require("./proposalService");
 const { logActivity } = require("./auditLogger");
 const { assertWritableRecordScope } = require("./recordScopeVisibility");
+const notificationEvents = require("./notificationEventService");
 
 const fail = (message, status = 400) => Object.assign(new Error(message), { status });
 const activeEditor = async (user) => {
@@ -79,6 +80,9 @@ const editAuditForUser = async (user, id, body, options = {}) => {
     proposalId: audit.id, title: audit.title, status: audit.status, changes: prepared.changes,
     ...(options.reason ? { reason: options.reason } : {})
   } });
+  if (audit.status === "ACTIVE" && prepared.changes.responsibleId && audit.responsibleId) {
+    await notificationEvents.auditAssigned(audit);
+  }
   return { audit, changes: prepared.changes };
 };
 

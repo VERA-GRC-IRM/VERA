@@ -7,6 +7,7 @@ const { classifyRisk } = require("../config/riskRules");
 const { assertWritableRecordScope } = require("./recordScopeVisibility");
 const { scopeForNewRecord } = require("./recordCreationScopeService");
 const { resolveReferencesForUnit } = require("./businessContextService");
+const notificationEvents = require("./notificationEventService");
 
 const TYPES = ["Interna", "Externa"];
 const RISKS = ["Bajo", "Medio", "Alto"];
@@ -114,6 +115,7 @@ const createProposalForUser = async (user, input, operationId = null) => {
     details: { proposalId: proposal.id, title: proposal.title,
       businessContextReferences: proposal.businessContextReferences.map(({ contextId, revision }) =>
         ({ contextId, revision })) } });
+  await notificationEvents.proposalCreated(proposal);
   return proposal;
 };
 

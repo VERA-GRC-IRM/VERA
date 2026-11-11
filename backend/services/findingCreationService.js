@@ -5,6 +5,7 @@ const userRepository = require("../repositories/userRepository");
 const { ROLES, RISK_CONTROL_MANAGE_ROLES } = require("../config/roles");
 const { logActivity } = require("./auditLogger");
 const { assertWritableSourceScope } = require("./recordWriteScopeService");
+const notificationEvents = require("./notificationEventService");
 
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
 const text = (value) => String(value ?? "").trim();
@@ -81,6 +82,7 @@ const createFindingForUser = async (user, input, operationId = null, expectedCon
     createdBy: { id: user.id, username: user.username, role: user.role } });
   await logActivity({ actor: user, action: "FINDING_REGISTERED", details: {
     findingId: finding.id, controlId: control.id, riskId: risk.id, auditId: finding.auditId } });
+  await notificationEvents.findingCreated(finding, risk, control);
   return finding;
 };
 
