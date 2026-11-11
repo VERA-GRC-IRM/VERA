@@ -40,6 +40,11 @@
 .offline-vault-delete { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--vera-border); }
 .offline-snapshot-options { display: grid; gap: 4px; margin: 22px 0; padding: 0; border: 0; }
 .offline-snapshot-options legend { margin-bottom: 12px; font-weight: 700; }
+.offline-preparation-packs { margin-bottom: 12px; padding: 12px; border: 1px solid var(--vera-border); border-radius: 10px; background: var(--vera-surface-raised); }
+.offline-preparation-packs p { margin: 0 0 10px; }
+.offline-preparation-packs > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.offline-preparation-packs button { min-height: 40px; }
+.offline-preparation-packs small { margin-top: 10px; }
 .offline-snapshot-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--vera-border); }
 .offline-snapshot-row label { display: flex; flex: 1; align-items: center; gap: 12px; }
 .offline-snapshot-options input { width: 18px; height: 18px; flex: none; }

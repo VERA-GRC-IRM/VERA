@@ -22,6 +22,12 @@ const readStorageStatus = async () => {
   } catch { return { available: false }; }
 };
 
+const PREPARATION_PACKS = [
+  { id: "overview", label: "Portafolio y pendientes", sections: ["dashboard", "planning", "activeAudits", "notifications"] },
+  { id: "fieldwork", label: "Trabajo de auditoría", sections: ["activeAudits", "risks", "riskOwners", "controls", "findings", "actions", "evidence"] },
+  { id: "report", label: "Informe local", sections: ["report"] }
+];
+
 function OfflineWorkspace() {
   useDocumentTitle("Sin conexión");
   const user = JSON.parse(localStorage.getItem("user") || "null");
@@ -296,6 +302,15 @@ function OfflineWorkspace() {
               </section>
               <fieldset className="offline-snapshot-options">
                 <legend>Secciones para consultar sin conexión</legend>
+                <div className="offline-preparation-packs" role="group" aria-label="Selección rápida de secciones">
+                  <p>Elige un conjunto o selecciona cada sección. Nada se descarga hasta que pulses «Actualizar secciones elegidas»; el servidor comprobará tus permisos en cada una.</p>
+                  <div>{PREPARATION_PACKS.map((pack) => <button key={pack.id} type="button"
+                    className="secondary-action" disabled={busy}
+                    onClick={() => setSelected(pack.sections)}>{pack.label}</button>)}
+                    <button type="button" className="secondary-action" disabled={busy || !selected.length}
+                      onClick={() => setSelected([])}>Limpiar selección</button></div>
+                  <small>{selected.length} de {SNAPSHOT_MODULES.length} secciones seleccionadas. Límite: 2 MiB por sección y 8 MiB en conjunto; una sección que exceda el límite no reemplaza su copia anterior.</small>
+                </div>
                 {SNAPSHOT_MODULES.map((module) => {
                   const snapshot = snapshots[module.id];
                   const fresh = snapshot && checkedAt - Date.parse(snapshot.savedAt) <= SNAPSHOT_TTL_MS;
