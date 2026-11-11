@@ -28,6 +28,18 @@ async function openConversationOptions(page) {
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
 }
 
+async function openComposerContext(page) {
+  const toggle = page.getByRole("button", { name: "Añadir contexto" });
+  if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+}
+
+async function openAttachmentTray(page) {
+  await openComposerContext(page);
+  await page.getByRole("button", { name: "Archivos y adjuntos" }).click();
+  await expect(page.getByLabel("Adjuntar archivo privado")).toBeVisible();
+}
+
 test("Espacio de IA: la lista lateral permite cambiar de conversación y cerrarse", async ({ page }) => {
   await useSession(page, "AUDITOR", 5);
   await page.route("**/api/assistant/status", (route) => route.fulfill({ json: {
@@ -53,6 +65,13 @@ test("Espacio de IA: la lista lateral permite cambiar de conversación y cerrars
   await showHistory(page);
   await expect(recent.getByRole("button", { name: "Pendientes de auditoría" })).toHaveAttribute("aria-current", "page");
   await hideHistoryOnNarrow(page);
+  await openComposerContext(page);
+  await page.getByRole("button", { name: "Añadir contexto" }).press("Escape");
+  await expect(page.getByRole("button", { name: "Añadir contexto" })).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("button", { name: "Añadir contexto" })).toBeFocused();
+  await openComposerContext(page);
+  await page.getByRole("heading", { name: "Pendientes de auditoría" }).click();
+  await expect(page.getByRole("button", { name: "Añadir contexto" })).toHaveAttribute("aria-expanded", "false");
   await openConversationOptions(page);
   await page.getByRole("button", { name: "Opciones de conversación" }).press("Escape");
   await expect(page.getByRole("button", { name: "Opciones de conversación" })).toHaveAttribute("aria-expanded", "false");
@@ -168,6 +187,7 @@ test("Copiloto: OCR opcional de PDF escaneado mantiene la consulta explícita", 
     return route.abort();
   });
   await page.goto("/asistente");
+  await openAttachmentTray(page);
   await page.getByLabel("Adjuntar archivo privado").setInputFiles({ name: "escaneo.pdf",
     mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\nscan") });
   await expect(page.getByRole("button", { name: "Extraer texto del PDF" })).toBeVisible();
@@ -226,6 +246,7 @@ test("Copiloto: adjunta un documento privado y lo consulta con cita", async ({ p
     return route.abort();
   });
   await page.goto("/asistente");
+  await openAttachmentTray(page);
   await page.getByLabel("Adjuntar archivo privado").setInputFiles({
     name: "nota.txt", mimeType: "text/plain", buffer: Buffer.from("El proveedor X tiene riesgo alto.")
   });
@@ -279,6 +300,7 @@ test("Copiloto: vincula un archivo seleccionado como evidencia con vista previa 
     return route.abort();
   });
   await page.goto("/asistente");
+  await openAttachmentTray(page);
   await page.getByLabel("Adjuntar archivo privado").setInputFiles({ name: "acta.txt",
     mimeType: "text/plain", buffer: Buffer.from("Acta de revisión de auditoría con hallazgos documentados.") });
   await expect(page.getByLabel("Consultar archivo")).toHaveValue(fileId);
@@ -553,6 +575,7 @@ test("Copiloto: biblioteca privada de proyecto disponible en chats nuevos", asyn
   await page.getByLabel("Tu pregunta").fill("¿Qué dice la guía?");
   await page.getByRole("button", { name: "Enviar pregunta" }).click();
   await expect(page.getByText("La guía menciona un riesgo de proveedor.")).toBeVisible();
+  await openAttachmentTray(page);
   await expect(page.getByLabel("Consultar archivo")).toHaveValue(fileId);
   await page.getByLabel("Consultar archivo").selectOption("__project_library__");
   await page.getByLabel("Tu pregunta").fill("¿Qué indica la biblioteca?");
@@ -561,7 +584,8 @@ test("Copiloto: biblioteca privada de proyecto disponible en chats nuevos", asyn
   await expect(page.getByText("La lectura de la biblioteca fue parcial", { exact: false })).toBeVisible();
   const access = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(access.violations.map(({ id }) => id)).toEqual([]);
-  await page.getByRole("button", { name: "Quitar" }).click();
+  await openAttachmentTray(page);
+  await page.getByRole("button", { name: "Quitar", exact: true }).click();
   await expect(page.getByRole("option", { name: "guia.txt · proyecto" })).toHaveCount(0);
 });
 
@@ -1148,7 +1172,10 @@ test("Copiloto: busca evidencias visibles y muestra el fragmento y su cobertura"
         partial: false, indexedOnly: true }, asOf: "2026-10-16T20:20:00.000Z", durationMs: 120 } });
   });
   await page.goto("/asistente");
+  await expect(page.getByLabel("Buscar también en textos de evidencias visibles")).toHaveCount(0);
+  await openComposerContext(page);
   await page.getByLabel("Buscar también en textos de evidencias visibles").check();
+  await expect(page.locator(".assistant-context-chip").filter({ hasText: "Textos de evidencias" })).toBeVisible();
   await page.getByLabel("Tu pregunta").fill("¿Qué dice el informe de proveedores?");
   await page.getByRole("button", { name: "Enviar pregunta" }).click();
   await expect(page.getByText("La revisión es mensual.", { exact: true })).toBeVisible();
