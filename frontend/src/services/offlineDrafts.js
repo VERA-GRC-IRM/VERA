@@ -189,7 +189,7 @@ export const syncOfflineFindingDraft = async (draftId) => {
   if (!navigator.onLine) throw new Error("Conéctate antes de registrar el hallazgo.");
   const userId = currentUser();
   const draft = getOfflineDrafts().find((item) => item.id === draftId);
-  if (!draft || draft.type !== "FINDING_CREATE" || draft.state !== "DRAFT") {
+  if (!draft || draft.type !== "FINDING_CREATE" || !["DRAFT", "NEEDS_REVIEW"].includes(draft.state)) {
     throw new Error("Este hallazgo requiere revisión antes de volver a enviarse.");
   }
   const token = localStorage.getItem("token");
@@ -200,24 +200,26 @@ export const syncOfflineFindingDraft = async (draftId) => {
     if (!response.ok) throw new Error(await responseMessage(response));
     return response.json();
   };
-  const [controlData, riskData, findingData] = await Promise.all([
-    read("/api/controls/"), read("/api/risks/"), read("/api/findings/")
-  ]);
-  if (!Array.isArray(controlData.controls) || !Array.isArray(riskData.risks)
-    || !Array.isArray(findingData.findings)) {
-    throw new Error("No se pudo validar el estado actual. Revisa Hallazgos antes de registrar.");
-  }
-  const control = controlData.controls.find((item) => String(item.id) === String(draft.controlId));
-  const risk = riskData.risks.find((item) => String(item.id) === String(draft.riskId));
-  const duplicate = findingData.findings.some((item) => String(item.controlId) === String(draft.controlId)
-    && String(item.riskId) === String(draft.riskId) && item.evaluationVersion === draft.controlVersion);
-  if (!control || !risk || !Array.isArray(control.evaluations)
-    || control.evaluations.length !== draft.controlVersion
-    || !control.riskIds?.some((id) => String(id) === String(draft.riskId))
-    || !Number.isInteger(Number(control.effectiveness))
-    || Number(control.effectiveness) < 1 || Number(control.effectiveness) > 3 || duplicate) {
-    await markDraft(userId, draftId, { state: "CONFLICT" });
-    throw new Error("Cambió la evaluación, la relación o ya existe un hallazgo. Revisa el control antes de registrar otro.");
+  if (draft.state === "DRAFT") {
+    const [controlData, riskData, findingData] = await Promise.all([
+      read("/api/controls/"), read("/api/risks/"), read("/api/findings/")
+    ]);
+    if (!Array.isArray(controlData.controls) || !Array.isArray(riskData.risks)
+      || !Array.isArray(findingData.findings)) {
+      throw new Error("No se pudo validar el estado actual. Revisa Hallazgos antes de registrar.");
+    }
+    const control = controlData.controls.find((item) => String(item.id) === String(draft.controlId));
+    const risk = riskData.risks.find((item) => String(item.id) === String(draft.riskId));
+    const duplicate = findingData.findings.some((item) => String(item.controlId) === String(draft.controlId)
+      && String(item.riskId) === String(draft.riskId) && item.evaluationVersion === draft.controlVersion);
+    if (!control || !risk || !Array.isArray(control.evaluations)
+      || control.evaluations.length !== draft.controlVersion
+      || !control.riskIds?.some((id) => String(id) === String(draft.riskId))
+      || !Number.isInteger(Number(control.effectiveness))
+      || Number(control.effectiveness) < 1 || Number(control.effectiveness) > 3 || duplicate) {
+      await markDraft(userId, draftId, { state: "CONFLICT" });
+      throw new Error("Cambió la evaluación, la relación o ya existe un hallazgo. Revisa el control antes de registrar otro.");
+    }
   }
   let response;
   try {

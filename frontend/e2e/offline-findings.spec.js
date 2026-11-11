@@ -103,6 +103,28 @@ test("an uncertain reply requires review and prevents an automatic repeat", asyn
   expect(writes).toBe(1);
 });
 
+test("an explicit retry reuses the same finding operation after a lost response", async ({ page, context }) => {
+  await prepare(page);
+  await context.setOffline(true);
+  await stage(page);
+  await context.setOffline(false);
+  const keys = [];
+  await page.route("**/api/findings/", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    keys.push((await route.request().allHeaders())["idempotency-key"]);
+    if (keys.length === 1) return route.abort("failed");
+    return route.fulfill({ status: 201, contentType: "application/json",
+      body: JSON.stringify({ finding: { id: "finding-1", controlId: "control-1", riskId: "risk-1" } }) });
+  });
+  await page.getByRole("button", { name: "Registrar hallazgo" }).click();
+  await expect(page.getByText("Confirmación pendiente")).toBeVisible();
+  await page.getByRole("button", { name: "Comprobar o reintentar hallazgo" }).click();
+  await expect(page.getByText("Enviado al servidor")).toBeVisible();
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/i);
+  expect(keys[1]).toBe(keys[0]);
+});
+
 test("auditors cannot stage findings for risks they do not own", async ({ page }) => {
   await prepare(page, { ownerId: 702 });
   await expect(page.getByRole("button", { name: "Guardar hallazgo local" })).toBeDisabled();
