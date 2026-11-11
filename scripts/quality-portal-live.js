@@ -8,6 +8,8 @@
     "quality.yml", "e2e.yml", "codeql.yml", "classroom-quality.yml",
     "ai-evaluation.yml", "preview-role-acceptance.yml",
     "production-smoke.yml", "local-supabase-rehearsal.yml",
+    "offline-rehearsal.yml", "offline-browser-matrix.yml",
+    "offline-two-release-rehearsal.yml",
   ];
   const coreNames = ["quality.yml", "codeql.yml"];
   const intervalMs = 5 * 60 * 1000;
