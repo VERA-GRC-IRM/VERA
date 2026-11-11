@@ -1,4 +1,10 @@
 const { ROLES, PLANNING_APPROVE_ROLES } = require("../config/roles");
+const assignmentId = (action) => {
+  const latest = [...(action.history || [])].reverse().find((entry) =>
+    entry.type === "REASSIGNED" && entry.toId === action.assigneeId);
+  return `ACTION_ASSIGNED:${action.id}:${latest?.at || action.createdAt || "initial"}`;
+};
+const validationId = (action) => `PLAN_VALIDATION_REQUESTED:${action.id}:${action.validationRequestedAt}`;
 
 const isWithinDays = (date, now, days) => {
   if (!date) return false;
@@ -88,7 +94,7 @@ const buildNotifications = ({ proposals, actions = [], risks = [], controls = []
     if (action.sourceType === "FINDING" && action.validationRequestedAt &&
         ["OPEN", "IN_PROGRESS"].includes(action.status) && isApprover) {
       notifications.push({
-        id: `PLAN_VALIDATION_REQUESTED:${action.id}`, type: "PLAN_VALIDATION_REQUESTED",
+        id: validationId(action), type: "PLAN_VALIDATION_REQUESTED",
         title: "Plan listo para validar", description: `${action.title} · ${action.sourceTitle}`,
         entityId: action.id, priority: "HIGH", createdAt: action.validationRequestedAt,
         dueAt: null, path: `/notificaciones?actionId=${encodeURIComponent(action.id)}`
@@ -97,7 +103,7 @@ const buildNotifications = ({ proposals, actions = [], risks = [], controls = []
     if (action.assigneeId === user.id && action.createdBy?.id !== undefined &&
         action.createdBy.id !== user.id && ["OPEN", "IN_PROGRESS"].includes(action.status)) {
       notifications.push({
-        id: `ACTION_ASSIGNED:${action.id}`, type: "ACTION_ASSIGNED", title: "Nueva acción asignada",
+        id: assignmentId(action), type: "ACTION_ASSIGNED", title: "Nueva acción asignada",
         description: `${action.title} · ${action.sourceTitle}`, entityId: action.id,
         priority: "MEDIUM", createdAt: action.createdAt, dueAt: action.dueDate,
         path: `/notificaciones?actionId=${encodeURIComponent(action.id)}`
@@ -153,4 +159,4 @@ const buildNotifications = ({ proposals, actions = [], risks = [], controls = []
   return notifications.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority] || Date.parse(b.createdAt || 0) - Date.parse(a.createdAt || 0));
 };
 
-module.exports = { buildNotifications };
+module.exports = { buildNotifications, assignmentId, validationId };

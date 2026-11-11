@@ -2,6 +2,7 @@ const userRepository = require("../repositories/userRepository");
 const readRepository = require("../repositories/notificationReadRepository");
 const { visibleRecordForUser } = require("./recordReadAccessService");
 const { PLANNING_APPROVE_ROLES } = require("../config/roles");
+const { assignmentId, validationId } = require("./notificationService");
 
 // Delivery follows the committed domain mutation. A temporary inbox failure must
 // not turn a successful write into an apparent failure; the inbox reconciles live
@@ -51,7 +52,7 @@ const auditAssigned = (audit) => deliver([audit.responsibleId], "AUDIT", audit.i
 });
 
 const actionAssigned = (action) => deliver([action.assigneeId], action.sourceType, action.sourceId, {
-  id: `ACTION_ASSIGNED:${action.id}`, type: "ACTION_ASSIGNED", title: "Nueva acción asignada",
+  id: assignmentId(action), type: "ACTION_ASSIGNED", title: "Nueva acción asignada",
   description: `${action.title} · ${action.sourceTitle}`, entityId: action.id, priority: "MEDIUM",
   createdAt: action.updatedAt || action.createdAt, dueAt: action.dueDate,
   path: `/notificaciones?actionId=${encodeURIComponent(action.id)}`
@@ -67,7 +68,7 @@ const planValidationRequested = async (action) => {
   }
   return deliver(people.filter((person) => PLANNING_APPROVE_ROLES.includes(person.role))
     .map((person) => person.id), "FINDING", action.sourceId, {
-    id: `PLAN_VALIDATION_REQUESTED:${action.id}`, type: "PLAN_VALIDATION_REQUESTED",
+    id: validationId(action), type: "PLAN_VALIDATION_REQUESTED",
     title: "Plan listo para validar", description: `${action.title} · ${action.sourceTitle}`,
     entityId: action.id, priority: "HIGH", createdAt: action.validationRequestedAt,
     dueAt: null, path: `/notificaciones?actionId=${encodeURIComponent(action.id)}`

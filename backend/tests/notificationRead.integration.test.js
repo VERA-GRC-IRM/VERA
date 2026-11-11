@@ -78,7 +78,7 @@ test("HU-17: hallazgo y evidencia reales llegan al dueño visible y enlazan al r
   const stored = await reads.getStoredForUser(5);
   assert.ok(stored.some((item) => item.id === `FINDING_CREATED:${finding.id}`));
   assert.ok(stored.some((item) => item.id === `EVIDENCE_CREATED:${evidence.id}`));
-  assert.ok(stored.some((item) => item.id === `ACTION_ASSIGNED:${action.id}`));
+  assert.ok(stored.some((item) => item.id.startsWith(`ACTION_ASSIGNED:${action.id}:`)));
   assert.ok(!(await reads.getStoredForUser(4)).some((item) => item.entityId === evidence.id));
   const owner = (await (await fetch(`${base}/api/notifications`, options(5))).json()).notifications;
   assert.ok(owner.some((item) => item.id === `FINDING_CREATED:${finding.id}` && item.path.includes(finding.id)));

@@ -99,7 +99,7 @@ test("HU-21: plan de hallazgo conserva avance, comentario, evidencia y solicitud
   action = (await requested.json()).action;
   assert.ok(action.validationRequestedAt);
   assert.ok((await reads.getStoredForUser(3)).some((item) =>
-    item.id === `PLAN_VALIDATION_REQUESTED:${action.id}`));
+    item.id.startsWith(`PLAN_VALIDATION_REQUESTED:${action.id}:`)));
   assert.deepEqual(action.history.slice(-3).map((entry) => entry.type),
     ["COMMENTED", "PROGRESS_UPDATED", "VALIDATION_REQUESTED"]);
   assert.equal((await fetch(`${path}/validation-request`, json(5, "POST", {
