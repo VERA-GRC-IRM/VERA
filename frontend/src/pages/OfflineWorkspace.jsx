@@ -13,6 +13,7 @@ import { getEditableOfflineRecords, inspectOfflineRecordConflict,
   saveOfflineRecordDescription, syncOfflineRecordDescription } from "../services/offlineRecordDrafts";
 import { cleanupOfflineVault } from "../services/offlineCleanup";
 import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts, inspectOfflineActionConflict,
+  inspectOfflineFindingConflict,
   getEvidenceDraftTargets, getFindingDraftTargets, saveOfflineDraft, saveOfflineEvidenceDraft,
   saveOfflineFindingDraft, syncOfflineDraft, syncOfflineEvidenceDraft,
   syncOfflineFindingDraft } from "../services/offlineDrafts";
@@ -348,7 +349,8 @@ function OfflineWorkspace() {
     try {
       const draft = drafts.find((item) => item.id === id);
       const current = draft?.type === "RECORD_DESCRIPTION"
-        ? await inspectOfflineRecordConflict(id) : await inspectOfflineActionConflict(id);
+        ? await inspectOfflineRecordConflict(id) : draft?.type === "FINDING_CREATE"
+          ? await inspectOfflineFindingConflict(id) : await inspectOfflineActionConflict(id);
       setConflictDetails((details) => ({ ...details, [id]: current }));
     } catch (cause) {
       setConflictDetails((current) => { const next = { ...current }; delete next[id]; return next; });
@@ -632,6 +634,26 @@ function OfflineWorkspace() {
                     {draft.type === "FINDING_CREATE" && draft.state === "NEEDS_REVIEW" && <>
                       <p>La respuesta anterior se perdió. Al continuar, VERA comprobará la misma operación; si no se había guardado, intentará registrarla ahora.</p>
                       <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>Comprobar o reintentar hallazgo</button>
+                    </>}
+                    {draft.type === "FINDING_CREATE" && draft.state === "CONFLICT" && <>
+                      <button type="button" className="secondary-action" disabled={busy || !online}
+                        onClick={() => compareConflict(draft.id)}>Comparar contexto actual</button>
+                      {conflictDetails[draft.id] && <div className="offline-conflict-compare">
+                        <strong>Contexto para decidir</strong>
+                        <div className="offline-conflict-grid">
+                          <section><h4>Tu borrador local</h4><p>{draft.title}</p>
+                            <small>Control: {draft.controlTitle} · riesgo: {draft.riskTitle}</small>
+                            <small>Evaluaciones observadas: {draft.controlVersion}</small></section>
+                          <section><h4>Información visible ahora</h4>
+                            <small>Control: {conflictDetails[draft.id].controlVisible ? "visible" : "no disponible con esta cuenta"}</small>
+                            <small>Riesgo: {conflictDetails[draft.id].riskVisible ? "visible" : "no disponible con esta cuenta"}</small>
+                            <small>Evaluaciones actuales: {conflictDetails[draft.id].evaluationVersion ?? "no disponibles"}</small>
+                            <small>Relación actual: {conflictDetails[draft.id].related ? "visible" : "no disponible"}</small>
+                            <small>Hallazgo para la evaluación original: {conflictDetails[draft.id].visibleFinding ? "coincidencia visible" : "sin coincidencia visible"}</small>
+                          </section>
+                        </div>
+                        <p>Esta comparación no modifica datos. Una coincidencia ausente puede deberse a permisos; consulta Hallazgos antes de preparar otro registro.</p>
+                      </div>}
                     </>}
                     {["ACTION_PROGRESS", "ACTION_COMMENT"].includes(draft.type) && draft.state === "NEEDS_REVIEW" && <>
                       <p>La respuesta anterior se perdió. VERA comprobará la misma operación antes de aplicar algún cambio.</p>
