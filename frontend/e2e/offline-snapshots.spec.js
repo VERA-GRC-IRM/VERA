@@ -38,10 +38,56 @@ test("selected authorized data opens offline and an online denial is never repla
   await expect(page.getByRole("status").filter({ hasText: "Mostrando copia local" })).toBeVisible();
 
   await context.setOffline(false);
+  await page.route("**/api/actions", (route) => route.fulfill({ status: 200,
+    json: { actions: [] } }));
   await page.route("**/api/dashboard", (route) => route.fulfill({ status: 403, contentType: "application/json", body: '{"message":"Sin permiso vigente"}' }));
   await page.reload();
   await expect(page.getByRole("alert")).toContainText("Sin permiso vigente");
   await expect(page.getByRole("heading", { name: "Panel guardado de prueba" })).not.toBeVisible();
+  await page.goto("/sin-conexion");
+  await page.getByLabel("Frase local", { exact: true }).fill("Frase exclusiva de prueba 2026");
+  await page.getByRole("button", { name: "Desbloquear" }).click();
+  await expect(page.getByRole("checkbox", { name: "Panel de Portafolio", exact: true })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /Panel de Portafolio Guardado/ })).toHaveCount(0);
+  await page.unroute("**/api/dashboard");
+  await context.setOffline(true);
+  await page.goto("/dashboard");
+  await expect(page.getByRole("heading", { name: "Panel guardado de prueba" })).not.toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Mostrando copia local" })).toHaveCount(0);
+});
+
+test("revalidation removes a denied module while preserving other copies and local drafts", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("token", "browser-test-token");
+    localStorage.setItem("user", JSON.stringify({ id: 205, name: "Auditor", role: "AUDITOR" }));
+  });
+  await page.route("**/api/dashboard", (route) => route.fulfill({ status: 200, json: dashboard }));
+  await page.route("**/api/risks/", (route) => route.fulfill({ status: 200,
+    json: { risks: [{ id: "RSK-205", title: "Riesgo permitido", area: "Operaciones" }] } }));
+  await page.goto("/sin-conexion");
+  await page.getByLabel("Frase local", { exact: true }).fill("Frase para revalidar permisos 2026");
+  await page.getByLabel("Repetir frase local").fill("Frase para revalidar permisos 2026");
+  await page.getByRole("button", { name: "Crear espacio" }).click();
+  await page.getByRole("checkbox", { name: "Panel de Portafolio" }).check();
+  await page.getByRole("checkbox", { name: "Riesgos", exact: true }).check();
+  await page.getByRole("button", { name: "Actualizar secciones elegidas" }).click();
+  await page.getByLabel("Título").fill("Nota que permanece");
+  await page.getByLabel("Nota", { exact: true }).fill("Trabajo local que no se borra por una denegación de lectura.");
+  await page.getByRole("button", { name: "Guardar borrador local" }).click();
+  await page.unroute("**/api/dashboard");
+  await page.route("**/api/dashboard", (route) => route.fulfill({ status: 403,
+    json: { message: "Acceso retirado" } }));
+  await page.getByRole("button", { name: "Revalidar copias guardadas" }).click();
+  await expect(page.getByText("Panel de Portafolio: Sin permiso; copia local retirada")).toBeVisible();
+  await expect(page.getByText("Riesgos: guardado (1 registros)")).toBeVisible();
+  await expect(page.getByText("Nota que permanece")).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /Panel de Portafolio Guardado/ })).toHaveCount(0);
+  await page.reload();
+  await page.getByLabel("Frase local", { exact: true }).fill("Frase para revalidar permisos 2026");
+  await page.getByRole("button", { name: "Desbloquear" }).click();
+  await expect(page.getByText("Nota que permanece")).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /Riesgos Guardado/ })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /Panel de Portafolio Guardado/ })).toHaveCount(0);
 });
 
 test("preparation packs select sections without downloading or bypassing authorization", async ({ page }) => {

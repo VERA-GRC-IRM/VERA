@@ -24,9 +24,27 @@ const userId = () => {
   return user.id;
 };
 
+const denialKey = (moduleId) => `vera-offline-denied:${location.origin}:${userId()}:${moduleId}`;
+const wasDenied = (moduleId) => localStorage.getItem(denialKey(moduleId)) === "1";
+const markDenied = (moduleId) => localStorage.setItem(denialKey(moduleId), "1");
+const clearDenied = (moduleId) => localStorage.removeItem(denialKey(moduleId));
+
 const countBytes = (data) => new TextEncoder().encode(JSON.stringify(data)).byteLength;
 
-export const getOfflineSnapshots = () => readOfflineVault(userId()).snapshots;
+export const getOfflineSnapshots = () => Object.fromEntries(Object.entries(readOfflineVault(userId()).snapshots)
+  .filter(([moduleId]) => !wasDenied(moduleId)));
+
+export const purgeDeniedOfflineSnapshots = async () => {
+  const id = userId();
+  const vault = readOfflineVault(id);
+  const snapshots = { ...vault.snapshots };
+  let removed = false;
+  for (const moduleId of Object.keys(snapshots)) {
+    if (wasDenied(moduleId)) { delete snapshots[moduleId]; removed = true; }
+  }
+  if (removed) await saveOfflineVault(id, { ...vault, snapshots });
+  return removed;
+};
 
 export const captureOfflineSnapshots = async (selectedIds) => {
   if (!navigator.onLine) throw new Error("Conéctate antes de actualizar la copia.");
@@ -37,6 +55,8 @@ export const captureOfflineSnapshots = async (selectedIds) => {
   const previous = readOfflineVault(id);
   const snapshots = { ...previous.snapshots };
   const results = [];
+  const refreshed = [];
+  let revoked = false;
   let totalBytes = Object.values(snapshots).reduce((total, snapshot) => total + countBytes(snapshot.data), 0);
   for (const module of selected) {
     try {
@@ -44,7 +64,18 @@ export const captureOfflineSnapshots = async (selectedIds) => {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         cache: "no-store", signal: AbortSignal.timeout(15000)
       });
-      if (!response.ok) throw new Error(response.status === 403 ? "Sin permiso" : `HTTP ${response.status}`);
+      if (response.status === 403) {
+        markDenied(module.id);
+        if (snapshots[module.id]) {
+          totalBytes -= countBytes(snapshots[module.id].data);
+          delete snapshots[module.id];
+          revoked = true;
+        }
+        results.push({ id: module.id, ok: false, message: "Sin permiso; copia local retirada", retained: false });
+        continue;
+      }
+      if (!response.ok) throw new Error(response.status === 401
+        ? "Sesión vencida; inicia sesión de nuevo" : `HTTP ${response.status}`);
       const data = await response.json();
       const bytes = countBytes(data);
       const priorBytes = snapshots[module.id] ? countBytes(snapshots[module.id].data) : 0;
@@ -56,6 +87,7 @@ export const captureOfflineSnapshots = async (selectedIds) => {
       }
       const savedAt = new Date().toISOString();
       snapshots[module.id] = { data, savedAt };
+      refreshed.push(module.id);
       totalBytes = totalBytes - priorBytes + bytes;
       results.push({ id: module.id, ok: true, count: module.listKey ? data[module.listKey].length : null });
     } catch (error) {
@@ -63,8 +95,10 @@ export const captureOfflineSnapshots = async (selectedIds) => {
         retained: Boolean(snapshots[module.id]) });
     }
   }
-  if (results.some((result) => result.ok)) {
-    await saveOfflineVault(id, { ...previous, snapshots, lastSyncAt: new Date().toISOString() });
+  if (refreshed.length || revoked) {
+    await saveOfflineVault(id, { ...previous, snapshots,
+      lastSyncAt: refreshed.length ? new Date().toISOString() : previous.lastSyncAt });
+    for (const moduleId of refreshed) clearDenied(moduleId);
   }
   return results;
 };
@@ -99,6 +133,11 @@ const moduleForRequest = (input, options) => {
 export const fetchWithOfflineFallback = async (input, options) => {
   try {
     const response = await fetch(input, options);
+    const module = moduleForRequest(input, options);
+    if (response.status === 403 && module) {
+      markDenied(module.id);
+      try { await removeOfflineSnapshot(module.id); } catch { /* El marcador impide mostrar la copia hasta revalidarla. */ }
+    }
     window.dispatchEvent(new Event("vera:online-data"));
     return response;
   }
