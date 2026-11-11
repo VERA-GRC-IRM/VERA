@@ -33,6 +33,7 @@ import MetodosRiesgo from "./pages/MetodosRiesgo";
 import Trimestres, { TrimestreDetalle } from "./pages/Trimestres";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AssistantConversationProvider from "./contexts/AssistantConversationProvider";
+import ConnectivityStatus from "./components/ConnectivityStatus";
 import { ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "./constants/roles";
 
 
@@ -46,6 +47,7 @@ function App() {
   }, []);
   return (
     <BrowserRouter>
+      <ConnectivityStatus />
       <AssistantConversationProvider>
         <Routes>
 
