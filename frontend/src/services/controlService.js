@@ -1,7 +1,9 @@
+import { fetchWithOfflineFallback } from "./offlineSnapshots";
+
 const API_URL = "/api/controls";
 
 const request = async (path, options = {}) => {
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetchWithOfflineFallback(`${API_URL}${path}`, {
     ...options,
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` }
   });

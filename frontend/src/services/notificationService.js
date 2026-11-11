@@ -1,6 +1,8 @@
+import { fetchWithOfflineFallback } from "./offlineSnapshots";
+
 const request = async (path = "", method = "GET") => {
   const offsetMinutes = new Date().getTimezoneOffset();
-  const response = await fetch(`/api/notifications${path}?offsetMinutes=${offsetMinutes}`, {
+  const response = await fetchWithOfflineFallback(`/api/notifications${path}?offsetMinutes=${offsetMinutes}`, {
     method, headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
   });
   const data = await response.json();

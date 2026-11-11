@@ -151,7 +151,10 @@ export const saveOfflineVault = async (userId, data) => {
   unlocked = { ...unlocked, revision: unlocked.revision + 1, data: structuredClone(data) };
 };
 
-export const lockOfflineVault = () => { unlocked = null; };
+export const lockOfflineVault = () => {
+  unlocked = null;
+  window.dispatchEvent(new Event("vera:offline-vault-locked"));
+};
 
 export const deleteOfflineVault = async (userId) => {
   const scope = scopeFor(userId);

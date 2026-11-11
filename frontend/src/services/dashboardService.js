@@ -1,3 +1,5 @@
+import { fetchWithOfflineFallback } from "./offlineSnapshots";
+
 export const getDashboardSummary = async ({ period = "all", year, semester, quarter } = {}) => {
   const token = localStorage.getItem("token");
   const params = new URLSearchParams();
@@ -7,7 +9,7 @@ export const getDashboardSummary = async ({ period = "all", year, semester, quar
     if (period === "semester") params.set("semester", String(semester));
     if (period === "quarter") params.set("quarter", quarter);
   }
-  const response = await fetch(`/api/dashboard${params.size ? `?${params}` : ""}`, {
+  const response = await fetchWithOfflineFallback(`/api/dashboard${params.size ? `?${params}` : ""}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   const data = await response.json();
