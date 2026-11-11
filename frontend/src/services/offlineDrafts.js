@@ -222,7 +222,7 @@ export const syncOfflineFindingDraft = async (draftId) => {
   let response;
   try {
     response = await fetch("/api/findings/", {
-      method: "POST", headers: { ...headers, "Content-Type": "application/json" },
+      method: "POST", headers: { ...headers, "Content-Type": "application/json", "Idempotency-Key": draft.id },
       body: JSON.stringify({ controlId: draft.controlId, riskId: draft.riskId,
         title: draft.title, description: draft.description,
         expectedControlVersion: draft.controlVersion }),

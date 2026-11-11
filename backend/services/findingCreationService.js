@@ -63,6 +63,11 @@ const createFindingForUser = async (user, input, operationId = null, expectedCon
       if (existing.createdBy?.id !== user.id) {
         throw errorFor("El hallazgo no está disponible para tu cuenta.", 404);
       }
+      if (existing.controlId !== text(input.controlId) || existing.riskId !== text(input.riskId)
+        || existing.title !== text(input.title) || existing.description !== text(input.description)
+        || (expectedControlVersion !== undefined && existing.evaluationVersion !== expectedControlVersion)) {
+        throw errorFor("Esta operación ya se usó con datos diferentes.", 409);
+      }
       const risk = await riskRepository.findById(existing.riskId);
       if (!risk) throw errorFor("Riesgo no encontrado.", 404);
       if (!canCreateFindingForRisk(user, risk)) {

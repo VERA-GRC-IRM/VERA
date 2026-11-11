@@ -82,6 +82,8 @@ Los roles que pueden registrar hallazgos pueden preparar un borrador con título
 
 Tras recuperar conexión, **Registrar hallazgo** consulta controles, riesgos y hallazgos actuales. Si cambió el número de evaluaciones del control, la relación o ya hay un hallazgo para esa evaluación, detiene el envío y pide revisión. Si la respuesta de creación es incierta, etiqueta el borrador **Confirmación pendiente** y evita reintentos automáticos. El backend recibe además la versión de evaluación observada al guardar el borrador y la verifica de nuevo justo al crear. La consulta previa no sustituye esa comprobación del servidor. No se modifican aprobaciones ni estados de hallazgos sin red.
 
+Cada envío de un hallazgo local lleva como `Idempotency-Key` el ID aleatorio del borrador. El backend solo devuelve un hallazgo ya creado con esa clave a la misma cuenta y si coinciden control, riesgo, título, descripción y versión observada. Una clave reutilizada con otros datos se rechaza. Este contrato permite comprobar el resultado de una respuesta perdida sin crear otro hallazgo; la interfaz aún mantiene los casos inciertos en **Confirmación pendiente** hasta que la persona los revise. No se interpreta la mera solicitud HTTP como confirmación.
+
 ### Límites conocidos
 
 - Se requiere la primera sesión en línea. Google, Microsoft, recuperación de contraseña, aprobación de cambios, IA de Azure y permisos actuales no funcionan sin red.

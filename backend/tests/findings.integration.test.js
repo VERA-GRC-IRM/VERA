@@ -1,14 +1,15 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const jwt = require("jsonwebtoken");
+const { randomUUID } = require("node:crypto");
 
 process.env.JWT_SECRET ||= "findings-integration-test-secret-32-characters";
 const app = require("../server");
 const { startTestServer } = require("./helpers/testServer");
 const tokenFor = (id) => jwt.sign({ id }, process.env.JWT_SECRET);
-const json = (id, method = "GET", body) => ({
+const json = (id, method = "GET", body, extraHeaders = {}) => ({
   method,
-  headers: { Authorization: `Bearer ${tokenFor(id)}`, ...(body ? { "Content-Type": "application/json" } : {}) },
+  headers: { Authorization: `Bearer ${tokenFor(id)}`, ...(body ? { "Content-Type": "application/json" } : {}), ...extraHeaders },
   ...(body ? { body: JSON.stringify(body) } : {})
 });
 
@@ -33,7 +34,10 @@ test("HU-15: un hallazgo conserva control, riesgo, auditoría y versión de eval
   assert.equal((await fetch(`${base}/api/findings`, json(4, "POST", body))).status, 403);
   assert.equal((await fetch(`${base}/api/findings`, json(5, "POST", { ...body, riskId: "RSK-999" }))).status, 404);
   assert.equal((await fetch(`${base}/api/findings`, json(5, "POST", { ...body, expectedControlVersion: 0 }))).status, 409);
-  const createdResponse = await fetch(`${base}/api/findings`, json(5, "POST", { ...body, expectedControlVersion: 1 }));
+  const operationId = randomUUID();
+  const requestBody = { ...body, expectedControlVersion: 1 };
+  const keyHeader = { "Idempotency-Key": operationId };
+  const createdResponse = await fetch(`${base}/api/findings`, json(5, "POST", requestBody, keyHeader));
   assert.equal(createdResponse.status, 201);
   const finding = (await createdResponse.json()).finding;
   assert.equal(finding.controlId, control.id);
@@ -42,6 +46,12 @@ test("HU-15: un hallazgo conserva control, riesgo, auditoría y versión de eval
   assert.equal(finding.evaluationVersion, 1);
   assert.equal(finding.createdBy.id, 5);
   assert.equal(finding.status, "OPEN");
+  const replay = await fetch(`${base}/api/findings`, json(5, "POST", requestBody, keyHeader));
+  assert.equal(replay.status, 201);
+  assert.equal((await replay.json()).finding.id, finding.id);
+  assert.equal((await fetch(`${base}/api/findings`, json(5, "POST",
+    { ...requestBody, title: "Otro hallazgo" }, keyHeader))).status, 409);
+  assert.equal((await fetch(`${base}/api/findings`, json(3, "POST", requestBody, keyHeader))).status, 404);
   assert.equal((await fetch(`${base}/api/findings`, json(5, "POST", body))).status, 409);
   const visible = await fetch(`${base}/api/findings?controlId=${control.id}`, json(5));
   assert.equal(visible.status, 200);

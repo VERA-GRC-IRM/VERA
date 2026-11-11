@@ -53,9 +53,10 @@ test("an encrypted finding draft is submitted once after fresh validation and ex
   await context.setOffline(false);
   let writes = 0;
   await page.unroute("**/api/findings/");
-  await page.route("**/api/findings/", (route) => {
+  await page.route("**/api/findings/", async (route) => {
     if (route.request().method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ findings: [] }) });
     writes += 1;
+    expect((await route.request().allHeaders())["idempotency-key"]).toMatch(/^[0-9a-f-]{36}$/i);
     expect(route.request().postDataJSON()).toMatchObject({ controlId: "control-1", riskId: "risk-1",
       expectedControlVersion: 1, title: "Control insuficiente" });
     return route.fulfill({ status: 201, contentType: "application/json",
