@@ -69,6 +69,8 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
   const [projectMode, setProjectMode] = useState(false);
   const [memoryMode, setMemoryMode] = useState(false);
   const [attachmentMode, setAttachmentMode] = useState(false);
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [projectFilesMode, setProjectFilesMode] = useState(false);
   const [projectKnowledgeMode, setProjectKnowledgeMode] = useState(false);
   const [projectSemanticMode, setProjectSemanticMode] = useState(false);
@@ -89,6 +91,8 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
   const streamRef = useRef(null);
   const threadMenuRef = useRef(null);
   const threadMenuButtonRef = useRef(null);
+  const contextMenuRef = useRef(null);
+  const contextMenuButtonRef = useRef(null);
 
   useEffect(() => {
     if (!threadMenuOpen) return undefined;
@@ -98,6 +102,15 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
     document.addEventListener("pointerdown", closeOutside);
     return () => document.removeEventListener("pointerdown", closeOutside);
   }, [threadMenuOpen]);
+
+  useEffect(() => {
+    if (!contextMenuOpen) return undefined;
+    const closeOutside = (event) => {
+      if (!contextMenuRef.current?.contains(event.target)) setContextMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [contextMenuOpen]);
 
   useEffect(() => {
     if (!compact || !initialQuestion || !available || busy || historyBusy || attachmentBusy ||
@@ -328,7 +341,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
       if (!thread) { setThread(active); setThreadList((items) => [active, ...items]); setMessages([]); }
       const attached = await uploadAssistantAttachment(active.id, file);
       setAttachmentList((items) => [attached, ...items]);
-      setSelectedAttachmentId(attached.id); setWithEvidence(false);
+      setSelectedAttachmentId(attached.id); setWithEvidence(false); setAttachmentsOpen(true);
     } catch (cause) { setAttachmentError(cause.message); }
     finally { setAttachmentBusy(false); }
   };
@@ -343,7 +356,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
     setAttachmentBusy(true); setAttachmentError("");
     try {
       const saved = await uploadAssistantProjectFile(selectedProjectId, file);
-      setProjectFiles((items) => [saved, ...items]); setSelectedAttachmentId(saved.id); setWithEvidence(false);
+      setProjectFiles((items) => [saved, ...items]); setSelectedAttachmentId(saved.id); setWithEvidence(false); setAttachmentsOpen(true);
       closeHistoryOnNarrow();
     } catch (cause) { setAttachmentError(cause.message); }
     finally { setAttachmentBusy(false); }
@@ -409,6 +422,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
     const value = question.trim();
     if (!available || busy || historyBusy || historyError || historyStale ||
         value.length < 3 || value.length > (withEvidence ? 500 : 800)) return;
+    setContextMenuOpen(false); setAttachmentsOpen(false);
     const history = messages.slice(-6).map(({ role, text }) => ({ role, text: text.slice(0, 800) }));
     if (!persistent) setMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", text: value }]);
     setQuestion(""); setBusy(true); setError("");
@@ -643,8 +657,8 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
     {!persistent && messages.length > 0 && <button className="assistant-clear" type="button" onClick={() => { setMessages([]); setError(""); }}><RotateCcw size={14} aria-hidden="true" /> Nueva conversación</button>}
       </div>
       <div className="assistant-compose-dock">
-      {attachmentMode && <section className="assistant-attachments" aria-label="Archivos de esta conversación">
-        <div className="assistant-attachments-heading"><label htmlFor="assistant-attachment-file">Adjuntar archivo privado</label><span>PDF, documentos e imágenes</span></div>
+      {attachmentMode && attachmentsOpen && <section className="assistant-attachments" aria-label="Archivos de esta conversación">
+        <div className="assistant-attachments-heading"><label htmlFor="assistant-attachment-file">Adjuntar archivo privado</label><button type="button" onClick={() => setAttachmentsOpen(false)} aria-label="Cerrar archivos">Cerrar</button></div>
         <input id="assistant-attachment-file" type="file" accept=".pdf,.docx,.txt,.csv,.png,.jpg,.jpeg,.webp"
           disabled={historyBusy || busy || attachmentBusy || attachmentList.length >= 2 || historyStale}
           onChange={uploadFile} />
@@ -676,7 +690,31 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
         {attachmentBusy && <small role="status">Procesando archivo privado...</small>}
         {attachmentError && <p className="assistant-error" role="alert">{attachmentError}</p>}
       </section>}
-      <form className="assistant-form" onSubmit={submit}><label htmlFor="assistant-question">Tu pregunta</label><label className="assistant-search-option"><input type="checkbox" checked={withEvidence} onChange={(event) => setWithEvidence(event.target.checked)} disabled={!available || busy || Boolean(selectedAttachmentId)} /> Buscar también en textos de evidencias visibles</label><div><textarea id="assistant-question" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} maxLength={withEvidence ? 500 : 800} rows={2} placeholder={selectedAttachmentId === PROJECT_LIBRARY ? "Pregunta sobre fragmentos de la biblioteca..." : selectedAttachmentId ? "Pregunta sobre el archivo seleccionado..." : "Escribe una pregunta sobre VERA..."} disabled={!available || busy || historyBusy || attachmentBusy || Boolean(historyError) || historyStale} /><button type="submit" disabled={!available || busy || historyBusy || attachmentBusy || Boolean(historyError) || historyStale || question.trim().length < 3 || question.trim().length > (withEvidence ? 500 : 800)} aria-label="Enviar pregunta"><Send size={19} aria-hidden="true" /></button></div><small>{question.length}/{withEvidence ? 500 : 800} caracteres · Enter para enviar · Shift + Enter para nueva línea · No escribas contraseñas ni claves.</small></form>
+      <form className="assistant-form" onSubmit={submit}>
+        <label className="assistant-form-label" htmlFor="assistant-question">Tu pregunta</label>
+        {(selectedAttachmentId || withEvidence) && <div className="assistant-context-chips">
+          {selectedAttachmentId && <span className="assistant-context-chip">{selectedAttachmentId === PROJECT_LIBRARY ? "Biblioteca del proyecto" : visibleAttachments.find((item) => item.id === selectedAttachmentId)?.name || "Archivo seleccionado"}<button type="button" onClick={() => setSelectedAttachmentId(null)} aria-label="Quitar archivo de la pregunta">×</button></span>}
+          {withEvidence && <span className="assistant-context-chip">Textos de evidencias<button type="button" onClick={() => setWithEvidence(false)} aria-label="Dejar de buscar en evidencias">×</button></span>}
+        </div>}
+        <div className="assistant-compose-container" ref={contextMenuRef} onKeyDown={(event) => {
+            if (event.key !== "Escape" || !contextMenuOpen) return;
+            event.preventDefault(); event.stopPropagation(); setContextMenuOpen(false);
+            contextMenuButtonRef.current?.focus();
+          }}>
+          {contextMenuOpen && <div id="assistant-context-menu" className="assistant-context-menu" role="group" aria-label="Opciones de contexto">
+            {attachmentMode && <button type="button" onClick={() => { setAttachmentsOpen(true); setContextMenuOpen(false); }}>Archivos y adjuntos</button>}
+            <label className="assistant-search-option"><input type="checkbox" checked={withEvidence} onChange={(event) => setWithEvidence(event.target.checked)} disabled={!available || busy || Boolean(selectedAttachmentId)} /> Buscar también en textos de evidencias visibles</label>
+            <small>Los archivos y evidencias se consultan solo cuando tú lo eliges.</small>
+          </div>}
+          <div className="assistant-compose-row"><div className="assistant-compose-actions">
+            <button ref={contextMenuButtonRef} className="assistant-compose-add" type="button" onClick={() => setContextMenuOpen((open) => !open)} aria-label="Añadir contexto" aria-expanded={contextMenuOpen} aria-controls="assistant-context-menu" disabled={!available || busy || historyBusy || attachmentBusy || historyStale}><Plus size={19} aria-hidden="true" /></button>
+          </div>
+          <textarea id="assistant-question" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} maxLength={withEvidence ? 500 : 800} rows={2} placeholder={selectedAttachmentId === PROJECT_LIBRARY ? "Pregunta sobre fragmentos de la biblioteca..." : selectedAttachmentId ? "Pregunta sobre el archivo seleccionado..." : "Escribe una pregunta sobre VERA..."} disabled={!available || busy || historyBusy || attachmentBusy || Boolean(historyError) || historyStale} />
+          <button className="assistant-compose-send" type="submit" disabled={!available || busy || historyBusy || attachmentBusy || Boolean(historyError) || historyStale || question.trim().length < 3 || question.trim().length > (withEvidence ? 500 : 800)} aria-label="Enviar pregunta"><Send size={19} aria-hidden="true" /></button>
+          </div>
+        </div>
+        <small>{question.length > 0 ? `${question.length}/${withEvidence ? 500 : 800} caracteres · ` : ""}Enter para enviar · Shift + Enter para nueva línea · Verifica las fuentes.</small>
+      </form>
       </div>
     </div>
   </section>;

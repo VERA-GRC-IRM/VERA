@@ -207,13 +207,29 @@
 .assistant-form { margin-top: 0; padding-top: 0; border-top: 0; }
 .assistant-form > label:first-child { margin-bottom: 6px; color: var(--vera-text-muted); font-size: 11px; }
 .assistant-form .assistant-search-option { margin-bottom: 7px; color: var(--vera-text-muted); font-size: 11px; }
-.assistant-form > div { align-items: flex-end; gap: 4px; padding: 5px; border: 1px solid var(--vera-border); border-radius: 14px; background: var(--vera-surface-soft); }
-.assistant-form > div:focus-within { border-color: var(--vera-focus); box-shadow: 0 0 0 2px var(--vera-accent-soft); }
+.assistant-form > .assistant-compose-container { display: block; }
+.assistant-form .assistant-compose-row { display: flex; align-items: flex-end; gap: 4px; padding: 5px; border: 1px solid var(--vera-border); border-radius: 14px; background: var(--vera-surface-soft); }
+.assistant-form .assistant-compose-row:focus-within { border-color: var(--vera-focus); box-shadow: 0 0 0 2px var(--vera-accent-soft); }
 .assistant-form textarea { min-height: 46px; max-height: 140px; padding: 10px; border: 0; background: transparent; color: var(--vera-text); line-height: 1.5; }
 .assistant-form textarea:focus-visible { outline: 0; }
 .assistant-form button { width: 38px; height: 38px; margin: 2px; border-radius: 10px; background: var(--vera-accent-strong); color: var(--vera-on-accent); }
 .assistant-form button:disabled { background: var(--vera-border); color: var(--vera-text-muted); }
 .assistant-form small { color: var(--vera-text-subtle); font-size: 10px; }
+.assistant-form .assistant-form-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.assistant-compose-actions { position: relative; flex: 0 0 auto; }
+.assistant-form .assistant-compose-add,.assistant-form .assistant-compose-send { width: 42px; height: 42px; }
+.assistant-form .assistant-compose-add { border: 1px solid var(--vera-border); background: var(--vera-surface); color: var(--vera-text); }
+.assistant-form .assistant-compose-add:hover:not(:disabled) { background: var(--vera-surface-tint); }
+.assistant-context-menu { display: grid; gap: 6px; width: min(310px, 100%); margin-bottom: 8px; padding: 9px; border: 1px solid var(--vera-border); border-radius: 12px; background: var(--vera-surface); box-shadow: var(--vera-shadow); }
+.assistant-form .assistant-context-menu button { display: block; width: 100%; height: auto; min-height: 40px; margin: 0; padding: 9px 11px; border: 0; background: transparent; color: var(--vera-text); font: inherit; font-size: 12px; text-align: left; }
+.assistant-context-menu button:hover { background: var(--vera-surface-tint); }
+.assistant-form .assistant-context-menu .assistant-search-option { display: flex; gap: 9px; align-items: center; min-height: 42px; margin: 0; padding: 8px 11px; border-radius: 8px; color: var(--vera-text); font-size: 12px; }
+.assistant-context-menu .assistant-search-option input { flex: 0 0 auto; }
+.assistant-context-menu small { padding: 3px 11px 4px; line-height: 1.4; }
+.assistant-context-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 7px; }
+.assistant-context-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 3px 4px 3px 10px; border: 1px solid var(--vera-border); border-radius: 999px; background: var(--vera-surface-tint); color: var(--vera-text); font-size: 11px; }
+.assistant-form .assistant-context-chip button { width: 26px; height: 26px; margin: 0; border: 0; border-radius: 50%; background: transparent; color: var(--vera-text); font-size: 17px; }
+.assistant-form button:focus-visible,.assistant-context-menu label:focus-within { outline: 2px solid var(--vera-focus); outline-offset: 2px; }
 .assistant-chat--compact { position: relative; flex: 1; min-height: 0; border: 0; border-radius: 0; box-shadow: none; }
 .assistant-chat--compact .assistant-history { position: absolute; z-index: 2; inset: 0 auto 0 0; width: min(306px, 86%); border-right: 1px solid var(--vera-border); box-shadow: 12px 0 35px #07192335; }
 .assistant-chat--compact .assistant-conversation { flex: 1; }
