@@ -346,6 +346,39 @@ export const inspectOfflineActionConflict = async (draftId) => {
       actorName: latest.actorName || "", at: latest.at || "" } : null };
 };
 
+export const inspectOfflineFindingConflict = async (draftId) => {
+  if (!navigator.onLine) throw new Error("Conéctate para consultar el contexto actual del hallazgo.");
+  currentUser();
+  const draft = getOfflineDrafts().find((item) => item.id === draftId);
+  if (!draft || draft.type !== "FINDING_CREATE" || draft.state !== "CONFLICT") {
+    throw new Error("Selecciona un borrador de hallazgo con conflicto.");
+  }
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Inicia sesión para comparar el hallazgo.");
+  const read = async (path, key) => {
+    const response = await fetch(path, {
+      headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(15000)
+    });
+    if (!response.ok) throw new Error(await responseMessage(response));
+    const items = (await response.json())[key];
+    if (!Array.isArray(items)) throw new Error("El servidor no devolvió información verificable.");
+    return items;
+  };
+  const [controls, risks, findings] = await Promise.all([
+    read("/api/controls/", "controls"), read("/api/risks/", "risks"),
+    read("/api/findings/", "findings")
+  ]);
+  const control = controls.find((item) => String(item.id) === String(draft.controlId));
+  const risk = risks.find((item) => String(item.id) === String(draft.riskId));
+  const evaluationVersion = Array.isArray(control?.evaluations) ? control.evaluations.length : null;
+  const related = Boolean(control?.riskIds?.some((id) => String(id) === String(draft.riskId)));
+  const visibleFinding = findings.some((item) => String(item.controlId) === String(draft.controlId)
+    && String(item.riskId) === String(draft.riskId)
+    && Number(item.evaluationVersion) === Number(draft.controlVersion));
+  return { controlVisible: Boolean(control), riskVisible: Boolean(risk), evaluationVersion,
+    related, visibleFinding };
+};
+
 export const syncOfflineEvidenceDraft = async (draftId) => {
   if (!navigator.onLine) throw new Error("Conéctate antes de cargar la evidencia.");
   const userId = currentUser();

@@ -117,6 +117,8 @@ Tras recuperar conexión, **Registrar hallazgo** consulta controles, riesgos y h
 
 Cada envío de un hallazgo local lleva como `Idempotency-Key` el ID aleatorio del borrador. El backend solo devuelve un hallazgo ya creado con esa clave a la misma cuenta y si coinciden control, riesgo, título, descripción y versión observada. Una clave reutilizada con otros datos se rechaza. Ante **Confirmación pendiente**, la persona puede pulsar **Comprobar o reintentar hallazgo**: se repite explícitamente la misma operación. Si ya se había guardado, se recupera su respuesta; si no, el servidor vuelve a comprobar permisos, relación y versión antes de crearla. Un conflicto permanece visible y no se sobrescribe.
 
+Para un hallazgo en **Conflicto de versión**, **Comparar contexto actual** consulta de nuevo los controles, riesgos y hallazgos visibles para la sesión vigente. Muestra la versión de evaluación, relación y coincidencias visibles frente al borrador original, sin escribir nada ni alterar el borrador. La ausencia de una coincidencia visible no prueba que no exista un registro fuera del ámbito de la cuenta. La persona debe revisar Hallazgos antes de decidir si prepara otro borrador.
+
 ### Límites conocidos
 
 - Se requiere la primera sesión en línea. Google, Microsoft, recuperación de contraseña, aprobación de cambios, IA de Azure y permisos actuales no funcionan sin red.

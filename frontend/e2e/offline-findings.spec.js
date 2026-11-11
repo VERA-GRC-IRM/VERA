@@ -84,6 +84,29 @@ test("a changed evaluation blocks submission before creating a finding", async (
   await page.getByRole("button", { name: "Registrar hallazgo" }).click();
   await expect(page.getByText("Conflicto de versión")).toBeVisible();
   expect(writes).toBe(0);
+  await page.getByRole("button", { name: "Comparar contexto actual" }).click();
+  await expect(page.getByText("Evaluaciones observadas: 1")).toBeVisible();
+  await expect(page.getByText("Evaluaciones actuales: 2")).toBeVisible();
+  await expect(page.getByText("Hallazgo para la evaluación original: sin coincidencia visible")).toBeVisible();
+  expect(writes).toBe(0);
+});
+
+test("finding conflict comparison stops when the current account loses access", async ({ page, context }) => {
+  await prepare(page);
+  await context.setOffline(true);
+  await stage(page);
+  await context.setOffline(false);
+  await page.unroute("**/api/controls/");
+  await page.route("**/api/controls/", (route) => route.fulfill({ status: 200,
+    contentType: "application/json", body: JSON.stringify({ controls: [control(2)] }) }));
+  await page.getByRole("button", { name: "Registrar hallazgo" }).click();
+  await expect(page.getByText("Conflicto de versión")).toBeVisible();
+  await page.unroute("**/api/controls/");
+  await page.route("**/api/controls/", (route) => route.fulfill({ status: 403,
+    contentType: "application/json", body: JSON.stringify({ message: "Acceso revocado" }) }));
+  await page.getByRole("button", { name: "Comparar contexto actual" }).click();
+  await expect(page.getByRole("alert")).toContainText("Acceso revocado");
+  await expect(page.getByText("Información visible ahora")).toHaveCount(0);
 });
 
 test("an uncertain reply requires review and prevents an automatic repeat", async ({ page, context }) => {
