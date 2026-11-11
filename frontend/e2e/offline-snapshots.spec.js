@@ -74,3 +74,28 @@ test("preparation packs select sections without downloading or bypassing authori
   await page.getByRole("button", { name: "Limpiar selección" }).click();
   await expect(page.getByText(/0 de \d+ secciones seleccionadas/)).toBeVisible();
 });
+
+test("a module opens its own offline preparation with no implicit download", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("token", "browser-test-token");
+    localStorage.setItem("user", JSON.stringify({ id: 203, name: "Auditor", role: "AUDITOR" }));
+  });
+  let dashboardReads = 0;
+  await page.route("**/api/dashboard", (route) => {
+    dashboardReads += 1;
+    return route.fulfill({ status: 200, json: dashboard });
+  });
+  await page.route("**/api/actions", (route) => route.fulfill({ status: 200, json: { actions: [] } }));
+  await page.goto("/dashboard");
+  await expect(page.getByRole("heading", { name: "Panel guardado de prueba" })).toBeVisible();
+  await page.getByRole("button", { name: "Preparar esta vista sin conexión" }).click();
+  await expect(page).toHaveURL(/\/sin-conexion\?seccion=dashboard$/);
+  await page.getByLabel("Frase local", { exact: true }).fill("Frase para preparar el panel 2026");
+  await page.getByLabel("Repetir frase local").fill("Frase para preparar el panel 2026");
+  await page.getByRole("button", { name: "Crear espacio" }).click();
+  await expect(page.getByRole("checkbox", { name: "Panel de Portafolio" })).toBeChecked();
+  const beforeCapture = dashboardReads;
+  await page.getByRole("button", { name: "Actualizar secciones elegidas" }).click();
+  await expect(page.getByText("Panel de Portafolio: guardado")).toBeVisible();
+  expect(dashboardReads).toBe(beforeCapture + 1);
+});

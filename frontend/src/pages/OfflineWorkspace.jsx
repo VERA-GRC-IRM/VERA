@@ -38,7 +38,10 @@ function OfflineWorkspace() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [selected, setSelected] = useState([]);
+  const [selected, setSelected] = useState(() => {
+    const section = new URLSearchParams(window.location.search).get("seccion");
+    return SNAPSHOT_MODULES.some((module) => module.id === section) ? [section] : [];
+  });
   const [snapshots, setSnapshots] = useState({});
   const [captureResults, setCaptureResults] = useState([]);
   const [checkedAt, setCheckedAt] = useState(() => Date.now());
