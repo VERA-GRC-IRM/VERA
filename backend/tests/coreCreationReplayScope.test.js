@@ -27,6 +27,7 @@ test("una clave de operación ajena no recupera propuestas, riesgos, controles n
     createdBy: { id: manager.id }, aiOperationId: operationIds[2] });
   const finding = findingRepository.create({ title: `Hallazgo ${operationIds[3]}`,
     description: "Descripción verificable del hallazgo sintético.",
+    rootCause: "Falta una validación independiente del proceso.", severity: "HIGH", responsibleId: manager.id,
     riskId: risk.id, controlId: control.id, createdBy: { id: manager.id },
     aiOperationId: operationIds[3] });
 
@@ -34,6 +35,7 @@ test("una clave de operación ajena no recupera propuestas, riesgos, controles n
   assert.equal((await createRiskForUser(manager, {}, operationIds[1])).id, risk.id);
   assert.equal((await createControlForUser(manager, {}, operationIds[2])).id, control.id);
   const findingInput = { title: finding.title, description: finding.description,
+    rootCause: finding.rootCause, severity: finding.severity, responsibleId: finding.responsibleId,
     riskId: risk.id, controlId: control.id };
   assert.equal((await createFindingForUser(manager, findingInput, operationIds[3])).id, finding.id);
   await assert.rejects(() => createProposalForUser(lead, {}, operationIds[0]), { status: 404 });

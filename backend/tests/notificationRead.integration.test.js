@@ -58,7 +58,8 @@ test("HU-17: hallazgo y evidencia reales llegan al dueño visible y enlazan al r
   const control = (await controlResponse.json()).control;
   const findingResponse = await fetch(`${base}/api/findings`, options(3, "POST", {
     controlId: control.id, riskId: risk.id, title: "Excepción avisada",
-    description: "La excepción quedó vinculada al riesgo y control."
+    description: "La excepción quedó vinculada al riesgo y control.",
+    rootCause: "El control no genera alertas cuando encuentra diferencias.", severity: "HIGH"
   }));
   assert.equal(findingResponse.status, 201);
   const finding = (await findingResponse.json()).finding;

@@ -1,4 +1,5 @@
 const planningRepository = require("../repositories/planningRepository");
+const findingRepository = require("../repositories/findingRepository");
 const { logActivity } = require("../services/auditLogger");
 const { ROLES } = require("../config/roles");
 const { parseAuditFilters, searchAudits } = require("../services/auditSearch");
@@ -97,6 +98,9 @@ const deleteProposal = async (req, res) => {
   }
   if (isTerminal(current)) {
     return res.status(409).json({ message: "Una propuesta resuelta ya no se puede eliminar." });
+  }
+  if ((await findingRepository.getAll()).some((finding) => finding.auditId === current.id)) {
+    return res.status(409).json({ message: "No se puede eliminar una auditoría vinculada a un hallazgo." });
   }
 
   await planningRepository.remove(current.id, current.storageVersion);

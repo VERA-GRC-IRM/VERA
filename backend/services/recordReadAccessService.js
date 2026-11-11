@@ -16,14 +16,18 @@ const visibleCollectionsForUser = async (user) => {
     planningRepository.getAll(), riskRepository.getAll(), controlRepository.getAll(), findingRepository.getAll()
   ]);
   const scopedAudits = await filterByVisibleScope(user, allAudits);
-  const related = await projectVisibleRiskRelations(user, allRisks, allControls, allFindings);
+  const related = await projectVisibleRiskRelations(user, allRisks, allControls, allFindings, allAudits);
   const audits = user.role === ROLES.AUDITOR
     ? scopedAudits.filter((item) => item.responsibleId === user.id) : scopedAudits;
+  const findings = [];
+  for (const finding of allFindings) {
+    if (await visibleRecordForUser(user, "FINDING", finding.id)) findings.push(finding);
+  }
   return {
     AUDIT: audits,
     RISK: projectVisibleAuditLinks(related.risks, audits),
     CONTROL: related.controls,
-    FINDING: related.findings
+    FINDING: findings
   };
 };
 
@@ -36,17 +40,28 @@ const visibleRecordForUser = async (user, type, id) => {
         (type === "AUDIT" ? record.responsibleId : record.ownerId) !== user.id) return null;
     return record;
   }
-  if (type === "CONTROL" || type === "FINDING") {
-    const finding = type === "FINDING" ? await findingRepository.findById(id) : null;
-    const control = await controlRepository.findById(type === "CONTROL" ? id : finding?.controlId);
-    if (type === "CONTROL" && !control) return null;
-    if (type === "FINDING" && !finding) return null;
-    const riskIds = new Set(control?.riskIds || []);
-    if (finding?.riskId) riskIds.add(finding.riskId);
+  if (type === "FINDING") {
+    const finding = await findingRepository.findById(id);
+    if (!finding || !await canViewRecordScope(user, finding)) return null;
+    const linked = [
+      ["AUDIT", finding.auditId],
+      ["RISK", finding.riskId],
+      ["CONTROL", finding.controlId]
+    ].filter(([, sourceId]) => sourceId);
+    if (!linked.length) return null;
+    for (const [sourceType, sourceId] of linked) {
+      if (!await visibleRecordForUser(user, sourceType, sourceId)) return null;
+    }
+    return finding;
+  }
+  if (type === "CONTROL") {
+    const control = await controlRepository.findById(id);
+    if (!control) return null;
+    const riskIds = new Set(control.riskIds || []);
     const risks = (await Promise.all([...riskIds].map((riskId) => riskRepository.findById(riskId))))
       .filter(Boolean);
-    const visible = await projectVisibleRiskRelations(user, risks, control ? [control] : [], finding ? [finding] : []);
-    return type === "CONTROL" ? visible.controls[0] || null : visible.findings[0] || null;
+    const visible = await projectVisibleRiskRelations(user, risks, [control]);
+    return visible.controls[0] || null;
   }
   return null;
 };

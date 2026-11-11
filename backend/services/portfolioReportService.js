@@ -23,7 +23,7 @@ const buildPortfolioReport = async (user, filters) => {
   const audits = searchAudits(auditor
     ? scopedAudits.filter((audit) => audit.responsibleId === user.id) : scopedAudits, filters);
   const { risks, controls, findings } = await projectVisibleRiskRelations(
-    user, allRisks, allControls, allFindings);
+    user, allRisks, allControls, allFindings, allAudits);
   const riskIds = new Set(risks.map((risk) => risk.id));
   const controlIds = new Set(controls.map((control) => control.id));
   const evidence = auditor ? allEvidence.filter((item) =>

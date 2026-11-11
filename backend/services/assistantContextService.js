@@ -24,7 +24,7 @@ const factsFor = (type, item) => {
     audits: [["Estado", item.status], ["Área", item.area], ["Avance", Number.isFinite(item.progress) ? `${item.progress}%` : null]],
     risks: [["Nivel", item.level], ["Puntaje", item.score]],
     controls: [["Calificación preliminar", item.effectiveness]],
-    findings: [["Estado", item.status]],
+    findings: [["Estado", item.status], ["Severidad", item.severity], ["Causa raíz", item.rootCause]],
     pending: [["Prioridad", item.priority], ["Detalle", item.description], ["Vence", item.dueAt]]
   }[type] || [];
   return fields.filter(([, value]) => value !== null && value !== undefined && value !== "")
@@ -60,7 +60,7 @@ const rankAssistantRecords = (type, items, question, preferred = new Set()) => {
       words.reduce((total, word) => total + (title.includes(word) ? 4 : searchable.includes(word) ? 2 : 0), 0) +
       (type === "risks" && high && item.level === "Alto" ? 50 : 0) +
       (type === "audits" && active && item.status === "ACTIVE" ? 50 : 0) +
-      (type === "findings" && open && item.status === "OPEN" ? 50 : 0) +
+      (type === "findings" && open && ["OPEN", "PENDING_CLOSURE"].includes(item.status) ? 50 : 0) +
       (type === "controls" && ineffective && Number(item.effectiveness) < 4 ? 50 : 0) +
       (type === "pending" && urgent && item.priority === "HIGH" ? 50 : 0);
     return { item, index, score };
@@ -89,7 +89,7 @@ const buildAssistantContext = async (user, question, focus = null) => {
   const scopedAudits = await filterByVisibleScope(user, allAudits);
   const audits = auditor ? scopedAudits.filter((item) => item.responsibleId === user.id) : scopedAudits;
   const { risks: scopedRisks, controls, findings } = await projectVisibleRiskRelations(
-    user, allRisks, allControls, allFindings);
+    user, allRisks, allControls, allFindings, allAudits);
   const risks = projectVisibleAuditLinks(scopedRisks, audits);
   const riskIds = new Set(risks.map((item) => item.id));
   let actions = [];
@@ -131,8 +131,9 @@ const buildAssistantContext = async (user, question, focus = null) => {
     }
     if (focus.type === "control") focused.riskIds.forEach((id) => preferred.risks.add(id));
     if (focus.type === "finding") {
-      preferred.risks.add(focused.riskId);
-      preferred.controls.add(focused.controlId);
+      if (focused.auditId) preferred.audits.add(focused.auditId);
+      if (focused.riskId) preferred.risks.add(focused.riskId);
+      if (focused.controlId) preferred.controls.add(focused.controlId);
     }
   }
 
@@ -145,6 +146,7 @@ const buildAssistantContext = async (user, question, focus = null) => {
       riskIds: item.riskIds.filter((id) => riskIds.has(id)), effectiveness: item.effectiveness,
       assessmentBasis: "PRELIMINARY_LEGACY_RATING" })),
     findings: findings.map((item) => ({ id: clean(item.id, 50), title: clean(item.title),
+      rootCause: clean(item.rootCause), severity: item.severity, auditId: item.auditId,
       riskId: item.riskId, controlId: item.controlId, status: item.status })),
     pending: notifications.map((item) => ({ id: clean(item.id, 80), title: clean(item.title),
       entityId: item.entityId, priority: item.priority }))

@@ -116,11 +116,12 @@ test("HU-07/HU-09: el panel toma hallazgos reales del expediente asignado", asyn
   const control = (await controlResponse.json()).control;
   const findingResponse = await fetch(`${base}/api/findings`, json(tokenFor(5), "POST", {
     controlId: control.id, riskId: risk.id, title: "Diferencias sin aprobación",
-    description: "La conciliación contiene diferencias sin aprobación."
+    description: "La conciliación contiene diferencias sin aprobación.",
+    rootCause: "El procedimiento no asigna responsables para aprobar diferencias.", severity: "HIGH"
   }));
   assert.equal(findingResponse.status, 201);
   const finding = (await findingResponse.json()).finding;
-  assert.equal(finding.auditId, proposal.id);
+  assert.equal(finding.auditId, null);
   const otherRiskResponse = await fetch(`${base}/api/risks`, json(tokenFor(3), "POST", {
     title: `Riesgo de otra persona ${Date.now()}`, description: "Riesgo del mismo expediente con otro responsable.",
     area: "Finanzas", ownerId: 4, linkedAuditId: proposal.id, likelihood: 2, impact: 2,
@@ -137,7 +138,8 @@ test("HU-07/HU-09: el panel toma hallazgos reales del expediente asignado", asyn
   const otherControl = (await otherControlResponse.json()).control;
   assert.equal((await fetch(`${base}/api/findings`, json(tokenFor(3), "POST", {
     controlId: otherControl.id, riskId: otherRisk.id, title: "Hallazgo fuera de asignación",
-    description: "Este hallazgo pertenece a un riesgo de otra persona."
+    description: "Este hallazgo pertenece a un riesgo de otra persona.",
+    rootCause: "El flujo no identifica a una persona responsable de la revisión.", severity: "MEDIUM"
   }))).status, 201);
   const dashboard = await fetch(`${base}/api/dashboard`, json(tokenFor(5)));
   assert.equal(dashboard.status, 200);

@@ -7,6 +7,7 @@ import ControlFindings from "../components/ControlFindings";
 import { CONTROL_MANAGE_ROLES, RISK_CONTROL_MANAGE_ROLES } from "../constants/planning";
 import { createControl, evaluateControl, getControls, updateControl } from "../services/controlService";
 import { getRisks, getRiskOwners } from "../services/riskService";
+import { getPlanningAudits } from "../services/planningService";
 import "./Controles.css";
 
 const EMPTY = { title: "", description: "", type: "PREVENTIVE", frequency: "Monthly", ownerId: "", riskIds: [], rating: 3, note: "" };
@@ -21,6 +22,7 @@ function Controles() {
   const canCreateOrEvaluate = CONTROL_MANAGE_ROLES.includes(user?.role);
   const [controls, setControls] = useState([]);
   const [risks, setRisks] = useState([]);
+  const [audits, setAudits] = useState([]);
   const [owners, setOwners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -39,9 +41,12 @@ function Controles() {
   };
   useEffect(() => {
     Promise.all([getControls(), getRisks(), canManage ? getRiskOwners() : Promise.resolve([])])
-      .then(([allControls, allRisks, activeOwners]) => { setControls(allControls); setRisks(allRisks); setOwners(activeOwners); })
+      .then(([allControls, allRisks, activeOwners]) => {
+        setControls(allControls); setRisks(allRisks); setOwners(activeOwners);
+      })
       .catch((loadError) => setError(loadError.message))
       .finally(() => setLoading(false));
+    getPlanningAudits().then(setAudits).catch((loadError) => setError(loadError.message));
   }, [canManage]);
   useEffect(() => {
     try {
@@ -82,7 +87,7 @@ function Controles() {
       </section>
       <div className="control-section-heading control-list-heading"><div><span className="eyebrow">DETALLE OPERATIVO</span><h2>Controles registrados</h2></div><span>{controls.length} controles</span></div>
       {loading ? null : controls.length === 0 ? <div className="control-empty">Los controles registrados aparecerán aquí.</div> : <div className="control-list">{controls.map((control) => <article className="control-card" id={`control-${control.id}`} key={control.id}><div className="control-card-icon"><ClipboardCheck size={21} /></div><div className="control-card-content"><div className="control-card-top"><span className="control-id">{control.id}</span><span className="control-type">{TYPES[control.type]}</span><span className="effectiveness-pill">{RESULT_LABELS[control.effectivenessResult]} · {RATING_LABELS[control.effectiveness - 1]} · {control.effectiveness}/5</span></div><h3>{control.title}</h3><p>{control.description}</p><div className="control-card-meta"><span><b>Responsable:</b> {control.ownerName}</span><span><b>Frecuencia:</b> {control.frequency}</span><span><b>Riesgos vinculados:</b> {control.riskIds.length}</span><span><b>Valoraciones:</b> {control.evaluations.length}</span></div><details className="control-history"><summary><Activity size={15} /> Historial de valoraciones</summary><ol>{[...control.evaluations].reverse().map((evaluation) => <li key={evaluation.version}><b>Versión {evaluation.version} · {RESULT_LABELS[evaluation.result]} · calificación {evaluation.rating}/5</b><p>{evaluation.note}</p><small>{evaluation.assessedBy.username} · {new Date(evaluation.assessedAt).toLocaleString("es-MX")}</small></li>)}</ol></details></div><div className="control-actions"><button type="button" onClick={() => setAssistantFocus({ type: "control", id: control.id, title: control.title })}><Bot size={15} /> Analizar con IA</button>{canManage && <button onClick={() => openEdit(control)}><Pencil size={15} /> Editar</button>}{canCreateOrEvaluate && <button onClick={() => openEvaluation(control)}><CheckCircle2 size={15} /> Evaluar</button>}</div></article>)}</div>}
-      <ControlFindings controls={controls} risks={risks} role={user?.role} />
+      <ControlFindings controls={controls} risks={risks} audits={audits} owners={owners} user={user} />
     </section></main>
     {assistantFocus && <AssistantDrawer key={assistantFocus.id} focus={assistantFocus} onClose={() => setAssistantFocus(null)} />}
     {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeModal(); }}><form className="proposal-modal control-modal" onSubmit={submit}><div className="modal-header"><div><span className="eyebrow">{evaluating ? `EVALUACIÓN ${evaluating.id}` : editing ? `EDITAR ${editing.id}` : "NUEVO CONTROL"}</span><h2>{evaluating ? "Añadir valoración" : editing ? "Editar control" : "Registrar control"}</h2><p>{evaluating ? "La valoración preliminar se agrega al historial sin reemplazar las anteriores. No sustituye una prueba de diseño u operación." : "Define su tipo, responsable y los riesgos que ayuda a tratar."}</p></div><button type="button" className="modal-close" onClick={closeModal} aria-label="Cerrar"><X size={20} /></button></div>{error && <p className="control-feedback error">{error}</p>}<div className="proposal-form-grid">

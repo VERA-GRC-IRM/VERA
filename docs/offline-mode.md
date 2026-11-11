@@ -16,7 +16,7 @@ La comprobación focalizada se ejecuta con `npm run build --prefix frontend` y `
 2. **Borradores:** cada cambio local se identifica como `Pendiente de sincronizar`; no se presenta como aprobado, enviado o registrado en Supabase. Guardar la versión del expediente usada al editar.
 3. **Sincronización:** al recuperar conexión, exigir una sesión vigente. El servidor vuelve a aplicar permisos y reglas de negocio. Los conflictos de versión y los rechazos se muestran para revisión humana; no se sobrescriben silenciosamente. Las repeticiones de red no deben duplicar operaciones.
 4. **Evidencias:** archivos preparados localmente tienen límites de tamaño y caducidad; no quedan publicados ni vinculados hasta que el servidor confirme la carga.
-5. **Decisiones y IA:** aprobaciones, rechazos y cambios de rol necesitan confirmación del servidor. La IA de Azure requiere red; un futuro modelo local tendría otro contrato, evaluación y requisitos de dispositivo.
+5. **Decisiones y IA:** aprobaciones, rechazos, solicitudes de cierre de hallazgos y decisiones de validación requieren conexión y confirmación del servidor. El espacio offline puede conservar snapshots de hallazgos para consulta, pero no permite registrar cambios ni aprobar o rechazar cierres. La IA de Azure requiere red; un futuro modelo local tendría otro contrato, evaluación y requisitos de dispositivo.
 
 ## Aceptación
 

@@ -36,12 +36,15 @@ const assertWritableSourceScope = async (user, type, source) => {
   if (type === "CONTROL") return assertWritableControlScope(user, source);
   if (type === "FINDING") {
     await assertWritableRecordScope(user, source);
+    const audit = source.auditId ? await planningRepository.findById(source.auditId) : null;
     const risk = await riskRepository.findById(source.riskId);
     const control = await controlRepository.findById(source.controlId);
+    if (audit) await assertWritableRecordScope(user, audit);
     if (risk) await assertWritableRecordScope(user, risk);
     if (control) await assertWritableControlScope(user, control);
-    if ((source.orgUnitId || risk?.orgUnitId || control?.orgUnitId) &&
-        (source.orgUnitId !== risk?.orgUnitId || source.orgUnitId !== control?.orgUnitId)) {
+    const scopes = [source.orgUnitId, audit?.orgUnitId, risk?.orgUnitId, control?.orgUnitId]
+      .filter(Boolean);
+    if (new Set(scopes).size > 1) {
       throw Object.assign(new Error("El hallazgo y sus relaciones deben pertenecer al mismo ámbito."), { status: 409 });
     }
   }

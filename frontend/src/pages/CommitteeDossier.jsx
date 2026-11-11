@@ -23,7 +23,7 @@ function dossierFacts(context) {
     const rating = Number(control.effectiveness);
     return control.effectiveness !== null && control.effectiveness !== undefined && rating >= 1 && rating <= 3;
   });
-  const openFindings = findings.filter((finding) => finding.status === "OPEN");
+  const openFindings = findings.filter((finding) => ["OPEN", "PENDING_CLOSURE"].includes(finding.status));
   const directEvidence = evidence.filter((item) => item.entityType === "AUDIT");
   return { withoutControl, highRisks, lowRatedControls, openFindings, directEvidence };
 }

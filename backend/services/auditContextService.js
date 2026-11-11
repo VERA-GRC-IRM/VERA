@@ -14,7 +14,8 @@ const relateAudit = (auditId, { risks = [], controls = [], findings = [], eviden
   const riskIds = new Set(linkedRisks.map((item) => item.id));
   const linkedControls = controls.filter((item) => item.riskIds?.some((id) => riskIds.has(id)));
   const controlIds = new Set(linkedControls.map((item) => item.id));
-  const linkedFindings = findings.filter((item) => riskIds.has(item.riskId) && controlIds.has(item.controlId));
+  const linkedFindings = findings.filter((item) => item.auditId === auditId ||
+    (item.riskId && riskIds.has(item.riskId)) || (item.controlId && controlIds.has(item.controlId)));
   const linkedEvidence = evidence.filter((item) =>
     (item.entityType === "AUDIT" && item.entityId === auditId) ||
     (item.entityType === "RISK" && riskIds.has(item.entityId)) ||
@@ -48,7 +49,7 @@ const buildAuditContext = async (user, auditId) => {
   ]);
   const auditor = user.role === ROLES.AUDITOR;
   const { risks, controls, findings } = await projectVisibleRiskRelations(
-    user, allRisks, allControls, allFindings);
+    user, allRisks, allControls, allFindings, [audit]);
   const visibleRiskIds = new Set(risks.map((item) => item.id));
   const visibleControlIds = new Set(controls.map((item) => item.id));
   const evidence = auditor ? allEvidence.filter((item) =>

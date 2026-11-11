@@ -34,11 +34,14 @@ const assertWritableRecordScope = async (user, record) => {
 
 // Keep the existing role view for legacy records. Once any relation has an
 // explicit scope, a shared control must not expose a risk in a denied scope.
-const projectVisibleRiskRelations = async (user, allRisks, allControls, allFindings = []) => {
+const projectVisibleRiskRelations = async (user, allRisks, allControls, allFindings = [], allAudits = []) => {
   const auditor = user.role === "AUDITOR";
   const scopedRisks = await filterByVisibleScope(user, allRisks);
   const risks = auditor ? scopedRisks.filter((item) => item.ownerId === user.id) : scopedRisks;
   const riskIds = new Set(risks.map((item) => item.id));
+  const scopedAudits = await filterByVisibleScope(user, allAudits);
+  const audits = auditor ? scopedAudits.filter((item) => item.responsibleId === user.id) : scopedAudits;
+  const auditIds = new Set(audits.map((item) => item.id));
   const scopedRelations = [...allRisks, ...allControls, ...allFindings].some((item) => item.orgUnitId);
   const scopedControls = await filterByVisibleScope(user, allControls);
   const controls = scopedControls.filter((item) =>
@@ -46,9 +49,14 @@ const projectVisibleRiskRelations = async (user, allRisks, allControls, allFindi
     (!scopedRelations || (item.riskIds || []).every((id) => riskIds.has(id))));
   const controlIds = new Set(controls.map((item) => item.id));
   const scopedFindings = await filterByVisibleScope(user, allFindings);
-  const findings = scopedFindings.filter((item) =>
-    (!auditor || riskIds.has(item.riskId)) &&
-    (!scopedRelations || (riskIds.has(item.riskId) && controlIds.has(item.controlId))));
+  const findings = scopedFindings.filter((item) => {
+    const links = [
+      item.auditId ? auditIds.has(item.auditId) : null,
+      item.riskId ? riskIds.has(item.riskId) : null,
+      item.controlId ? controlIds.has(item.controlId) : null
+    ].filter((value) => value !== null);
+    return links.length > 0 && links.every(Boolean);
+  });
   return { risks, controls, findings };
 };
 

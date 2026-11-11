@@ -43,7 +43,7 @@ const matches = (type, filter, item) => {
   if (type === "risks") return item.level === "Alto";
   if (type === "controls") return item.effectiveness !== null && item.effectiveness !== undefined &&
     Number.isFinite(Number(item.effectiveness)) && Number(item.effectiveness) < 4;
-  if (type === "findings") return item.status === "OPEN";
+  if (type === "findings") return ["OPEN", "PENDING_CLOSURE"].includes(item.status);
   if (type === "pending") return item.priority === "HIGH";
   return false;
 };

@@ -1,5 +1,5 @@
 const userRepository = require("../repositories/userRepository");
-const { prepareFindingClosure, closeFindingForUser } = require("./findingClosureService");
+const { prepareFindingClosure, requestFindingClosureForUser } = require("./findingClosureService");
 const { visibleCollectionsForUser } = require("./recordReadAccessService");
 
 const normalize = (value) => String(value || "").normalize("NFD")
@@ -28,9 +28,9 @@ const handleFindingClose = async (user, question, thread) => {
     }
     if (Date.parse(draft.expiresAt) < Date.now()) return response("La vista previa venció. Solicita el cierre de nuevo.");
     try {
-      const closed = await closeFindingForUser(user, draft.id, draft.note, draft.version);
-      return response(`Quedó cerrado el hallazgo «${closed.title}» (${closed.id}). El motivo y las acciones terminadas quedaron en la bitácora.`,
-        "action-executed", { actionOutcome: { id: closed.id, status: closed.status } });
+      const finding = await requestFindingClosureForUser(user, draft.id, draft.note, draft.version);
+      return response(`La solicitud de cierre de «${finding.title}» (${finding.id}) quedó pendiente de aprobación por Super Admin o Gerencia.`,
+        "action-executed", { actionOutcome: { id: finding.id, status: finding.status } });
     } catch (error) {
       if (error.status) return response(`${error.message} Solicita otra vista previa si corresponde.`);
       throw error;
@@ -53,7 +53,7 @@ const handleFindingClose = async (user, question, thread) => {
   catch (error) { if (error.status) return response(error.message); throw error; }
   const draft = { type: "FINDING_CLOSE", id: finding.id, version: finding.storageVersion,
     note: prepared.note, expiresAt: new Date(Date.now() + 5 * 60_000).toISOString() };
-  return response(`Revisa antes de cerrar «${finding.title}» (${finding.id}), asociado al riesgo ${finding.riskId} y al control ${finding.controlId}. Las ${prepared.actions.length} acciones vinculadas están terminadas. Motivo: ${prepared.note}. Escribe «Confirmar cierre de hallazgo» en los próximos cinco minutos; cualquier otra pregunta descarta esta vista previa.`,
+  return response(`Revisa antes de solicitar el cierre de «${finding.title}» (${finding.id}). Las ${prepared.actions.length} acciones vinculadas están terminadas o canceladas. Motivo: ${prepared.note}. Escribe «Confirmar cierre de hallazgo» en los próximos cinco minutos; cualquier otra pregunta descarta esta vista previa.`,
     "action-preview", { actionDraft: draft });
 };
 

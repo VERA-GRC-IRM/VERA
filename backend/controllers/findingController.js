@@ -1,17 +1,20 @@
 const findingRepository = require("../repositories/findingRepository");
 const riskRepository = require("../repositories/riskRepository");
 const controlRepository = require("../repositories/controlRepository");
+const planningRepository = require("../repositories/planningRepository");
 const { projectVisibleRiskRelations } = require("../services/recordScopeVisibility");
 const { createFindingForUser } = require("../services/findingCreationService");
-const { closeFindingForUser } = require("../services/findingClosureService");
+const { closeFindingForUser, reviewFindingClosureForUser } = require("../services/findingClosureService");
 
 const listFindings = async (req, res) => {
-  const controlId = String(req.query.controlId ?? "").trim();
-  const [risks, controls, findings] = await Promise.all([
-    riskRepository.getAll(), controlRepository.getAll(), findingRepository.getAll()
+  const filters = ["auditId", "riskId", "controlId"]
+    .map((key) => [key, String(req.query[key] ?? "").trim()])
+    .filter(([, value]) => value);
+  const [risks, controls, findings, audits] = await Promise.all([
+    riskRepository.getAll(), controlRepository.getAll(), findingRepository.getAll(), planningRepository.getAll()
   ]);
-  const visible = (await projectVisibleRiskRelations(req.user, risks, controls, findings)).findings
-    .filter((finding) => !controlId || finding.controlId === controlId);
+  const visible = (await projectVisibleRiskRelations(req.user, risks, controls, findings, audits)).findings
+    .filter((finding) => filters.every(([key, value]) => finding[key] === value));
   res.json({ findings: visible });
 };
 
@@ -34,4 +37,12 @@ const closeFinding = async (req, res) => {
   }
 };
 
-module.exports = { listFindings, createFinding, closeFinding };
+const reviewFindingClosure = async (req, res) => {
+  try { return res.json({ finding: await reviewFindingClosureForUser(req.user, req.params.id, req.body) }); }
+  catch (error) {
+    if ([400, 403, 404, 409].includes(error.status)) return res.status(error.status).json({ message: error.message });
+    throw error;
+  }
+};
+
+module.exports = { listFindings, createFinding, closeFinding, reviewFindingClosure };
