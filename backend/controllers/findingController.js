@@ -16,7 +16,9 @@ const listFindings = async (req, res) => {
 };
 
 const createFinding = async (req, res) => {
-  try { return res.status(201).json({ finding: await createFindingForUser(req.user, req.body) }); }
+  try { return res.status(201).json({ finding: await createFindingForUser(
+    req.user, req.body, null, req.body?.expectedControlVersion
+  ) }); }
   catch (error) {
     if ([400, 403, 404, 409].includes(error.status)) return res.status(error.status).json({ message: error.message });
     throw error;

@@ -32,7 +32,8 @@ test("HU-15: un hallazgo conserva control, riesgo, auditoría y versión de eval
 
   assert.equal((await fetch(`${base}/api/findings`, json(4, "POST", body))).status, 403);
   assert.equal((await fetch(`${base}/api/findings`, json(5, "POST", { ...body, riskId: "RSK-999" }))).status, 404);
-  const createdResponse = await fetch(`${base}/api/findings`, json(5, "POST", body));
+  assert.equal((await fetch(`${base}/api/findings`, json(5, "POST", { ...body, expectedControlVersion: 0 }))).status, 409);
+  const createdResponse = await fetch(`${base}/api/findings`, json(5, "POST", { ...body, expectedControlVersion: 1 }));
   assert.equal(createdResponse.status, 201);
   const finding = (await createdResponse.json()).finding;
   assert.equal(finding.controlId, control.id);

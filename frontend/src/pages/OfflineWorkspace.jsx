@@ -7,8 +7,9 @@ import { createOfflineVault, deleteOfflineVault, hasOfflineVault,
 import { captureOfflineSnapshots, getOfflineSnapshots, SNAPSHOT_MODULES,
   SNAPSHOT_TTL_MS, removeOfflineSnapshot } from "../services/offlineSnapshots";
 import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts,
-  getEvidenceDraftTargets, saveOfflineDraft, saveOfflineEvidenceDraft,
-  syncOfflineDraft, syncOfflineEvidenceDraft } from "../services/offlineDrafts";
+  getEvidenceDraftTargets, getFindingDraftTargets, saveOfflineDraft, saveOfflineEvidenceDraft,
+  saveOfflineFindingDraft, syncOfflineDraft, syncOfflineEvidenceDraft,
+  syncOfflineFindingDraft } from "../services/offlineDrafts";
 import "./OfflineWorkspace.css";
 
 const readStorageStatus = async () => {
@@ -51,6 +52,10 @@ function OfflineWorkspace() {
   const [evidenceTargetIndex, setEvidenceTargetIndex] = useState("");
   const [evidenceFile, setEvidenceFile] = useState(null);
   const [evidenceInputKey, setEvidenceInputKey] = useState(0);
+  const [findingTargets, setFindingTargets] = useState([]);
+  const [findingTargetIndex, setFindingTargetIndex] = useState("");
+  const [findingTitle, setFindingTitle] = useState("");
+  const [findingDescription, setFindingDescription] = useState("");
   const [storageStatus, setStorageStatus] = useState(null);
   const [storageMessage, setStorageMessage] = useState("");
   const currentTime = checkedAt;
@@ -120,6 +125,7 @@ function OfflineWorkspace() {
       setDrafts(getOfflineDrafts());
       try { setDraftableActions(getDraftableActions()); } catch { setDraftableActions([]); }
       setEvidenceTargets(getEvidenceDraftTargets());
+      setFindingTargets(getFindingDraftTargets());
       setCheckedAt(Date.now());
       setPhrase("");
       setConfirmation("");
@@ -153,6 +159,7 @@ function OfflineWorkspace() {
       setSnapshots(getOfflineSnapshots());
       try { setDraftableActions(getDraftableActions()); } catch { setDraftableActions([]); }
       setEvidenceTargets(getEvidenceDraftTargets());
+      setFindingTargets(getFindingDraftTargets());
       setCheckedAt(Date.now());
     } catch (cause) { setError(cause.message); }
     finally { setBusy(false); }
@@ -167,6 +174,7 @@ function OfflineWorkspace() {
     try {
       await removeOfflineSnapshot(id);
       setSnapshots(getOfflineSnapshots());
+      setFindingTargets(getFindingDraftTargets());
       setSelected((current) => current.filter((value) => value !== id));
     } catch (cause) { setError(cause.message); }
     finally { setBusy(false); }
@@ -200,6 +208,7 @@ function OfflineWorkspace() {
     try {
       const draft = drafts.find((item) => item.id === id);
       if (draft?.type === "EVIDENCE_UPLOAD") await syncOfflineEvidenceDraft(id);
+      else if (draft?.type === "FINDING_CREATE") await syncOfflineFindingDraft(id);
       else await syncOfflineDraft(id);
     }
     catch (cause) { setError(cause.message); }
@@ -222,6 +231,20 @@ function OfflineWorkspace() {
       setDrafts(getOfflineDrafts());
       setEvidenceTitle(""); setEvidenceDescription(""); setEvidenceFile(null);
       setEvidenceTargetIndex(""); setEvidenceInputKey((value) => value + 1);
+    } catch (cause) { setError(cause.message); }
+    finally { setBusy(false); }
+  };
+
+  const stageFinding = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const target = findingTargets[Number(findingTargetIndex)];
+      if (!target) throw new Error("Selecciona un control y riesgo guardados.");
+      await saveOfflineFindingDraft({ ...target, title: findingTitle, description: findingDescription });
+      setDrafts(getOfflineDrafts());
+      setFindingTitle(""); setFindingDescription(""); setFindingTargetIndex("");
     } catch (cause) { setError(cause.message); }
     finally { setBusy(false); }
   };
@@ -318,6 +341,18 @@ function OfflineWorkspace() {
                   {draftType !== "GENERAL_NOTE" && draftableActions.length === 0 && <p role="status">Actualiza primero la sección Planes de acción con conexión.</p>}
                   <button type="submit" className="primary-action" disabled={busy || (draftType !== "GENERAL_NOTE" && !draftableActions.length)}>Guardar borrador local</button>
                 </form>
+                {["SUPER_ADMIN", "GERENTE", "AUDITOR"].includes(user.role) && <form className="offline-vault-form" onSubmit={stageFinding}>
+                  <h4>Preparar hallazgo</h4>
+                  <p>Elige un control con efectividad insuficiente y un riesgo vinculado de las copias vigentes. El registro se intentará solo cuando lo confirmes con conexión; el servidor volverá a validar la relación y tus permisos.</p>
+                  <label>Control y riesgo guardados<select value={findingTargetIndex} onChange={(event) => setFindingTargetIndex(event.target.value)} required>
+                    <option value="">Selecciona un control y riesgo</option>
+                    {findingTargets.map((target, index) => <option key={`${target.controlId}:${target.riskId}`} value={index}>{target.controlTitle} · {target.riskTitle}</option>)}
+                  </select></label>
+                  <label>Nombre del hallazgo<input value={findingTitle} onChange={(event) => setFindingTitle(event.target.value)} minLength={3} maxLength={120} required /></label>
+                  <label>Descripción del hallazgo<textarea value={findingDescription} onChange={(event) => setFindingDescription(event.target.value)} minLength={10} maxLength={2000} required /></label>
+                  {!findingTargets.length && <p role="status">Actualiza primero Controles y Riesgos con conexión. Solo aparecerán relaciones elegibles en las copias vigentes.</p>}
+                  <button type="submit" className="primary-action" disabled={busy || !findingTargets.length}>Guardar hallazgo local</button>
+                </form>}
                 {["SUPER_ADMIN", "GERENTE", "AUDITOR", "JEFATURA"].includes(user.role) && <form className="offline-vault-form offline-evidence-form" onSubmit={stageEvidence}>
                   <h4>Preparar archivo de evidencia</h4>
                   <p>El archivo quedará cifrado en este dispositivo. Solo se vinculará al expediente cuando lo cargues con conexión y el servidor lo confirme.</p>
@@ -336,12 +371,13 @@ function OfflineWorkspace() {
                   <button type="submit" className="primary-action" disabled={busy || !evidenceTargets.length}>Guardar archivo local</button>
                 </form>}
                 {drafts.length > 0 && <ul className="offline-draft-list">{drafts.map((draft) => <li key={draft.id}>
-                  <div><strong>{draft.title}</strong><small>{{ GENERAL_NOTE: "Nota", ACTION_PROGRESS: "Avance", ACTION_COMMENT: "Comentario", EVIDENCE_UPLOAD: "Archivo de evidencia" }[draft.type] || draft.type} · {new Date(draft.createdAt).toLocaleString("es-MX")} · {{ DRAFT: "Pendiente de usar", SYNCED: "Enviado al servidor", CONFLICT: "Conflicto de versión", NEEDS_REVIEW: "Confirmación pendiente" }[draft.state] || draft.state}</small>
+                  <div><strong>{draft.title}</strong><small>{{ GENERAL_NOTE: "Nota", ACTION_PROGRESS: "Avance", ACTION_COMMENT: "Comentario", EVIDENCE_UPLOAD: "Archivo de evidencia", FINDING_CREATE: "Hallazgo" }[draft.type] || draft.type} · {new Date(draft.createdAt).toLocaleString("es-MX")} · {{ DRAFT: "Pendiente de usar", SYNCED: "Enviado al servidor", CONFLICT: "Conflicto de versión", NEEDS_REVIEW: "Confirmación pendiente" }[draft.state] || draft.state}</small>
                     {draft.note && <p>{draft.note}</p>}{draft.type === "ACTION_PROGRESS" && <small>Avance propuesto: {draft.progressPercent}%</small>}
+                    {draft.type === "FINDING_CREATE" && <><p>{draft.description}</p><small>{draft.controlTitle} · {draft.riskTitle}</small></>}
                     {draft.type === "EVIDENCE_UPLOAD" && <small>{draft.fileName} · {Math.ceil(draft.fileBytes / 1024)} KiB · {draft.entityType} {draft.entityId}</small>}</div>
                   <div className="offline-draft-actions">
-                    {draft.type !== "GENERAL_NOTE" && draft.state === "DRAFT" && <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>{draft.type === "EVIDENCE_UPLOAD" ? "Cargar evidencia" : "Enviar al servidor"}</button>}
-                    {draft.type !== "GENERAL_NOTE" && ["CONFLICT", "NEEDS_REVIEW"].includes(draft.state) && <Link to={draft.type === "EVIDENCE_UPLOAD" ? "/evidencias" : "/notificaciones"}>Revisar {draft.type === "EVIDENCE_UPLOAD" ? "evidencias" : "plan"}</Link>}
+                    {draft.type !== "GENERAL_NOTE" && draft.state === "DRAFT" && <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>{{ EVIDENCE_UPLOAD: "Cargar evidencia", FINDING_CREATE: "Registrar hallazgo" }[draft.type] || "Enviar al servidor"}</button>}
+                    {draft.type !== "GENERAL_NOTE" && ["CONFLICT", "NEEDS_REVIEW"].includes(draft.state) && <Link to={{ EVIDENCE_UPLOAD: "/evidencias", FINDING_CREATE: "/controles" }[draft.type] || "/notificaciones"}>Revisar {{ EVIDENCE_UPLOAD: "evidencias", FINDING_CREATE: "hallazgos" }[draft.type] || "plan"}</Link>}
                     <button type="button" className="secondary-action" disabled={busy} onClick={() => removeDraft(draft.id)}>{deleteDraftId === draft.id ? "Confirmar borrado" : "Borrar borrador"}</button>
                   </div>
                 </li>)}</ul>}

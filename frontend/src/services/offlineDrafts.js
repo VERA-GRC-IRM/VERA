@@ -1,5 +1,6 @@
 import { readOfflineVault, saveOfflineVault } from "./offlineVault";
 import { getOfflineSnapshot } from "./offlineSnapshots";
+import { RISK_CONTROL_MANAGE_ROLES } from "../constants/planning";
 
 const MAX_DRAFTS = 50;
 const MAX_FILES = 3;
@@ -32,6 +33,47 @@ export const getEvidenceDraftTargets = () => {
     })); }
     catch { return []; }
   });
+};
+
+export const getFindingDraftTargets = () => {
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  if (!user?.id || user.roleTour || ![...RISK_CONTROL_MANAGE_ROLES, "AUDITOR"].includes(user.role)) return [];
+  let controls;
+  let risks;
+  try {
+    controls = getOfflineSnapshot("controls").data.controls;
+    risks = getOfflineSnapshot("risks").data.risks;
+  } catch { return []; }
+  if (!Array.isArray(controls) || !Array.isArray(risks)) return [];
+  return controls.flatMap((control) => {
+    if (!Array.isArray(control.riskIds) || !Array.isArray(control.evaluations)
+      || !Number.isInteger(Number(control.effectiveness))
+      || Number(control.effectiveness) < 1 || Number(control.effectiveness) > 3) return [];
+    return risks.filter((risk) => control.riskIds.some((id) => String(id) === String(risk.id))
+      && (RISK_CONTROL_MANAGE_ROLES.includes(user.role) || String(risk.ownerId) === String(user.id)))
+      .map((risk) => ({ controlId: control.id, riskId: risk.id,
+        controlTitle: control.title, riskTitle: risk.title,
+        controlVersion: control.evaluations.length }));
+  });
+};
+
+export const saveOfflineFindingDraft = async (input) => {
+  const userId = currentUser();
+  const target = getFindingDraftTargets().find((item) =>
+    String(item.controlId) === String(input.controlId) && String(item.riskId) === String(input.riskId));
+  if (!target) throw new Error("El control y riesgo no están disponibles en copias locales vigentes.");
+  const title = String(input.title ?? "").trim();
+  const description = String(input.description ?? "").trim();
+  if (title.length < 3 || title.length > 120 || description.length < 10 || description.length > 2000) {
+    throw new Error("Revisa el título (3–120) y la descripción (10–2,000 caracteres).");
+  }
+  const vault = readOfflineVault(userId);
+  const drafts = vault.drafts || [];
+  if (drafts.length >= MAX_DRAFTS) throw new Error("Alcanzaste el límite de 50 borradores locales.");
+  const draft = { id: crypto.randomUUID(), type: "FINDING_CREATE", state: "DRAFT",
+    createdAt: new Date().toISOString(), title, description, ...target };
+  await saveOfflineVault(userId, { ...vault, drafts: [...drafts, draft] });
+  return draft;
 };
 
 const toBase64 = (bytes) => {
@@ -141,6 +183,78 @@ const markDraft = async (userId, draftId, changes) => {
 const responseMessage = async (response) => {
   const body = await response.json().catch(() => ({}));
   return body.message || `El servidor respondió ${response.status}.`;
+};
+
+export const syncOfflineFindingDraft = async (draftId) => {
+  if (!navigator.onLine) throw new Error("Conéctate antes de registrar el hallazgo.");
+  const userId = currentUser();
+  const draft = getOfflineDrafts().find((item) => item.id === draftId);
+  if (!draft || draft.type !== "FINDING_CREATE" || draft.state !== "DRAFT") {
+    throw new Error("Este hallazgo requiere revisión antes de volver a enviarse.");
+  }
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Inicia sesión antes de registrar el hallazgo.");
+  const headers = { Authorization: `Bearer ${token}` };
+  const read = async (path) => {
+    const response = await fetch(path, { headers, cache: "no-store", signal: AbortSignal.timeout(15000) });
+    if (!response.ok) throw new Error(await responseMessage(response));
+    return response.json();
+  };
+  const [controlData, riskData, findingData] = await Promise.all([
+    read("/api/controls/"), read("/api/risks/"), read("/api/findings/")
+  ]);
+  if (!Array.isArray(controlData.controls) || !Array.isArray(riskData.risks)
+    || !Array.isArray(findingData.findings)) {
+    throw new Error("No se pudo validar el estado actual. Revisa Hallazgos antes de registrar.");
+  }
+  const control = controlData.controls.find((item) => String(item.id) === String(draft.controlId));
+  const risk = riskData.risks.find((item) => String(item.id) === String(draft.riskId));
+  const duplicate = findingData.findings.some((item) => String(item.controlId) === String(draft.controlId)
+    && String(item.riskId) === String(draft.riskId) && item.evaluationVersion === draft.controlVersion);
+  if (!control || !risk || !Array.isArray(control.evaluations)
+    || control.evaluations.length !== draft.controlVersion
+    || !control.riskIds?.some((id) => String(id) === String(draft.riskId))
+    || !Number.isInteger(Number(control.effectiveness))
+    || Number(control.effectiveness) < 1 || Number(control.effectiveness) > 3 || duplicate) {
+    await markDraft(userId, draftId, { state: "CONFLICT" });
+    throw new Error("Cambió la evaluación, la relación o ya existe un hallazgo. Revisa el control antes de registrar otro.");
+  }
+  let response;
+  try {
+    response = await fetch("/api/findings/", {
+      method: "POST", headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ controlId: draft.controlId, riskId: draft.riskId,
+        title: draft.title, description: draft.description,
+        expectedControlVersion: draft.controlVersion }),
+      cache: "no-store", signal: AbortSignal.timeout(15000)
+    });
+  } catch {
+    await markDraft(userId, draftId, { state: "NEEDS_REVIEW" });
+    throw new Error("El hallazgo pudo haberse registrado. Revisa Hallazgos antes de cualquier otro envío.");
+  }
+  if (response.status === 409) {
+    await markDraft(userId, draftId, { state: "CONFLICT" });
+    throw new Error("El control o el riesgo cambió durante el envío. Revisa Hallazgos.");
+  }
+  if (response.status >= 500) {
+    await markDraft(userId, draftId, { state: "NEEDS_REVIEW" });
+    throw new Error("El servidor no confirmó el registro. Revisa Hallazgos antes de repetirlo.");
+  }
+  if (!response.ok) throw new Error(await responseMessage(response));
+  let body;
+  try { body = await response.json(); }
+  catch {
+    await markDraft(userId, draftId, { state: "NEEDS_REVIEW" });
+    throw new Error("El servidor respondió, pero no confirmó el hallazgo. Revísalo antes de repetirlo.");
+  }
+  if (!body.finding?.id || String(body.finding.controlId) !== String(draft.controlId)
+    || String(body.finding.riskId) !== String(draft.riskId)) {
+    await markDraft(userId, draftId, { state: "NEEDS_REVIEW" });
+    throw new Error("La respuesta no confirma el hallazgo esperado. Revísalo antes de repetirlo.");
+  }
+  await markDraft(userId, draftId, { state: "SYNCED", syncedAt: new Date().toISOString(),
+    findingId: body.finding.id });
+  return body.finding;
 };
 
 export const syncOfflineDraft = async (draftId) => {
