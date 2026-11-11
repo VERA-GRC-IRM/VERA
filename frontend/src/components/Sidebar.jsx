@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Files,
+  HardDriveDownload,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -25,6 +26,7 @@ import {
 import { ROLE_LABELS, ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "../constants/roles";
 import { managedAuth } from "../services/managedAuth";
 import { clearRoleTourSession, startRoleTour } from "../services/roleTour";
+import { lockOfflineVault } from "../services/offlineVault";
 import ThemeControl from "./ThemeControl";
 import GlobalSearch from "./GlobalSearch";
 import "../pages/Dashboard.css";
@@ -94,6 +96,7 @@ function Sidebar({ active }) {
   };
 
   const logout = async () => {
+    lockOfflineVault();
     try { if (managedAuth) await managedAuth.auth.signOut(); }
     catch { /* Local VERA logout still proceeds if the identity provider is unavailable. */ }
     localStorage.removeItem("token");
@@ -119,6 +122,7 @@ function Sidebar({ active }) {
     { id: "asistente", label: "Asistente de IA", Icon: Bot, path: "/asistente" },
     ...(canSeeAuditLog ? [{ id: "calidad-ia", label: "Calidad de IA", Icon: ChartNoAxesCombined, path: "/calidad-ia" }] : []),
     { id: "evidencias", label: "Evidencias", Icon: Files, path: "/evidencias" },
+    ...(!user?.roleTour ? [{ id: "offline", label: "Sin conexión", Icon: HardDriveDownload, path: "/sin-conexion" }] : []),
     ...(canSeeRoleRequests ? [{ id: "mi-rol", label: "Mi rol y solicitudes", Icon: UserRoundPen, path: "/mi-rol" }] : []),
     ...(canSeeUsers ? [{ id: "usuarios", label: "Usuarios", Icon: UserCog, path: "/usuarios" }] : []),
   ];
@@ -126,7 +130,7 @@ function Sidebar({ active }) {
     { label: "Portafolio y auditorías", ids: ["dashboard", "business-context", "planificacion", "trimestres", "auditorias-activas"] },
     { label: "Seguimiento", ids: ["notificaciones", "actividad"] },
     { label: "Asistencia", ids: ["asistente", "calidad-ia"] },
-    { label: "Cuenta y administración", ids: ["mi-rol", "usuarios"] }
+    { label: "Cuenta y administración", ids: ["offline", "mi-rol", "usuarios"] }
   ].map((group) => ({ ...group, items: group.ids.map((id) => items.find((item) => item.id === id)).filter(Boolean) }));
   const previewRoles = user?.role === "SUPER_ADMIN" ? PREVIEW_ROLES.map((role) => ({ role, label: ROLE_LABELS[role] })) : [];
   const goTo = (path) => { navigate(path); setMobileOpen(false); };
