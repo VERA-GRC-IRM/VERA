@@ -99,6 +99,8 @@ El respaldo cifrado también se ensaya en un segundo contexto de navegador con t
 
 La prueba de compatibilidad conserva un respaldo cifrado **sintético** con esquema local v1 creado sobre el código de `main` del 11 de noviembre de 2026. Cada versión posterior debe poder importarlo y mostrar su nota después de una recarga sin red. Este contrato protege la lectura de datos anteriores, pero no sustituye una prueba con dos despliegues sucesivos del service worker ni demuestra que un navegador mantenga datos si el usuario borra el almacenamiento del sitio.
 
+Un ensayo adicional sirve dos revisiones sucesivas del service worker generado por el build, espera el aviso de actualización y pulsa **Actualizar ahora** con un borrador previamente guardado. Tras la recarga, el espacio vuelve a pedir la frase y conserva el borrador cifrado aun si se corta la red. Las dos revisiones usan los mismos archivos de aplicación y solo cambia el contenido del worker; por tanto, este ensayo comprueba activación y continuidad del almacenamiento, pero todavía no valida una migración real de código o datos entre dos releases distintos.
+
 En el caso de reabrir un borrador, el modo `setOffline` de Playwright para Firefox rechazó incluso la navegación cacheada con `NS_ERROR_OFFLINE` en Windows. Ese escenario de Firefox corta las solicitudes de red ordinarias después de instalar el service worker y verifica que la API privada no responde; los demás escenarios mantienen la emulación de desconexión. Este ajuste de ensayo no acredita por sí solo una recarga con el Wi-Fi físico apagado.
 
 ## Preparación local de hallazgos
