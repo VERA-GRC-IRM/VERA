@@ -37,27 +37,39 @@ const buildPortfolioReport = async (user, filters) => {
       audit: {
         id: audit.id, title: audit.title, status: audit.status, area: audit.area,
         type: audit.type, objective: audit.objective, responsible: audit.responsible,
+        responsibleId: audit.responsibleId ?? null, orgUnitId: audit.orgUnitId ?? null,
         quarter: audit.quarter, year: audit.year, startDate: audit.startDate,
-        endDate: audit.endDate, risk: audit.risk, progress: audit.progress
+        endDate: audit.endDate, risk: audit.risk, progress: audit.progress,
+        plannedHours: audit.plannedHours ?? null, executedHours: audit.executedHours ?? null
       },
       risks: related.risks.map(({ id, title, level }) => ({ id, title, level })),
       controls: related.controls.map(({ id, title, effectiveness }) => ({ id, title, effectiveness })),
       findings: related.findings.map(({ id, title, status }) => ({ id, title, status })),
+      evidence: related.evidence.map(({ id, title, entityType, createdAt }) => ({ id, title, entityType, createdAt })),
       evidenceCount: related.evidence.length
     };
   });
+  const unique = (field) => new Set(rows.flatMap((row) => row[field].map(({ id }) => id))).size;
+  const sumHours = (field) => Number(rows.reduce((sum, row) => sum + (row.audit[field] ?? 0), 0).toFixed(2));
   return {
     asOf: new Date().toISOString(),
     scope: auditor ? "Expedientes asignados y relaciones visibles para tu cuenta" : "Portafolio visible para tu rol",
     filters: Object.fromEntries(Object.entries(filters).map(([key, value]) => [key, value || ""])),
     total: rows.length,
+    indicators: {
+      audits: rows.length, risks: unique("risks"), controls: unique("controls"),
+      findings: unique("findings"), evidence: unique("evidence"),
+      plannedHours: sumHours("plannedHours"), executedHours: sumHours("executedHours"),
+      auditsWithPlannedHours: rows.filter((row) => row.audit.plannedHours !== null).length,
+      auditsWithExecutedHours: rows.filter((row) => row.audit.executedHours !== null).length
+    },
     rows
   };
 };
 
 const CSV_COLUMNS = ["ID auditoría", "Título", "Estado", "Área", "Tipo", "Objetivo", "Responsable",
   "Trimestre", "Año", "Inicio", "Fin", "Riesgo", "Avance %", "Riesgos vinculados",
-  "Controles vinculados", "Hallazgos vinculados", "Evidencias vinculadas"];
+  "Controles vinculados", "Hallazgos vinculados", "Evidencias vinculadas", "Horas planeadas", "Horas ejecutadas"];
 const safeCell = (value) => {
   const text = String(value ?? "").replace(/^[\s\u0000-\u001f]*([=+\-@])/u, "'$&").replace(/\u0000/g, "");
   return `"${text.replace(/"/g, '""')}"`;
@@ -65,12 +77,12 @@ const safeCell = (value) => {
 const listTitles = (items) => items.map((item) => `${item.id}: ${item.title}`).join("; ");
 const reportToCsv = (report) => {
   const lines = [CSV_COLUMNS.map(safeCell).join(",")];
-  for (const { audit, risks, controls, findings, evidenceCount } of report.rows) {
+  for (const { audit, risks, controls, findings, evidence = [] } of report.rows) {
     lines.push([
       audit.id, audit.title, audit.status, audit.area, audit.type, audit.objective,
       audit.responsible, audit.quarter, audit.year, audit.startDate, audit.endDate,
       audit.risk, audit.progress, listTitles(risks), listTitles(controls),
-      listTitles(findings), evidenceCount
+      listTitles(findings), listTitles(evidence), audit.plannedHours, audit.executedHours
     ].map(safeCell).join(","));
   }
   return `\uFEFF${lines.join("\r\n")}\r\n`;

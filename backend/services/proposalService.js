@@ -15,6 +15,9 @@ const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 const DUPLICATE_MESSAGE = "Ya existe una propuesta con el mismo título, área y año.";
 const text = (value) => String(value ?? "").trim();
 const isDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value));
+const hours = (value) => value === undefined || value === null || value === "" ? null : Number(value);
+const validHours = (value) => value === null || (Number.isFinite(value) && value >= 0 && value <= 100000 &&
+  Math.abs(Math.round(value * 100) - value * 100) < 1e-8);
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
 
 const activeAuditors = async () => (await userRepository.getAll())
@@ -36,6 +39,8 @@ const parseProposal = async (body) => {
   const year = Number(body.year) || new Date().getFullYear();
   const startDate = text(body.startDate);
   const endDate = text(body.endDate);
+  const plannedHours = hours(body.plannedHours);
+  const executedHours = hours(body.executedHours);
 
   if (!title || !objective || !scope || !justification || !area) {
     return { error: "Completa el título, el área, el objetivo, el alcance y la justificación de la propuesta." };
@@ -58,6 +63,9 @@ const parseProposal = async (body) => {
   }
   if (Boolean(startDate) !== Boolean(endDate)) return { error: "Indica ambas fechas del periodo estimado." };
   if (!quarter && !startDate) return { error: "Indica un trimestre o ambas fechas del periodo estimado." };
+  if (!validHours(plannedHours) || !validHours(executedHours)) {
+    return { error: "Las horas deben estar entre 0 y 100,000, con máximo dos decimales." };
+  }
 
   let responsibleId = null;
   let responsible = "Sin asignar";
@@ -72,7 +80,7 @@ const parseProposal = async (body) => {
   return { data: { title, objective, scope, justification, area, type,
     likelihood, impact, riskScore: likelihood * impact,
     risk: classifyRisk(likelihood * impact), quarter, year,
-    startDate, endDate, responsibleId, responsible } };
+    startDate, endDate, plannedHours, executedHours, responsibleId, responsible } };
 };
 
 const createProposalForUser = async (user, input, operationId = null) => {
@@ -97,7 +105,7 @@ const createProposalForUser = async (user, input, operationId = null) => {
   const orgUnitId = await scopeForNewRecord(user, input.orgUnitId);
   const businessContextReferences = await resolveReferencesForUnit(user, input.businessContextReferences,
     orgUnitId, "VERA_PLANNING_STORE");
-  const scopedData = { ...data, orgUnitId, businessContextReferences: businessContextReferences || [] };
+  const scopedData = { ...data, executedHours: null, orgUnitId, businessContextReferences: businessContextReferences || [] };
   if (await planningRepository.findDuplicate(scopedData)) throw errorFor(DUPLICATE_MESSAGE, 409);
   const proposal = await planningRepository.create({ ...scopedData,
     ...(operationId ? { aiOperationId: operationId } : {}),
@@ -143,7 +151,8 @@ const prepareProposalEdit = async (user, id, changes, expectedVersion, expectedV
     : String(current[key] ?? "") !== String(data[key] ?? ""))) {
     throw errorFor("No hay cambios que guardar.", 400);
   }
-  return { current, data: references === undefined ? data : { ...data, businessContextReferences: references } };
+  const proposalData = { ...data, executedHours: current.executedHours ?? null };
+  return { current, data: references === undefined ? proposalData : { ...proposalData, businessContextReferences: references } };
 };
 
 const updateProposalForUser = async (user, id, changes, expectedVersion, reason = null, expectedValues = null) => {

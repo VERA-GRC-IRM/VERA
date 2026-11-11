@@ -9,6 +9,8 @@ const toForm = (audit) => ({
   quarter: audit.quarter || "",
   startDate: audit.startDate || "",
   endDate: audit.endDate || "",
+  plannedHours: audit.plannedHours ?? "",
+  executedHours: audit.executedHours ?? "",
   likelihood: audit.likelihood ?? 2,
   impact: audit.impact ?? 2
 });
@@ -60,8 +62,8 @@ function EditAuditModal({ audit, onClose, onSaved }) {
             <h2>{audit.title}</h2>
             <p>
               {audit.status === "ACTIVE"
-                ? "Auditoría en curso: solo se puede cambiar el objetivo, el responsable y la fecha de fin."
-                : "Auditoría aprobada: el título, el área, el tipo y el año ya no se pueden cambiar."}
+                ? "Auditoría en curso: puedes actualizar objetivo, responsable, fecha de fin y horas registradas."
+                : "Auditoría aprobada: puedes ajustar la planificación y las horas planeadas; el título, el área, el tipo y el año quedan fijos."}
             </p>
           </div>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Cerrar">
@@ -109,6 +111,18 @@ function EditAuditModal({ audit, onClose, onSaved }) {
           {can("endDate") && (
             <label>Fecha de fin
               <input type="date" min={form.startDate || undefined} value={form.endDate} onChange={(e) => update("endDate", e.target.value)} />
+            </label>
+          )}
+          {can("plannedHours") && (
+            <label>Horas planeadas
+              <input type="number" min="0" max="100000" step="0.01" value={form.plannedHours}
+                onChange={(e) => update("plannedHours", e.target.value)} placeholder="Sin registrar" />
+            </label>
+          )}
+          {can("executedHours") && (
+            <label>Horas ejecutadas
+              <input type="number" min="0" max="100000" step="0.01" value={form.executedHours}
+                onChange={(e) => update("executedHours", e.target.value)} placeholder="Sin registrar" />
             </label>
           )}
           {can("objective") && (

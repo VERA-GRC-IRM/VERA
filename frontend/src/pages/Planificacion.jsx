@@ -37,6 +37,7 @@ const EMPTY_FORM = {
   year: new Date().getFullYear(),
   startDate: "",
   endDate: "",
+  plannedHours: "",
   objective: "",
   scope: "",
   justification: ""
@@ -185,6 +186,7 @@ function Planificacion() {
       year: item.year,
       startDate: item.startDate,
       endDate: item.endDate,
+      plannedHours: item.plannedHours ?? "",
       objective: item.objective,
       scope: item.scope || "",
       justification: item.justification || ""
@@ -652,6 +654,10 @@ function Planificacion() {
                   </label>
                   <label>Fecha de fin
                     <input type="date" min={form.startDate || undefined} required={!form.quarter || Boolean(form.startDate)} value={form.endDate} onChange={(event) => updateForm("endDate", event.target.value)} />
+                  </label>
+                  <label>Horas planeadas (opcional)
+                    <input type="number" min="0" max="100000" step="0.01" value={form.plannedHours}
+                      onChange={(event) => updateForm("plannedHours", event.target.value)} placeholder="Sin registrar" />
                   </label>
                   <label className="full-width">Objetivo
                     <textarea required value={form.objective} onChange={(event) => updateForm("objective", event.target.value)} placeholder="¿Qué decisión o riesgo busca aclarar esta auditoría?" />

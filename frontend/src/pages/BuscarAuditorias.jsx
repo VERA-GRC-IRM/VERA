@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import { getAvailableOrgUnits } from "../services/orgUnitService";
 import { downloadPortfolioReport, getPortfolioReport, searchPlanningAudits } from "../services/planningService";
 import "./Planning.css";
 import "./BuscarAuditorias.css";
 
-const EMPTY = { q: "", status: "", risk: "", type: "", quarter: "", year: "" };
+const EMPTY = { q: "", status: "", risk: "", type: "", quarter: "", year: "", orgUnitId: "", responsibleId: "" };
 const STATUS_LABELS = {
   OPEN: "Propuesta abierta", APPROVED: "Aprobada", ACTIVE: "En curso",
   CLOSED: "Cerrada", REJECTED: "Rechazada"
@@ -23,6 +24,7 @@ function BuscarAuditorias() {
   const [appliedFilters, setAppliedFilters] = useState(EMPTY);
   const [report, setReport] = useState(null);
   const [reportBusy, setReportBusy] = useState(false);
+  const [orgUnits, setOrgUnits] = useState([]);
 
   const load = async (next) => {
     setLoading(true);
@@ -37,6 +39,10 @@ function BuscarAuditorias() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    getAvailableOrgUnits().then(setOrgUnits).catch(() => setOrgUnits([]));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +98,16 @@ function BuscarAuditorias() {
             <label>Trimestre<select value={filters.quarter} onChange={update("quarter")}><option value="">Todos</option>
               {["Q1", "Q2", "Q3", "Q4"].map((value) => <option key={value}>{value}</option>)}</select></label>
             <label>Año<input type="number" min="2020" max="2100" value={filters.year} onChange={update("year")} placeholder="Todos" /></label>
+            <label>Unidad empresarial<select value={filters.orgUnitId} onChange={update("orgUnitId")}>
+              <option value="">Todas las visibles</option>
+              {orgUnits.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+            </select></label>
+            <label>Responsable<select value={filters.responsibleId} onChange={update("responsibleId")}>
+              <option value="">Todos los visibles</option>
+              {[...new Map(audits.filter((audit) => audit.responsibleId).map((audit) =>
+                [String(audit.responsibleId), audit.responsible])).entries()].map(([id, name]) =>
+                <option key={id} value={id}>{name}</option>)}
+            </select></label>
             <div className="audit-search-actions"><button className="primary-action" type="submit" disabled={loading}>Buscar</button>
               <button className="secondary-action" type="button" onClick={clear} disabled={loading}>Limpiar</button></div>
           </form>
@@ -105,11 +121,15 @@ function BuscarAuditorias() {
           </div>
           {report && <section className="audit-report-panel" aria-label="Reporte del portafolio">
             <p role="status">{report.total} expediente(s) · {report.scope} · Actualizado: {new Date(report.asOf).toLocaleString("es-MX")}</p>
-            {report.total === 0 ? <p>No hay registros para estos filtros. El CSV conserva los encabezados.</p> : report.rows.map(({ audit, risks, controls, findings, evidenceCount }) => (
+            <p>Indicadores: {report.indicators.audits} auditorías · {report.indicators.risks} riesgos · {report.indicators.controls} controles · {report.indicators.findings} hallazgos · {report.indicators.evidence} evidencias.</p>
+            <p>Horas registradas: {report.indicators.plannedHours} planeadas ({report.indicators.auditsWithPlannedHours} expedientes) · {report.indicators.executedHours} ejecutadas ({report.indicators.auditsWithExecutedHours} expedientes). Los expedientes sin horas registradas no se estiman.</p>
+            {report.total === 0 ? <p>No hay registros para estos filtros. El CSV conserva los encabezados.</p> : report.rows.map(({ audit, risks, controls, findings, evidenceCount, evidence }) => (
               <article className="audit-report-row" key={audit.id}>
                 <h3>{audit.id} · {audit.title}</h3>
                 <p>{STATUS_LABELS[audit.status] || audit.status} · {audit.area} · {audit.responsible || "Sin asignar"}</p>
                 <p>Riesgos: {risks.length} · Controles: {controls.length} · Hallazgos: {findings.length} · Evidencias: {evidenceCount}</p>
+                <p>Horas: {audit.plannedHours ?? "Sin registrar"} planeadas · {audit.executedHours ?? "Sin registrar"} ejecutadas</p>
+                {evidence.length > 0 && <p>Evidencias vinculadas: {evidence.map((item) => `${item.id} · ${item.title}`).join("; ")}</p>}
                 {risks.length > 0 && <p>Riesgos vinculados: {risks.map((item) => `${item.id} · ${item.title}`).join("; ")}</p>}
                 {findings.length > 0 && <p>Hallazgos vinculados: {findings.map((item) => `${item.id} · ${item.title}`).join("; ")}</p>}
               </article>
