@@ -58,6 +58,12 @@ La sección **Archivos para consulta sin red** permite elegir hasta dos archivos
 
 Revalidar Evidencias elimina archivos retirados o sustituidos; una denegación de la sección retira sus archivos. Si al intentar guardar uno el backend responde que ya no es visible, se quitan ese archivo y sus metadatos locales. También se puede quitar un archivo manualmente. Esto no permite conocer cambios de permisos mientras el dispositivo está desconectado: la persona debe revalidar al volver a conectarse y proteger el dispositivo y la frase local.
 
+## Ediciones estructuradas de riesgos y controles
+
+Las cuentas Super Admin y Gerente pueden preparar una **descripción revisada** de un riesgo o control guardado en una copia vigente. El borrador incluye el tipo e ID del registro, descripción original, versión original, texto propuesto y motivo. No cambia la evaluación de riesgo, efectividad del control, responsable, ámbito ni decisiones formales. Al volver la red, la persona pulsa **Enviar descripción**; el frontend lee el registro autorizado actual y el backend vuelve a comprobar rol, ámbito, versión, valor original y reglas de negocio antes de guardar. Un cambio concurrente se marca **Conflicto de versión** y puede compararse con la descripción actual, solo en línea y sin sobrescritura automática.
+
+Si la respuesta de la edición se pierde, el borrador pasa a **Confirmación pendiente**. No hay reintento automático: se consulta el registro antes de preparar otro cambio. El envío no usa una migración de Supabase ni altera las cuentas existentes. Los demás campos de riesgos y controles siguen requiriendo edición en línea.
+
 ## Etapa 7: informe local CSV y PDF
 
 El espacio local puede guardar la respuesta JSON de `/api/planning/report` que el backend generó con los permisos del usuario. La vista **Informe del portafolio** permite filtrar esa copia por año, trimestre, unidad, estado y responsable; recalcula los conteos sobre las filas visibles. **Descargar CSV** crea un archivo UTF-8 con BOM, comillas escapadas y protección ante fórmulas de hoja de cálculo. **Imprimir o guardar PDF** abre el diálogo del navegador con una hoja de impresión paginada. Funciona sin red mientras la copia esté desbloqueada y dentro de su vigencia de 24 horas.

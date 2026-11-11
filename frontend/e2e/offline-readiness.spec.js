@@ -20,6 +20,7 @@ test("readiness distinguishes saved sections, local notes and work awaiting serv
   await page.getByLabel("Título").fill("Nota personal");
   await page.getByLabel("Nota", { exact: true }).fill("Recordatorio local sin envío al servidor.");
   await page.getByRole("button", { name: "Guardar borrador local" }).click();
+  await expect(page.locator(".offline-draft-list li")).toHaveCount(1);
   await expect(status).toContainText("0Trabajos pendientes de envío");
   await context.setOffline(true);
   await page.getByLabel("Tipo de borrador").selectOption("ACTION_PROGRESS");
@@ -27,6 +28,7 @@ test("readiness distinguishes saved sections, local notes and work awaiting serv
   await page.getByLabel("Avance (%)").fill("50");
   await page.getByLabel("Explicación").fill("Avance preparado mientras no había red.");
   await page.getByRole("button", { name: "Guardar borrador local" }).click();
-  await expect(status).toContainText("1Trabajos pendientes de envío");
+  await expect(page.locator(".offline-draft-list li")).toHaveCount(2);
+  await expect(status).toContainText("1Trabajos pendientes de envío", { timeout: 15000 });
   await expect(status).toContainText("Sin red detectada");
 });

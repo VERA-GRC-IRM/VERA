@@ -9,6 +9,8 @@ import { captureOfflineSnapshots, getOfflineSnapshots, purgeDeniedOfflineSnapsho
 import { searchOfflineRecords } from "../services/offlineSearch";
 import { getOfflineEvidenceBlob, getOfflineEvidenceFiles,
   removeOfflineEvidenceFile, saveOfflineEvidenceFile } from "../services/offlineEvidenceFiles";
+import { getEditableOfflineRecords, inspectOfflineRecordConflict,
+  saveOfflineRecordDescription, syncOfflineRecordDescription } from "../services/offlineRecordDrafts";
 import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts, inspectOfflineActionConflict,
   getEvidenceDraftTargets, getFindingDraftTargets, saveOfflineDraft, saveOfflineEvidenceDraft,
   saveOfflineFindingDraft, syncOfflineDraft, syncOfflineEvidenceDraft,
@@ -81,6 +83,15 @@ function OfflineWorkspace() {
   const [backupMessage, setBackupMessage] = useState("");
   const [conflictDetails, setConflictDetails] = useState({});
   const [savedEvidenceFiles, setSavedEvidenceFiles] = useState([]);
+  const [recordType, setRecordType] = useState("RISK");
+  const [recordId, setRecordId] = useState("");
+  const [recordDescription, setRecordDescription] = useState("");
+  const [recordReason, setRecordReason] = useState("");
+  let editableRecords = [];
+  if (open && ["SUPER_ADMIN", "GERENTE"].includes(user.role)) {
+    try { editableRecords = getEditableOfflineRecords(recordType); }
+    catch { editableRecords = []; }
+  }
   const currentTime = checkedAt;
   const savedSections = Object.values(snapshots);
   const readySections = savedSections.filter((item) => {
@@ -300,7 +311,9 @@ function OfflineWorkspace() {
   const compareConflict = async (id) => {
     setBusy(true); setError("");
     try {
-      const current = await inspectOfflineActionConflict(id);
+      const draft = drafts.find((item) => item.id === id);
+      const current = draft?.type === "RECORD_DESCRIPTION"
+        ? await inspectOfflineRecordConflict(id) : await inspectOfflineActionConflict(id);
       setConflictDetails((details) => ({ ...details, [id]: current }));
     } catch (cause) {
       setConflictDetails((current) => { const next = { ...current }; delete next[id]; return next; });
@@ -316,6 +329,7 @@ function OfflineWorkspace() {
       const draft = drafts.find((item) => item.id === id);
       if (draft?.type === "EVIDENCE_UPLOAD") await syncOfflineEvidenceDraft(id);
       else if (draft?.type === "FINDING_CREATE") await syncOfflineFindingDraft(id);
+      else if (draft?.type === "RECORD_DESCRIPTION") await syncOfflineRecordDescription(id);
       else await syncOfflineDraft(id);
     }
     catch (cause) { setError(cause.message); }
@@ -352,6 +366,16 @@ function OfflineWorkspace() {
       await saveOfflineFindingDraft({ ...target, title: findingTitle, description: findingDescription });
       setDrafts(getOfflineDrafts());
       setFindingTitle(""); setFindingDescription(""); setFindingTargetIndex("");
+    } catch (cause) { setError(cause.message); }
+    finally { setBusy(false); }
+  };
+
+  const stageRecordDescription = async (event) => {
+    event.preventDefault(); setBusy(true); setError("");
+    try {
+      await saveOfflineRecordDescription({ recordType, recordId,
+        description: recordDescription, reason: recordReason });
+      setDrafts(getOfflineDrafts()); setRecordId(""); setRecordDescription(""); setRecordReason("");
     } catch (cause) { setError(cause.message); }
     finally { setBusy(false); }
   };
@@ -499,6 +523,21 @@ function OfflineWorkspace() {
                   {draftType !== "GENERAL_NOTE" && draftableActions.length === 0 && <p role="status">Actualiza primero la sección Planes de acción con conexión.</p>}
                   <button type="submit" className="primary-action" disabled={busy || (draftType !== "GENERAL_NOTE" && !draftableActions.length)}>Guardar borrador local</button>
                 </form>
+                {["SUPER_ADMIN", "GERENTE"].includes(user.role) && <form className="offline-vault-form offline-record-form" onSubmit={stageRecordDescription}>
+                  <h4>Preparar descripción de riesgo o control</h4>
+                  <p>Guarda una descripción revisada como borrador cifrado. Al enviarla, VERA comprobará el permiso, el valor original y la versión del registro. Las evaluaciones y decisiones siguen en línea.</p>
+                  <label>Tipo de registro<select value={recordType} onChange={(event) => { setRecordType(event.target.value); setRecordId(""); }}>
+                    <option value="RISK">Riesgo</option><option value="CONTROL">Control</option>
+                  </select></label>
+                  <label>Registro guardado<select value={recordId} onChange={(event) => setRecordId(event.target.value)} required>
+                    <option value="">Selecciona un registro</option>
+                    {editableRecords.map((record) => <option key={record.id} value={record.id}>{record.title}</option>)}
+                  </select></label>
+                  <label>Descripción revisada<textarea value={recordDescription} onChange={(event) => setRecordDescription(event.target.value)} minLength={10} maxLength={recordType === "RISK" ? 2000 : 1000} required /></label>
+                  <label>Motivo del cambio<textarea value={recordReason} onChange={(event) => setRecordReason(event.target.value)} minLength={10} maxLength={300} required /></label>
+                  {!editableRecords.length && <p role="status">Actualiza la sección {recordType === "RISK" ? "Riesgos" : "Controles"} con conexión. Solo aparecerán registros versionados en una copia vigente.</p>}
+                  <button type="submit" className="primary-action" disabled={busy || !editableRecords.length}>Guardar descripción local</button>
+                </form>}
                 {["SUPER_ADMIN", "GERENTE", "AUDITOR"].includes(user.role) && <form className="offline-vault-form" onSubmit={stageFinding}>
                   <h4>Preparar hallazgo</h4>
                   <p>Elige un control con efectividad insuficiente y un riesgo vinculado de las copias vigentes. El registro se intentará solo cuando lo confirmes con conexión; el servidor volverá a validar la relación y tus permisos.</p>
@@ -529,12 +568,14 @@ function OfflineWorkspace() {
                   <button type="submit" className="primary-action" disabled={busy || !evidenceTargets.length}>Guardar archivo local</button>
                 </form>}
                 {drafts.length > 0 && <ul className="offline-draft-list">{drafts.map((draft) => <li key={draft.id}>
-                  <div><strong>{draft.title}</strong><small>{{ GENERAL_NOTE: "Nota", ACTION_PROGRESS: "Avance", ACTION_COMMENT: "Comentario", EVIDENCE_UPLOAD: "Archivo de evidencia", FINDING_CREATE: "Hallazgo" }[draft.type] || draft.type} · {new Date(draft.createdAt).toLocaleString("es-MX")} · {{ DRAFT: "Pendiente de usar", SYNCED: "Enviado al servidor", CONFLICT: "Conflicto de versión", NEEDS_REVIEW: "Confirmación pendiente" }[draft.state] || draft.state}</small>
+                  <div><strong>{draft.title}</strong><small>{{ GENERAL_NOTE: "Nota", ACTION_PROGRESS: "Avance", ACTION_COMMENT: "Comentario", EVIDENCE_UPLOAD: "Archivo de evidencia", FINDING_CREATE: "Hallazgo", RECORD_DESCRIPTION: "Descripción de registro" }[draft.type] || draft.type} · {new Date(draft.createdAt).toLocaleString("es-MX")} · {{ DRAFT: "Pendiente de usar", SYNCED: "Enviado al servidor", CONFLICT: "Conflicto de versión", NEEDS_REVIEW: "Confirmación pendiente" }[draft.state] || draft.state}</small>
                     {draft.note && <p>{draft.note}</p>}{draft.type === "ACTION_PROGRESS" && <small>Avance propuesto: {draft.progressPercent}%</small>}
                     {draft.type === "FINDING_CREATE" && <><p>{draft.description}</p><small>{draft.controlTitle} · {draft.riskTitle}</small></>}
+                    {draft.type === "RECORD_DESCRIPTION" && <><p>{draft.description}</p><small>{draft.recordType === "RISK" ? "Riesgo" : "Control"} {draft.recordId} · versión de origen {draft.expected.storageVersion} · Motivo: {draft.reason}</small></>}
                     {draft.type === "EVIDENCE_UPLOAD" && <small>{draft.fileName} · {Math.ceil(draft.fileBytes / 1024)} KiB · {draft.entityType} {draft.entityId}</small>}</div>
                   <div className="offline-draft-actions">
-                    {draft.type !== "GENERAL_NOTE" && draft.state === "DRAFT" && <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>{{ EVIDENCE_UPLOAD: "Cargar evidencia", FINDING_CREATE: "Registrar hallazgo" }[draft.type] || "Enviar al servidor"}</button>}
+                    {draft.type !== "GENERAL_NOTE" && draft.state === "DRAFT" && <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>{{ EVIDENCE_UPLOAD: "Cargar evidencia", FINDING_CREATE: "Registrar hallazgo", RECORD_DESCRIPTION: "Enviar descripción" }[draft.type] || "Enviar al servidor"}</button>}
+                    {draft.type === "RECORD_DESCRIPTION" && draft.state === "NEEDS_REVIEW" && <p>La respuesta del envío se perdió. Revisa el registro actual; VERA no repetirá esta edición automáticamente.</p>}
                     {draft.type === "FINDING_CREATE" && draft.state === "NEEDS_REVIEW" && <>
                       <p>La respuesta anterior se perdió. Al continuar, VERA comprobará la misma operación; si no se había guardado, intentará registrarla ahora.</p>
                       <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>Comprobar o reintentar hallazgo</button>
@@ -562,7 +603,15 @@ function OfflineWorkspace() {
                         <p>Revisa el plan actual antes de crear un borrador nuevo. VERA no combina ni sobrescribe cambios automáticamente.</p>
                       </div>}
                     </>}
-                    {draft.type !== "GENERAL_NOTE" && ["CONFLICT", "NEEDS_REVIEW"].includes(draft.state) && <Link to={{ EVIDENCE_UPLOAD: "/evidencias", FINDING_CREATE: "/controles" }[draft.type] || "/notificaciones"}>Revisar {{ EVIDENCE_UPLOAD: "evidencias", FINDING_CREATE: "hallazgos" }[draft.type] || "plan"}</Link>}
+                    {draft.type === "RECORD_DESCRIPTION" && draft.state === "CONFLICT" && <>
+                      <button type="button" className="secondary-action" disabled={busy || !online} onClick={() => compareConflict(draft.id)}>Comparar descripción actual</button>
+                      {conflictDetails[draft.id] && <div className="offline-conflict-compare"><strong>Comparación para decidir</strong>
+                        <div className="offline-conflict-grid"><section><h4>Tu borrador local</h4><p>{draft.description}</p><small>Versión original: {draft.expected.storageVersion}</small></section>
+                          <section><h4>Registro actual en VERA</h4><p>{conflictDetails[draft.id].description}</p><small>Versión actual: {conflictDetails[draft.id].storageVersion}</small></section></div>
+                        <p>Revisa la diferencia y prepara un nuevo borrador si aún corresponde. VERA no sobrescribe cambios concurrentes.</p>
+                      </div>}
+                    </>}
+                    {draft.type !== "GENERAL_NOTE" && ["CONFLICT", "NEEDS_REVIEW"].includes(draft.state) && <Link to={{ EVIDENCE_UPLOAD: "/evidencias", FINDING_CREATE: "/controles", RECORD_DESCRIPTION: draft.recordType === "RISK" ? "/riesgos" : "/controles" }[draft.type] || "/notificaciones"}>Revisar {{ EVIDENCE_UPLOAD: "evidencias", FINDING_CREATE: "hallazgos", RECORD_DESCRIPTION: "registro" }[draft.type] || "plan"}</Link>}
                     <button type="button" className="secondary-action" disabled={busy} onClick={() => removeDraft(draft.id)}>{deleteDraftId === draft.id ? "Confirmar borrado" : "Borrar borrador"}</button>
                   </div>
                 </li>)}</ul>}
