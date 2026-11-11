@@ -25,3 +25,17 @@ La lectura envía el texto de esa respuesta a Azure Speech tras una acción expl
 ## Lectura automática opcional
 
 En la cabecera del chat, el control «Activar lectura automática» permite escuchar cada **respuesta nueva** después de enviarse una pregunta. Empieza apagado en cada visita y no reproduce el historial al abrirlo. Al activarlo, cada respuesta breve se envía a Azure Speech para síntesis; al desactivarlo, se detiene el audio en curso. La persona sigue revisando la transcripción y enviando su pregunta por separado. No es una llamada continua ni una sesión de voz en tiempo real. Las acciones que modifican datos siguen exigiendo la confirmación vigente del asistente.
+
+## Criterios de aceptación de voz
+
+| Caso | Automatizado | Validación con dispositivo real |
+| --- | --- | --- |
+| La voz solo aparece si el backend está configurado y la cuenta tiene sesión | Contrato de API y E2E de interfaz | Confirmar en Production |
+| Detener o pulsar Escape no envía una pregunta | E2E escritorio y móvil | Confirmar micrófono apagado |
+| La transcripción puede editarse antes de enviar | Unidad de transcripción y flujo de compositor | Dictar y corregir una frase |
+| «Escuchar» no envía texto a Azure hasta pulsarlo | E2E escritorio y móvil | Escuchar una respuesta corta |
+| La lectura automática empieza apagada y solo afecta respuestas nuevas | E2E escritorio y móvil | Comprobar que el historial permanece en silencio |
+| Los controles tienen nombre, estado y foco accesibles | E2E con axe y sin desbordamiento móvil | Teclado, lector de pantalla y volumen |
+| Cuota agotada o permiso denegado no bloquean el chat escrito | Unidad de error del servicio y E2E de fallo de síntesis | Simular límite F0 y denegar micrófono |
+
+Los casos de dispositivo real se registrarán como aprobados solo después de ejecutarlos. Ninguna prueba sintética equivale a validar captura o reproducción física en Production.

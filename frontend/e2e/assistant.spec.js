@@ -194,6 +194,45 @@ test("Voz: la lectura de cada respuesta nueva es optativa y empieza apagada", as
   await expect.poll(() => speechRequests).toBe(1);
 });
 
+test("Voz: Escape detiene el dictado desde el teclado", async ({ page }) => {
+  await useSession(page, "AUDITOR", 5);
+  await page.route("**/api/assistant/status", (route) => route.fulfill({ json: {
+    available: true, mode: "read-only", conversations: false, speech: true
+  } }));
+  let releaseToken;
+  const gate = new Promise((resolve) => { releaseToken = resolve; });
+  await page.route("**/api/assistant/speech/token", async (route) => {
+    await gate;
+    return route.fulfill({ json: { token: "temporary-test-token", region: "eastus2" } });
+  });
+  await page.goto("/asistente");
+  const requested = page.waitForRequest("**/api/assistant/speech/token");
+  const microphone = page.getByRole("button", { name: "Dictar pregunta" });
+  await microphone.focus();
+  await microphone.press("Enter");
+  await requested;
+  const stop = page.getByRole("button", { name: "Detener dictado" });
+  await expect(stop).toHaveAttribute("aria-pressed", "true");
+  await stop.press("Escape");
+  releaseToken();
+  await expect(page.getByLabel("Tu pregunta")).toHaveValue("");
+  await expect(page.getByText("Dictado detenido. Revisa el texto antes de enviarlo.")).toBeVisible();
+});
+
+test("Voz: controles accesibles sin desbordamiento en móvil", async ({ page }) => {
+  await useSession(page, "AUDITOR", 5);
+  await page.route("**/api/assistant/status", (route) => route.fulfill({ json: {
+    available: true, mode: "read-only", conversations: false, speech: true
+  } }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/asistente");
+  await expect(page.getByRole("button", { name: "Dictar pregunta" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Activar lectura automática" })).toHaveAttribute("aria-pressed", "false");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+  const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(results.violations.map(({ id, impact, nodes }) => ({ id, impact, targets: nodes.map(({ target }) => target) }))).toEqual([]);
+});
+
 test("Espacio de IA: explora expedientes y continúa sin salir del chat", async ({ page }) => {
   await useSession(page, "AUDITOR", 5);
   await page.route("**/api/assistant/status", (route) => route.fulfill({ json: {

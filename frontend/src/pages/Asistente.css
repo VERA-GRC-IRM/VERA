@@ -203,7 +203,7 @@
 .assistant-answer-details summary { width: fit-content; cursor: pointer; }
 .assistant-answer-details .assistant-answer-note { margin-top: 5px; }
 .assistant-response-actions { display: flex; align-items: center; gap: 9px; margin-top: 12px; color: var(--vera-text-muted); font-size: 11px; }
-.assistant-response-actions button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 7px 12px; border: 1px solid var(--vera-border); border-radius: 8px; background: var(--vera-surface); color: var(--vera-text); cursor: pointer; font: inherit; font-size: 11px; }
+.assistant-response-actions button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 7px 12px; border: 1px solid var(--vera-border); border-radius: 8px; background: var(--vera-surface); color: var(--vera-text); cursor: pointer; font: inherit; font-size: 12px; }
 .assistant-response-actions button:hover { background: var(--vera-surface-tint); }
 .assistant-response-actions button:focus-visible,.assistant-answer-details summary:focus-visible,.assistant-welcome-help summary:focus-visible { outline: 2px solid var(--vera-focus); outline-offset: 2px; }
 .assistant-citations { border: 1px solid var(--vera-border); border-left: 3px solid var(--vera-accent); border-radius: 9px; background: var(--vera-surface-soft); line-height: 1.5; }
@@ -235,7 +235,7 @@
 .assistant-form .assistant-compose-add:hover:not(:disabled) { background: var(--vera-surface-tint); }
 .assistant-form .assistant-compose-mic { width: 44px; height: 44px; border: 1px solid transparent; background: transparent; color: var(--vera-text-muted); }
 .assistant-form .assistant-compose-mic:hover:not(:disabled),.assistant-form .assistant-compose-mic.is-listening { border-color: var(--vera-accent); background: var(--vera-accent-soft); color: var(--vera-accent); }
-.assistant-form .assistant-voice-status { margin-top: 6px; color: var(--vera-text-muted); font-size: 11px; }
+.assistant-form .assistant-voice-status { margin-top: 6px; color: var(--vera-text-muted); font-size: 12px; }
 .assistant-context-menu { display: grid; gap: 6px; width: min(310px, 100%); margin-bottom: 8px; padding: 9px; border: 1px solid var(--vera-border); border-radius: 12px; background: var(--vera-surface); box-shadow: var(--vera-shadow); }
 .assistant-form .assistant-context-menu button { display: block; width: 100%; height: auto; min-height: 40px; margin: 0; padding: 9px 11px; border: 0; background: transparent; color: var(--vera-text); font: inherit; font-size: 12px; text-align: left; }
 .assistant-context-menu button:hover { background: var(--vera-surface-tint); }
