@@ -98,7 +98,7 @@ router.get("/status", (req, res) => {
   }
 });
 
-router.get("/speech/token", rateLimit({ windowMs: 15 * 60 * 1000, limit: 6,
+router.get("/speech/token", rateLimit({ windowMs: 15 * 60 * 1000, limit: 24,
   keyGenerator: (req) => String(req.user.id), standardHeaders: "draft-8", legacyHeaders: false }),
 async (req, res) => {
   try { res.json(await issueSpeechToken()); }

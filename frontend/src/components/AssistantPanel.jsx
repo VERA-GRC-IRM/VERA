@@ -1,8 +1,9 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, Copy, FileText, Mic, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Plus, RotateCcw, Send, Square, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
+import { ArrowRight, Copy, FileText, Mic, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Plus, RotateCcw, Send, Square, ThumbsDown, ThumbsUp, Trash2, Volume2 } from "lucide-react";
 import { askAssistant, askAssistantConversation, createAssistantConversation, createAssistantProject, deleteAssistantAttachment, deleteAssistantConversation, deleteAssistantProject, deleteAssistantProjectFile, getAssistantAttachmentDownload, getAssistantBrief, getAssistantConversation, getAssistantInsights, getAssistantProjectFileDownload, getAssistantSpeechToken, getAssistantStatus, getAuditDossier, getProposalDraft, indexAssistantProjectFile, listAssistantAttachments, listAssistantConversations, listAssistantProjectFiles, listAssistantProjects, moveAssistantConversation, ocrAssistantAttachment, ocrAssistantProjectFile, renameAssistantConversation, searchAssistantEvidence, submitAssistantFeedback, updateAssistantProject, uploadAssistantAttachment, uploadAssistantProjectFile } from "../services/assistantService";
 import { createSpeechRecognition } from "../services/assistantSpeechClient";
+import { synthesizeAssistantSpeech } from "../services/assistantSpeechPlayback";
 import { AssistantConversationContext } from "../contexts/AssistantConversationContext";
 import AssistantMemoryPanel from "./AssistantMemoryPanel";
 import { downloadPortfolioReport } from "../services/planningService";
@@ -48,6 +49,8 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
   const [speechAvailable, setSpeechAvailable] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState("");
+  const [readingId, setReadingId] = useState(null);
+  const [readingStatus, setReadingStatus] = useState("");
   const [withEvidence, setWithEvidence] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -97,12 +100,21 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
   const questionRef = useRef(null);
   const speechSessionRef = useRef(null);
   const voiceRunRef = useRef(0);
+  const readingRunRef = useRef(0);
+  const speechOutputRef = useRef(null);
+  const audioPlaybackRef = useRef(null);
   const threadMenuRef = useRef(null);
   const threadMenuButtonRef = useRef(null);
   const contextMenuRef = useRef(null);
   const contextMenuButtonRef = useRef(null);
 
   useEffect(() => () => { voiceRunRef.current += 1; speechSessionRef.current?.cancel(); }, []);
+  useEffect(() => () => {
+    readingRunRef.current += 1;
+    speechOutputRef.current?.cancel();
+    audioPlaybackRef.current?.audio.pause();
+    if (audioPlaybackRef.current?.url) URL.revokeObjectURL(audioPlaybackRef.current.url);
+  }, []);
 
   useEffect(() => {
     if (!threadMenuOpen) return undefined;
@@ -523,9 +535,53 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
     setVoiceStatus("Dictado detenido. Revisa el texto antes de enviarlo.");
   };
 
+  const stopReading = (announce = true) => {
+    readingRunRef.current += 1;
+    speechOutputRef.current?.cancel();
+    speechOutputRef.current = null;
+    audioPlaybackRef.current?.audio.pause();
+    if (audioPlaybackRef.current?.url) URL.revokeObjectURL(audioPlaybackRef.current.url);
+    audioPlaybackRef.current = null;
+    setReadingId(null);
+    if (announce) setReadingStatus("Lectura detenida.");
+  };
+
+  const readAnswer = async (message) => {
+    if (readingId === message.id) { stopReading(); return; }
+    if (!speechAvailable || voiceBusy || !message.text?.trim()) return;
+    stopReading(false);
+    const run = ++readingRunRef.current;
+    setReadingId(message.id);
+    setReadingStatus("Preparando audio...");
+    try {
+      const temporarySession = await getAssistantSpeechToken();
+      if (run !== readingRunRef.current) return;
+      const session = await synthesizeAssistantSpeech({ ...temporarySession, text: message.text });
+      if (run !== readingRunRef.current) { session.cancel(); return; }
+      speechOutputRef.current = session;
+      const bytes = await session.result;
+      if (run !== readingRunRef.current || !bytes) return;
+      speechOutputRef.current = null;
+      const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+      const audio = new Audio(url);
+      audioPlaybackRef.current = { audio, url };
+      audio.onended = () => { if (run === readingRunRef.current) { stopReading(false); setReadingStatus("Lectura finalizada."); } };
+      audio.onerror = () => { if (run === readingRunRef.current) { stopReading(false); setReadingStatus("No se pudo reproducir el audio."); } };
+      await audio.play();
+      if (run === readingRunRef.current) setReadingStatus("Reproduciendo respuesta.");
+    } catch (cause) {
+      if (run === readingRunRef.current) {
+        stopReading(false);
+        setReadingStatus(/^(El servicio de voz|La respuesta)/.test(cause?.message || "")
+          ? cause.message : "No se pudo leer la respuesta. Intenta de nuevo.");
+      }
+    }
+  };
+
   const startDictation = async () => {
     if (voiceBusy) { stopDictation(); return; }
     if (!speechAvailable || !available || busy || historyBusy || historyStale) return;
+    if (readingId) stopReading(false);
     const run = ++voiceRunRef.current;
     setVoiceBusy(true); setVoiceStatus("Preparando micrófono..."); setContextMenuOpen(false);
     try {
@@ -714,6 +770,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
         {message.citations?.length === 0 && !["computed", "browse", "report", "report-export", "action-preview", "action-executed", "action-reserved", "action-guidance"].includes(message.mode) && <small className="assistant-answer-note">Sin registros citados en esta respuesta.</small>}
         {message.references?.length > 0 && <details><summary>Registros relacionados ({message.references.length})</summary><ul>{message.references.map((item) => <li key={item.sourceId || `${item.type}:${item.id}`}><Link to={item.path}>{item.type}: {item.title} <ArrowRight size={13} aria-hidden="true" /></Link></li>)}</ul></details>}
         <div className="assistant-response-actions"><button type="button" onClick={() => copyAnswer(message)} aria-label="Copiar respuesta"><Copy size={15} aria-hidden="true" /> Copiar</button>
+          {speechAvailable && <button type="button" onClick={() => readAnswer(message)} disabled={voiceBusy || (message.text?.length || 0) > 1800} aria-label={readingId === message.id ? "Detener lectura" : "Escuchar respuesta"} aria-pressed={readingId === message.id}><Volume2 size={15} aria-hidden="true" /> {readingId === message.id ? "Detener" : "Escuchar"}</button>}
           {copyStatus?.id === message.id && <span role="status">{copyStatus.text}</span>}</div>
         {message.feedbackToken && !message.feedbackRating && <div className="assistant-feedback" aria-label="Valora esta respuesta"><span>¿Te sirvió?</span><button type="button" onClick={() => rateResponse(message, "helpful")} disabled={Boolean(feedbackBusyId)} aria-label="Me sirvió esta respuesta"><ThumbsUp size={14} aria-hidden="true" /> Sí</button><button type="button" onClick={() => rateResponse(message, "unhelpful")} disabled={Boolean(feedbackBusyId)} aria-label="No me sirvió esta respuesta"><ThumbsDown size={14} aria-hidden="true" /> No</button></div>}
         {message.feedbackRating && <small className="assistant-answer-note" role="status">Tu valoración se registró sin guardar el texto de la respuesta.</small>}
@@ -782,6 +839,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
         </div>
         <small>{question.length > 0 ? `${question.length}/${withEvidence ? 500 : 800} caracteres · ` : ""}Enter para enviar · Shift + Enter para nueva línea · Verifica las fuentes.</small>
         {voiceStatus && <small className="assistant-voice-status" role="status">{voiceStatus}</small>}
+        {readingStatus && <small className="assistant-voice-status" role="status">{readingStatus}</small>}
       </form>
       </div>
     </div>

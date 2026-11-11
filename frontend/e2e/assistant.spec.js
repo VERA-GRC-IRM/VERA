@@ -146,6 +146,29 @@ test("Voz: detener el dictado antes de recibir sesión no envía una pregunta", 
   expect(sent).toBe(0);
 });
 
+test("Voz: escuchar una respuesta requiere una acción explícita", async ({ page }) => {
+  await useSession(page, "AUDITOR", 5);
+  await page.route("**/api/assistant/status", (route) => route.fulfill({ json: {
+    available: true, mode: "read-only", conversations: false, speech: true
+  } }));
+  let speechRequests = 0;
+  await page.route("**/api/assistant/speech/token", (route) => {
+    speechRequests += 1;
+    return route.fulfill({ status: 503, json: { message: "El servicio de voz no está disponible. Intenta más tarde." } });
+  });
+  await page.route("**/api/assistant/ask", (route) => route.fulfill({ json: {
+    answer: "Respuesta autorizada.", mode: "generated", citations: []
+  } }));
+  await page.goto("/asistente");
+  await page.getByLabel("Tu pregunta").fill("Resume mis riesgos");
+  await page.getByRole("button", { name: "Enviar pregunta" }).click();
+  await expect(page.getByRole("button", { name: "Escuchar respuesta" })).toBeVisible();
+  expect(speechRequests).toBe(0);
+  await page.getByRole("button", { name: "Escuchar respuesta" }).click();
+  await expect(page.getByText("El servicio de voz no está disponible. Intenta más tarde.")).toBeVisible();
+  expect(speechRequests).toBe(1);
+});
+
 test("Espacio de IA: explora expedientes y continúa sin salir del chat", async ({ page }) => {
   await useSession(page, "AUDITOR", 5);
   await page.route("**/api/assistant/status", (route) => route.fulfill({ json: {
