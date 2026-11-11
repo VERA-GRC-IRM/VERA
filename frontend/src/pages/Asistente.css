@@ -183,6 +183,9 @@
 .assistant-welcome > svg { color: var(--vera-accent); }
 .assistant-welcome h2 { margin: 16px 0 8px; color: var(--vera-text-strong); font-size: clamp(23px, 2.4vw, 30px); font-weight: 700; }
 .assistant-welcome p { color: var(--vera-text-muted); line-height: 1.55; }
+.assistant-welcome-help { max-width: 540px; margin: 10px auto 0; color: var(--vera-text-muted); font-size: 12px; text-align: left; }
+.assistant-welcome-help summary { width: fit-content; margin: 0 auto; color: var(--vera-accent); cursor: pointer; }
+.assistant-welcome-help p { margin: 10px 0 0; padding: 10px 14px; border: 1px solid var(--vera-border); border-radius: 9px; background: var(--vera-surface-soft); font-size: 12px; }
 .assistant-suggestions { gap: 10px; margin-top: 28px; }
 .assistant-suggestions button { min-height: 58px; padding: 14px 16px; border-color: var(--vera-border); border-radius: 12px; background: var(--vera-surface-soft); color: var(--vera-text); font-size: 13px; line-height: 1.4; }
 .assistant-suggestions button:hover { border-color: var(--vera-accent); background: var(--vera-surface-tint); }
@@ -193,6 +196,13 @@
 .assistant-message strong { color: var(--vera-text-strong); font-size: 12px; }
 .assistant-message p { line-height: 1.65; }
 .assistant-message.assistant + .assistant-message.assistant { border-top: 1px solid var(--vera-border-soft); }
+.assistant-answer-details { margin-top: 8px; color: var(--vera-text-muted); font-size: 11px; }
+.assistant-answer-details summary { width: fit-content; cursor: pointer; }
+.assistant-answer-details .assistant-answer-note { margin-top: 5px; }
+.assistant-response-actions { display: flex; align-items: center; gap: 9px; margin-top: 12px; color: var(--vera-text-muted); font-size: 11px; }
+.assistant-response-actions button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 5px 9px; border: 1px solid var(--vera-border); border-radius: 8px; background: var(--vera-surface); color: var(--vera-text); cursor: pointer; font: inherit; font-size: 11px; }
+.assistant-response-actions button:hover { background: var(--vera-surface-tint); }
+.assistant-response-actions button:focus-visible,.assistant-answer-details summary:focus-visible,.assistant-welcome-help summary:focus-visible { outline: 2px solid var(--vera-focus); outline-offset: 2px; }
 .assistant-citations { border: 1px solid var(--vera-border); border-left: 3px solid var(--vera-accent); border-radius: 9px; background: var(--vera-surface-soft); line-height: 1.5; }
 .assistant-compose-dock { flex: 0 0 auto; max-height: 45%; padding: 12px clamp(18px, 5vw, 70px) 16px; border-top: 1px solid var(--vera-border-soft); background: var(--vera-surface); overflow-y: auto; }
 .assistant-compose-dock > :is(.assistant-attachments,.assistant-form) { max-width: 790px; margin-left: auto; margin-right: auto; }

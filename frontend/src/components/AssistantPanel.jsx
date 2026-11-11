@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, FileText, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Plus, RotateCcw, Send, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
+import { ArrowRight, Copy, FileText, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Plus, RotateCcw, Send, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import { askAssistant, askAssistantConversation, createAssistantConversation, createAssistantProject, deleteAssistantAttachment, deleteAssistantConversation, deleteAssistantProject, deleteAssistantProjectFile, getAssistantAttachmentDownload, getAssistantBrief, getAssistantConversation, getAssistantInsights, getAssistantProjectFileDownload, getAssistantStatus, getAuditDossier, getProposalDraft, indexAssistantProjectFile, listAssistantAttachments, listAssistantConversations, listAssistantProjectFiles, listAssistantProjects, moveAssistantConversation, ocrAssistantAttachment, ocrAssistantProjectFile, renameAssistantConversation, searchAssistantEvidence, submitAssistantFeedback, updateAssistantProject, uploadAssistantAttachment, uploadAssistantProjectFile } from "../services/assistantService";
 import { AssistantConversationContext } from "../contexts/AssistantConversationContext";
 import AssistantMemoryPanel from "./AssistantMemoryPanel";
@@ -54,6 +54,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
   const [draftBusy, setDraftBusy] = useState(false);
   const [draftError, setDraftError] = useState("");
   const [feedbackBusyId, setFeedbackBusyId] = useState(null);
+  const [copyStatus, setCopyStatus] = useState(null);
   const [persistent, setPersistent] = useState(false);
   const [threadList, setThreadList] = useState([]);
   const [thread, setThread] = useState(null);
@@ -494,6 +495,16 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
     finally { setFeedbackBusyId(null); }
   };
 
+  const copyAnswer = async (message) => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("clipboard-unavailable");
+      await navigator.clipboard.writeText(message.text);
+      setCopyStatus({ id: message.id, text: "Respuesta copiada" });
+    } catch {
+      setCopyStatus({ id: message.id, text: "No se pudo copiar. Selecciona el texto para copiarlo." });
+    }
+  };
+
   const prompts = focus
     ? [`Resume este ${focus.type === "audit" ? "expediente de auditoría" : focus.type === "risk" ? "riesgo" : "registro"} y sus relaciones.`,
       ...(focus.type === "risk" ? ["¿Cuál es el nivel y el puntaje de este riesgo?"] : []),
@@ -623,8 +634,9 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
       ? "El asistente requiere activar los almacenes persistentes de cuentas, auditorías y riesgos en este entorno."
       : "El asistente todavía no está habilitado en este entorno. Un administrador debe configurar Azure OpenAI."}</p>}
     {available && messages.length === 0 && <div className="assistant-welcome"><img className="assistant-welcome-mark" src="/vera-logo.svg" alt="" />
-      <h2>{focus ? "Analiza este expediente" : "¿Qué quieres consultar?"}</h2>
-      <p>Respondo con datos visibles para tu cuenta. Comprueba las fuentes antes de tomar una decisión.{persistent && user?.role !== "DIRECTOR" ? " También puedes pedirme cambiar el estado de un compromiso por su título y motivo; te pediré confirmación antes de registrarlo." : ""}{persistent && ["SUPER_ADMIN", "GERENTE"].includes(user?.role) ? " Si diriges la planeación, puedes reasignar un compromiso desde aquí." : ""} Escribe «¿Qué puedes hacer aquí?» para ver todas las opciones disponibles para tu rol.</p>
+      <h2>{focus ? "Analiza este expediente" : "¿En qué te ayudo hoy?"}</h2>
+      <p>Pregunta sobre tus auditorías, riesgos y pendientes. Abre las fuentes antes de tomar una decisión.</p>
+      <details className="assistant-welcome-help"><summary>Cómo trabaja VERA</summary><p>Solo consulta datos visibles para tu cuenta. {persistent && user?.role !== "DIRECTOR" ? "Puedes solicitar cambios en registros; siempre verás una vista previa y deberás confirmarlos." : ""} {persistent && ["SUPER_ADMIN", "GERENTE"].includes(user?.role) ? "También puedes reasignar compromisos según tus permisos." : ""} Escribe «¿Qué puedes hacer aquí?» para ver las opciones disponibles para tu rol.</p></details>
       <div className="assistant-suggestions">{prompts.map((item) => <button key={item} type="button" onClick={() => setQuestion(item)}>{item}</button>)}</div>
       {!focus && brief.length > 0 && <section className="assistant-brief" aria-label="Prioridades actuales"><h3>Señales del portafolio</h3><p>Conteos calculados con registros visibles, sin generación de IA.</p><div>{brief.map((item) => <Link key={item.key} to={item.path}><strong>{item.count}</strong><span>{item.label}</span><ArrowRight size={14} aria-hidden="true" /></Link>)}</div>{pendingAlertsUnavailable && <small role="status">Los compromisos no están disponibles; se omite su conteo hasta poder consultarlos.</small>}</section>}
     </div>}
@@ -632,8 +644,11 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
     <div className="assistant-messages" aria-live="polite">{messages.map((message) => <article key={message.id} className={`assistant-message ${message.role}`}>
       <strong>{message.role === "user" ? "Tú" : "Asistente VERA"}</strong><p>{message.text}</p>
       {message.role === "user" && message.attachmentName && <small className="assistant-answer-note">Archivo consultado: {message.attachmentName}</small>}
-      {message.role === "assistant" && <><small className="assistant-answer-note">{message.mode === "action-preview" ? "Vista previa · no se ha modificado ningún registro" : message.mode === "action-executed" ? "Cambio registrado con las reglas de VERA" : message.mode === "action-reserved" ? "Confirmación reservada · verifica el resultado antes de continuar" : message.mode === "action-guidance" ? "Guía de operación · sin cambios" : message.mode === "report-export" ? "Reporte completo · descarga CSV solicitada" : message.mode === "report" ? "Reporte calculado con datos visibles para tu cuenta" : message.mode === "browse" ? "Registros actuales de tu alcance · sin generación de IA" : message.mode === "computed" ? "Dato calculado desde registros autorizados" : message.mode?.startsWith("attachment-") ? "Respuesta sobre un archivo privado · comprueba el original" : message.mode === "document-search" ? "Respuesta con fragmentos de evidencias · comprueba el archivo" : ["no-match", "uncited", "no-text", "scope-limited"].includes(message.mode) ? "Sin respuesta documental respaldada" : "Respuesta generada · comprueba el expediente"}{Number.isFinite(message.durationMs) ? ` · ${(message.durationMs / 1000).toFixed(1)} s` : ""}</small>
-        {message.asOf && <time className="assistant-answer-note" dateTime={message.asOf}>Datos consultados: {new Date(message.asOf).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}</time>}
+      {message.role === "assistant" && <><small className="assistant-answer-note">{message.mode === "action-preview" ? "Vista previa · no se ha modificado ningún registro" : message.mode === "action-executed" ? "Cambio registrado con las reglas de VERA" : message.mode === "action-reserved" ? "Confirmación reservada · verifica el resultado antes de continuar" : message.mode === "action-guidance" ? "Guía de operación · sin cambios" : message.mode === "report-export" ? "Reporte completo · descarga CSV solicitada" : message.mode === "report" ? "Reporte calculado con datos visibles para tu cuenta" : message.mode === "browse" ? "Registros actuales de tu alcance · sin generación de IA" : message.mode === "computed" ? "Dato calculado desde registros autorizados" : message.mode?.startsWith("attachment-") ? "Respuesta sobre un archivo privado · comprueba el original" : message.mode === "document-search" ? "Respuesta con fragmentos de evidencias · comprueba el archivo" : ["no-match", "uncited", "no-text", "scope-limited"].includes(message.mode) ? "Sin respuesta documental respaldada" : "Respuesta generada · comprueba el expediente"}</small>
+        {(message.asOf || Number.isFinite(message.durationMs)) && <details className="assistant-answer-details"><summary>Detalles de la respuesta</summary>
+          {message.asOf && <time className="assistant-answer-note" dateTime={message.asOf}>Datos consultados: {new Date(message.asOf).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}</time>}
+          {Number.isFinite(message.durationMs) && <small className="assistant-answer-note">Tiempo de respuesta: {(message.durationMs / 1000).toFixed(1)} s</small>}
+        </details>}
         {message.coverage?.indexedOnly && <small className="assistant-answer-note">Se buscaron fragmentos ya indexados en {message.coverage.searchedFiles} de {message.coverage.visibleFiles} archivos visibles. Los archivos antiguos pueden requerir una consulta individual para indexarse.</small>}
         {message.mode === "attachment-project" && message.coverage?.retrieval === "lexical+semantic" &&
           <small className="assistant-answer-note">Se combinaron coincidencias de texto y búsqueda por significado en {message.coverage.semanticIndexedFiles} archivo(s) preparado(s) de esta biblioteca.</small>}
@@ -649,6 +664,8 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
           : <Link to={item.path}>{item.type}: {item.title} <ArrowRight size={13} aria-hidden="true" /></Link>}{item.facts?.length > 0 && <span className="assistant-source-facts">{item.facts.map((fact) => `${fact.label}: ${fact.value}`).join(" · ")}</span>}{item.excerpt && <span className="assistant-source-facts">{item.pageNumber ? `Página ${item.pageNumber} · ` : ""}{item.excerpt}</span>}</li>)}</ul></div>}
         {message.citations?.length === 0 && !["computed", "browse", "report", "report-export", "action-preview", "action-executed", "action-reserved", "action-guidance"].includes(message.mode) && <small className="assistant-answer-note">Sin registros citados en esta respuesta.</small>}
         {message.references?.length > 0 && <details><summary>Registros relacionados ({message.references.length})</summary><ul>{message.references.map((item) => <li key={item.sourceId || `${item.type}:${item.id}`}><Link to={item.path}>{item.type}: {item.title} <ArrowRight size={13} aria-hidden="true" /></Link></li>)}</ul></details>}
+        <div className="assistant-response-actions"><button type="button" onClick={() => copyAnswer(message)} aria-label="Copiar respuesta"><Copy size={15} aria-hidden="true" /> Copiar</button>
+          {copyStatus?.id === message.id && <span role="status">{copyStatus.text}</span>}</div>
         {message.feedbackToken && !message.feedbackRating && <div className="assistant-feedback" aria-label="Valora esta respuesta"><span>¿Te sirvió?</span><button type="button" onClick={() => rateResponse(message, "helpful")} disabled={Boolean(feedbackBusyId)} aria-label="Me sirvió esta respuesta"><ThumbsUp size={14} aria-hidden="true" /> Sí</button><button type="button" onClick={() => rateResponse(message, "unhelpful")} disabled={Boolean(feedbackBusyId)} aria-label="No me sirvió esta respuesta"><ThumbsDown size={14} aria-hidden="true" /> No</button></div>}
         {message.feedbackRating && <small className="assistant-answer-note" role="status">Tu valoración se registró sin guardar el texto de la respuesta.</small>}
       </>}</article>)}</div>

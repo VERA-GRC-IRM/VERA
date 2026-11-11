@@ -94,6 +94,11 @@ test("Espacio de IA: Enter envía y Shift+Enter conserva una nueva línea", asyn
     sent = route.request().postDataJSON().question;
     return route.fulfill({ json: { answer: "Respuesta de prueba", mode: "generated", citations: [] } });
   });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
+      writeText: async (value) => { window.__copiedAnswer = value; }
+    } });
+  });
   await page.goto("/asistente");
   const input = page.getByLabel("Tu pregunta");
   await expect(page.locator(".assistant-chat")).not.toHaveClass(/assistant-chat--history-open/);
@@ -105,6 +110,9 @@ test("Espacio de IA: Enter envía y Shift+Enter conserva una nueva línea", asyn
   await input.press("Enter");
   await expect(page.getByText("Respuesta de prueba")).toBeVisible();
   expect(sent).toBe("¿Qué auditorías tengo?\nResume mis pendientes");
+  await page.getByRole("button", { name: "Copiar respuesta" }).click();
+  await expect(page.getByRole("status").getByText("Respuesta copiada")).toBeVisible();
+  expect(await page.evaluate(() => window.__copiedAnswer)).toBe("Respuesta de prueba");
 });
 
 test("Espacio de IA: explora expedientes y continúa sin salir del chat", async ({ page }) => {
@@ -1322,6 +1330,7 @@ test("Copiloto: conserva el contexto de expediente y la pregunta anterior en la 
   await page.getByRole("button", { name: "Enviar pregunta" }).click();
   await expect(page.getByText("Registros citados")).toBeVisible();
   await expect(page.getByText("Nivel: Alto · Puntaje: 6")).toBeVisible();
+  await page.getByText("Detalles de la respuesta").click();
   await expect(page.locator("time[datetime='2026-10-16T20:20:00.000Z']")).toBeVisible();
   await page.getByLabel("Tu pregunta").fill("¿Y sus controles?");
   await page.getByRole("button", { name: "Enviar pregunta" }).click();
