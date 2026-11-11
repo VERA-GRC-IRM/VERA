@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, FileText, PanelLeftClose, PanelLeftOpen, Pencil, Plus, RotateCcw, Send, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
+import { ArrowRight, FileText, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Plus, RotateCcw, Send, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import { askAssistant, askAssistantConversation, createAssistantConversation, createAssistantProject, deleteAssistantAttachment, deleteAssistantConversation, deleteAssistantProject, deleteAssistantProjectFile, getAssistantAttachmentDownload, getAssistantBrief, getAssistantConversation, getAssistantInsights, getAssistantProjectFileDownload, getAssistantStatus, getAuditDossier, getProposalDraft, indexAssistantProjectFile, listAssistantAttachments, listAssistantConversations, listAssistantProjectFiles, listAssistantProjects, moveAssistantConversation, ocrAssistantAttachment, ocrAssistantProjectFile, renameAssistantConversation, searchAssistantEvidence, submitAssistantFeedback, updateAssistantProject, uploadAssistantAttachment, uploadAssistantProjectFile } from "../services/assistantService";
 import { AssistantConversationContext } from "../contexts/AssistantConversationContext";
 import AssistantMemoryPanel from "./AssistantMemoryPanel";
@@ -63,6 +63,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [threadMenuOpen, setThreadMenuOpen] = useState(false);
   const [threadQuery, setThreadQuery] = useState("");
   const [exportBusy, setExportBusy] = useState(false);
   const [projectMode, setProjectMode] = useState(false);
@@ -86,6 +87,17 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
   const [confirmDeleteProject, setConfirmDeleteProject] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(() => !compact && window.matchMedia("(min-width: 1080px)").matches);
   const streamRef = useRef(null);
+  const threadMenuRef = useRef(null);
+  const threadMenuButtonRef = useRef(null);
+
+  useEffect(() => {
+    if (!threadMenuOpen) return undefined;
+    const closeOutside = (event) => {
+      if (!threadMenuRef.current?.contains(event.target)) setThreadMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [threadMenuOpen]);
 
   useEffect(() => {
     if (!compact || !initialQuestion || !available || busy || historyBusy || attachmentBusy ||
@@ -542,11 +554,21 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
         {persistent && <button className="assistant-icon-button" type="button" onClick={() => setHistoryOpen((open) => !open)} aria-label={historyOpen ? "Ocultar historial" : "Mostrar historial"} aria-expanded={historyOpen} aria-controls="assistant-history-panel">{historyOpen ? <PanelLeftClose size={19} aria-hidden="true" /> : <PanelLeftOpen size={19} aria-hidden="true" />}</button>}
         <div><span className="assistant-kicker">VERA · ASISTENTE</span><h2>{thread?.title || (focus ? "Consulta de expediente" : "Nueva conversación")}</h2></div>
       </div><div className="assistant-conversation-tools"><span className="assistant-availability">{available === null ? "Conectando" : available ? persistent && user?.role !== "DIRECTOR" ? "Consultas y acciones" : "Solo lectura" : "No disponible"}</span>
-        {thread && <><button type="button" onClick={() => { setDraftTitle(thread.title); setEditingTitle(true); setConfirmDelete(false); }} disabled={historyBusy || busy} aria-label="Renombrar conversación" title="Renombrar conversación"><Pencil size={16} aria-hidden="true" /></button>
-          <button type="button" onClick={exportThread} disabled={historyBusy || busy || exportBusy || historyStale} aria-label="Exportar conversación privada" title="Exportar JSON"><FileText size={16} aria-hidden="true" /></button>
-          <button type="button" onClick={() => { setConfirmDelete(true); setEditingTitle(false); }} disabled={historyBusy || busy} aria-label="Eliminar conversación" title="Eliminar conversación"><Trash2 size={16} aria-hidden="true" /></button></>}
+        {persistent && <button className="assistant-icon-button" type="button" onClick={newThread} disabled={historyBusy || busy} aria-label="Iniciar chat nuevo" title="Iniciar chat nuevo"><Plus size={19} aria-hidden="true" /></button>}
+        {thread && <div className="assistant-thread-menu" ref={threadMenuRef} onKeyDown={(event) => {
+          if (event.key !== "Escape" || !threadMenuOpen) return;
+          event.preventDefault(); event.stopPropagation(); setThreadMenuOpen(false);
+          threadMenuButtonRef.current?.focus();
+        }}>
+          <button ref={threadMenuButtonRef} className="assistant-icon-button" type="button" onClick={() => setThreadMenuOpen((open) => !open)} aria-label="Opciones de conversación" aria-expanded={threadMenuOpen} aria-controls="assistant-thread-menu-content" disabled={historyBusy || busy}><MoreHorizontal size={19} aria-hidden="true" /></button>
+          {threadMenuOpen && <div id="assistant-thread-menu-content" className="assistant-thread-menu-content" role="group" aria-label="Acciones de conversación">
+            <button type="button" onClick={() => { setThreadMenuOpen(false); setDraftTitle(thread.title); setEditingTitle(true); setConfirmDelete(false); }} disabled={historyBusy || busy}><Pencil size={16} aria-hidden="true" /> Renombrar conversación</button>
+            <button type="button" onClick={() => { setThreadMenuOpen(false); exportThread(); }} disabled={historyBusy || busy || exportBusy || historyStale}><FileText size={16} aria-hidden="true" /> Exportar conversación privada</button>
+            <button type="button" onClick={() => { setThreadMenuOpen(false); setConfirmDelete(true); setEditingTitle(false); }} disabled={historyBusy || busy}><Trash2 size={16} aria-hidden="true" /> Eliminar conversación</button>
+            <small>La exportación incluye texto y fuentes privadas; los archivos se descargan por separado.</small>
+          </div>}
+        </div>}
       </div></header>
-      {thread && <small className="assistant-export-notice">La exportación contiene texto y fuentes privadas de esta conversación; los archivos adjuntos se descargan por separado.</small>}
       {editingTitle && <form className="assistant-history-edit assistant-inline-action" onSubmit={renameThread}><label htmlFor="assistant-thread-title">Nuevo nombre</label>
         <input id="assistant-thread-title" value={draftTitle} maxLength={80} onChange={(event) => setDraftTitle(event.target.value)} />
         <button type="submit" disabled={!draftTitle.trim() || historyBusy}>Guardar</button>
