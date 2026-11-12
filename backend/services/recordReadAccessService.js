@@ -15,13 +15,19 @@ const visibleCollectionsForUser = async (user) => {
   const [allAudits, allRisks, allControls, allFindings] = await Promise.all([
     planningRepository.getAll(), riskRepository.getAll(), controlRepository.getAll(), findingRepository.getAll()
   ]);
-  const scopedAudits = await filterByVisibleScope(user, allAudits);
-  const related = await projectVisibleRiskRelations(user, allRisks, allControls, allFindings, allAudits);
+  const [scopedAudits, related] = await Promise.all([
+    filterByVisibleScope(user, allAudits),
+    projectVisibleRiskRelations(user, allRisks, allControls, allFindings, allAudits)
+  ]);
   const audits = user.role === ROLES.AUDITOR
     ? scopedAudits.filter((item) => item.responsibleId === user.id) : scopedAudits;
   const findings = [];
-  for (const finding of allFindings) {
-    if (await visibleRecordForUser(user, "FINDING", finding.id)) findings.push(finding);
+  for (let offset = 0; offset < allFindings.length; offset += 4) {
+    const visible = await Promise.all(allFindings.slice(offset, offset + 4).map(async (finding) => {
+      const record = await visibleRecordForUser(user, "FINDING", finding.id);
+      return record ? finding : null;
+    }));
+    findings.push(...visible.filter(Boolean));
   }
   return {
     AUDIT: audits,

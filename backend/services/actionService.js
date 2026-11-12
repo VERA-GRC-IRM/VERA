@@ -73,15 +73,19 @@ const listSources = async (user) => {
   })));
 };
 
-const listActions = async (user, { sourceType, sourceId } = {}) => {
-  if (sourceType || sourceId) assertSourceInput(sourceType, sourceId);
-  if (sourceType) await requiredSource(user, sourceType, sourceId);
-  const actions = await actionRepository.getAll();
-  if (sourceType) return actions.filter((action) => action.sourceType === sourceType && action.sourceId === sourceId);
-  const groups = await visibleCollections(user);
+const visibleActionsFromGroups = (actions, groups) => {
   const sourceIds = Object.fromEntries(Object.entries(groups).map(([type, items]) =>
     [type, new Set(items.map((item) => item.id))]));
   return actions.filter((action) => sourceIds[action.sourceType]?.has(action.sourceId));
+};
+
+const listActions = async (user, { sourceType, sourceId } = {}) => {
+  if (sourceType || sourceId) assertSourceInput(sourceType, sourceId);
+  if (sourceType) await requiredSource(user, sourceType, sourceId);
+  if (sourceType) return (await actionRepository.getAll()).filter((action) =>
+    action.sourceType === sourceType && action.sourceId === sourceId);
+  const [actions, groups] = await Promise.all([actionRepository.getAll(), visibleCollections(user)]);
+  return visibleActionsFromGroups(actions, groups);
 };
 
 const listActionsForAudit = async (user, auditId) => {
@@ -378,6 +382,6 @@ const requestValidation = async (user, id, body) => {
   return updated;
 };
 
-module.exports = { ActionError, listActions, listActionsForAudit, listSources, getAction, listAssignees,
+module.exports = { ActionError, listActions, visibleActionsFromGroups, listActionsForAudit, listSources, getAction, listAssignees,
   createAction, changeStatus, reassign, listPlanEvidence, updateProgress, addPlanComment,
   requestValidation, canTransition, dateIsValid };
