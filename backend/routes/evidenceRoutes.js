@@ -15,6 +15,31 @@ const {
   indexImageEvidence
 } = require("../controllers/evidenceController");
 const { rateLimit } = require("express-rate-limit");
+const resumable = require("../services/resumableEvidenceService");
+const uploadResult = (action, status = 200) => async (req, res, next) => {
+  try { res.status(status).set("Cache-Control", "no-store").json(await action(req)); }
+  catch (error) {
+    if (error.status) return res.status(error.status).json({ message: error.message });
+    next(error);
+  }
+};
+
+router.get("/uploads/cleanup", uploadResult((req) => {
+  if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    const error = new Error("No autorizado."); error.status = 401; throw error;
+  }
+  return resumable.cleanupExpired();
+}));
+
+router.post("/uploads", verifyToken, allowRoles(...RECORD_CREATE_ROLES),
+  uploadResult((req) => resumable.start(req.user, req.body), 201));
+router.get("/uploads/:id", verifyToken,
+  uploadResult((req) => resumable.status(req.user, req.params.id)));
+router.put("/uploads/:id/parts/:index", verifyToken, allowRoles(...RECORD_CREATE_ROLES),
+  express.raw({ type: () => true, limit: "256kb" }),
+  uploadResult((req) => resumable.putPart(req.user, req.params.id, req.params.index, req.body)));
+router.post("/uploads/:id/finish", verifyToken, allowRoles(...RECORD_CREATE_ROLES),
+  uploadResult((req) => resumable.complete(req.user, req.params.id)));
 
 // Consultar y descargar: Director incluido.
 router.get("/", verifyToken, listEvidence);

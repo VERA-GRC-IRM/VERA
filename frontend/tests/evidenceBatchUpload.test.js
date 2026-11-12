@@ -40,3 +40,10 @@ test("unconfirmed transport response is flagged for manual review", async () => 
   });
   assert.equal(result[0].status, "uncertain");
 });
+
+test("an interrupted resumable transfer remains retryable", async () => {
+  const result = await uploadEvidenceBatch(files.slice(0, 1), { title: "Respaldo" }, async () => {
+    const error = new Error("Conexión interrumpida"); error.resumable = true; throw error;
+  });
+  assert.equal(result[0].status, "error");
+});

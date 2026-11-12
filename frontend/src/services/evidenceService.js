@@ -1,5 +1,6 @@
 import { fetchWithOfflineFallback } from "./offlineSnapshots";
 import { sendEvidenceUpload } from "./fileUpload";
+import { uploadResumableEvidence } from "./resumableEvidenceUpload";
 
 const API_URL = "/api/evidence";
 
@@ -35,6 +36,9 @@ export const uploadEvidenceFile = async (details, file, { onProgress, signal } =
     txt: "text/plain"
   };
   const mime = MIME_TYPES[extension] || "application/octet-stream";
+  if (import.meta.env.VITE_VERA_RESUMABLE_UPLOADS_ENABLED === "true" && !details.revisionOf) {
+    return uploadResumableEvidence(details, file, mime, localStorage.getItem("token"), { onProgress, signal });
+  }
   const params = new URLSearchParams({
     title: details.title, description: details.description, evidenceType: details.evidenceType,
     entityType: details.entityType, entityId: details.entityId,

@@ -8,7 +8,8 @@ const validateStoreModes = (environment = process.env) => {
     "VERA_PLANNING_STORE", "VERA_USER_STORE", "VERA_RISK_CONTROL_STORE",
     "VERA_EVIDENCE_COMMENT_STORE", "VERA_AUDIT_STORE", "VERA_NOTIFICATION_STORE",
     "VERA_ORG_STORE", "VERA_RISK_LIBRARY_STORE", "VERA_BUSINESS_CONTEXT_STORE",
-    "VERA_RISK_METHOD_STORE", "VERA_WORKSPACE_STORE", "VERA_JOB_STORE", "VERA_PUSH_STORE"
+    "VERA_RISK_METHOD_STORE", "VERA_WORKSPACE_STORE", "VERA_JOB_STORE", "VERA_PUSH_STORE",
+    "VERA_RESUMABLE_STORE"
   ]) {
     if (environment[name] !== undefined && !["memory", "supabase"].includes(environment[name])) {
       throw new Error(`${name} debe ser memory o supabase.`);
@@ -63,6 +64,15 @@ const validateStoreModes = (environment = process.env) => {
   }
   if (environment.VERA_PUSH_STORE === "supabase" && environment.VERA_USER_STORE !== "supabase") {
     throw new Error("Las suscripciones push persistentes requieren cuentas persistentes.");
+  }
+  if (environment.VERCEL_ENV === "production" && environment.VERA_RESUMABLE_UPLOADS_ENABLED === "true" &&
+      (environment.VERA_RESUMABLE_STORE !== "supabase" ||
+        environment.VERA_EVIDENCE_COMMENT_STORE !== "supabase")) {
+    throw new Error("La carga reanudable en Production requiere sesiones y evidencias persistentes.");
+  }
+  if (environment.VERCEL_ENV === "production" && environment.VERA_EVIDENCE_VERSIONS_ENABLED === "true" &&
+      environment.VERA_EVIDENCE_COMMENT_STORE !== "supabase") {
+    throw new Error("Las versiones de archivos en Production requieren evidencias persistentes.");
   }
   if (environment.VERCEL_ENV === "production" && environment.VERA_PUSH_ENABLED === "true" &&
       (environment.VERA_PUSH_STORE !== "supabase" || environment.VERA_NOTIFICATION_STORE !== "supabase" ||
