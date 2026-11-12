@@ -8,6 +8,7 @@
 - [Módulos y HU](https://github.com/VERA-GRC-IRM/VERA/wiki/Modulos-y-HU)
 - [IA de VERA](https://github.com/VERA-GRC-IRM/VERA/wiki/IA-de-VERA)
 - [Trabajo sin conexión](https://github.com/VERA-GRC-IRM/VERA/wiki/Sin-conexion)
+- [Excel, Power BI y Teams](https://github.com/VERA-GRC-IRM/VERA/wiki/Integraciones-Microsoft)
 
 **Diseño y datos**
 

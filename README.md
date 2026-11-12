@@ -74,6 +74,7 @@ Puedes escribir una pregunta completa en la búsqueda superior y elegir «Pregun
 El asistente combina indicadores calculados por VERA con respuestas de Azure OpenAI. Las respuestas generadas pueden equivocarse: las citas identifican registros consultados, pero no certifican cada interpretación. Las operaciones disponibles desde el chat usan instrucciones explícitas, permisos del servidor, vista previa y confirmación humana; el texto generado por el modelo no ejecuta cambios. El [alcance y las salvaguardas](docs/ai-copilot-evolution.md) están documentados.
 
 Las herramientas para buscar registros, compartir vistas, guardar accesos rápidos, actualizar pantallas, cargar evidencias y recibir avisos tienen una [guía de capacidades y límites](docs/product/README.md).
+El intercambio con Excel, el modelo de análisis para Power BI y el uso de enlaces en Teams se explican en la [guía de integraciones Microsoft](docs/product/microsoft-integrations.md), con las conexiones corporativas pendientes distinguidas de las funciones ya implementadas.
 
 ## Aseguramiento de calidad en tres pasos
 

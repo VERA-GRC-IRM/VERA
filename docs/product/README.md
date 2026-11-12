@@ -4,6 +4,8 @@ Esta guía reúne funciones de uso transversal. Cada enlace describe lo que est�
 
 Para distinguir código integrado de funciones activas y seguir el orden de pruebas, consulta la [bitácora de activación de capacidades](technology-activation.md).
 
+La [guía de integraciones Microsoft](microsoft-integrations.md) reúne Excel, Power BI y Teams con el estado de cada ruta y los pasos que dependen del tenant corporativo.
+
 | Función | Disponible ahora | Alcance y límite |
 | --- | --- | --- |
 | [Búsqueda de registros](universal-search.md) | Barra superior y resultados autorizados | Expedientes, evidencias, mapa del negocio, personas visibles, conversaciones propias y texto de evidencias ya indexadas en lotes. |
