@@ -32,7 +32,7 @@ router.get("/report", verifyToken, async (req, res, next) => {
   try {
     const { filters, error } = parseAuditFilters(req.query);
     if (error) return res.status(400).json({ message: error });
-    if (req.query.format !== undefined && !["csv", "pdf"].includes(req.query.format)) {
+    if (req.query.format !== undefined && !["csv", "pdf", "xlsx"].includes(req.query.format)) {
       return res.status(400).json({ message: "El formato no es válido." });
     }
     const report = await buildPortfolioReport(req.user, filters);
@@ -48,6 +48,13 @@ router.get("/report", verifyToken, async (req, res, next) => {
       res.set("Content-Type", "application/pdf");
       res.set("Content-Disposition", 'attachment; filename="vera-reporte-portafolio.pdf"');
       return res.send(pdf);
+    }
+    if (req.query.format === "xlsx") {
+      const { reportToXlsx } = require("../services/portfolioXlsxService");
+      const workbook = await reportToXlsx(report);
+      res.set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.set("Content-Disposition", 'attachment; filename="vera-reporte-portafolio.xlsx"');
+      return res.send(Buffer.from(workbook));
     }
     return res.json(report);
   } catch (error) {

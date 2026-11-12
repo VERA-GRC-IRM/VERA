@@ -15,6 +15,7 @@ Para distinguir código integrado de funciones activas y seguir el orden de prue
 | [Push con VERA cerrada](desktop-alerts.md) | Suscripción por cuenta y dispositivo, mensaje genérico y entrega deduplicada | Preparado en código; requiere migración, VAPID y aceptación real antes de activarse. |
 | [Estado de reportes](report-export-feedback.md) | Operación, tiempo transcurrido y cancelación de la petición | La ruta inmediata no detiene necesariamente el procesamiento del servidor. |
 | [Centro de trabajos](durable-jobs.md) | Cola privada e idempotente para reportes CSV/PDF | Preparado en código; requiere migración, procesador y aceptación real antes de activarse. |
+| [Exportación a Excel](excel-export.md) | Libro `.xlsx` filtrado y autorizado para análisis externo | Disponible como descarga inmediata. |
 
 ## Siguientes capacidades con dependencia técnica
 

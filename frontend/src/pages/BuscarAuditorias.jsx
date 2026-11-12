@@ -159,6 +159,7 @@ function BuscarAuditorias() {
             <div><h2>Reporte del portafolio</h2><p>Incluye auditorías y sus riesgos, controles, hallazgos y evidencias vinculadas, según tu acceso. Usa los últimos filtros aplicados.</p></div>
             <button className="secondary-action" type="button" onClick={openReport} disabled={loading || reportBusy}>Ver reporte</button>
             <button className="secondary-action" type="button" onClick={() => exportReport("csv")} disabled={loading || reportBusy}>Descargar CSV</button>
+            <button className="secondary-action" type="button" onClick={() => exportReport("xlsx")} disabled={loading || reportBusy}>Descargar Excel</button>
             <button className="secondary-action" type="button" onClick={() => exportReport("pdf")} disabled={loading || reportBusy}>Descargar PDF</button>
             {import.meta.env.VITE_VERA_JOBS_ENABLED === "true" && <>
               <button className="secondary-action" type="button" onClick={() => queueReport("csv")}

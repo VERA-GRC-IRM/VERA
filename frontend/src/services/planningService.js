@@ -49,7 +49,7 @@ const reportParams = (filters, format) => {
 export const getPortfolioReport = (filters = {}, options = {}) => request(`/report?${reportParams(filters)}`, options);
 
 export const downloadPortfolioReport = async (filters = {}, format = "csv", { signal } = {}) => {
-  if (!["csv", "pdf"].includes(format)) throw new Error("El formato no es válido.");
+  if (!["csv", "pdf", "xlsx"].includes(format)) throw new Error("El formato no es válido.");
   return downloadReportFile(`${API_URL}/report?${reportParams(filters, format)}`,
     localStorage.getItem("token"), `vera-reporte-portafolio.${format}`, { signal });
 };
