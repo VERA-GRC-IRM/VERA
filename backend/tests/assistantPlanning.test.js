@@ -25,6 +25,19 @@ const conversation = async (base, id) => {
   return `${base}/api/assistant/conversations/${(await created.json()).conversation.id}/ask`;
 };
 const ask = (url, id, question) => fetch(url, post(id, { question }));
+const advanceAuditToClosure = async (base, id, actorId = 3) => {
+  for (const step of ["kickoff", "understanding", "execution", "supervision", "closure"]) {
+    const response = await fetch(
+      `${base}/api/planning/${id}/workflow-step`,
+      {
+        method: "PATCH",
+        headers: post(actorId, { step }).headers,
+        body: JSON.stringify({ step })
+      }
+    );
+    assert.equal(response.status, 200, `No se pudo avanzar la auditoría a ${step}`);
+  }
+};
 
 test("La gramática de decisiones exige un expediente y un motivo", () => {
   assert.deepEqual(parsePlanningCommand("Aprueba la propuesta «Auditoría de accesos» para Q4 porque está completa."),
@@ -44,8 +57,7 @@ test("El chat aprueba, inicia y cierra una auditoría con vista previa y bitáco
   const url = await conversation(base, 3);
   const operations = [
     [`Aprueba la propuesta ${proposal.id} para Q4 porque cumple los criterios de planeación.`, "APPROVED"],
-    [`Inicia la auditoría ${proposal.id} porque comenzó el periodo de ejecución.`, "ACTIVE"],
-    [`Cierra la auditoría ${proposal.id} porque concluyó la revisión documentada.`, "CLOSED"]
+    [`Inicia la auditoría ${proposal.id} porque comenzó el periodo de ejecución.`, "ACTIVE"]
   ];
   for (const [question, status] of operations) {
     const before = await planningRepository.findById(proposal.id);
@@ -57,6 +69,13 @@ test("El chat aprueba, inicia y cierra una auditoría con vista previa y bitáco
     assert.equal((await confirmed.json()).message.mode, "action-executed");
     assert.equal((await planningRepository.findById(proposal.id)).status, status);
   }
+  await advanceAuditToClosure(base, proposal.id);
+  const closePreview = await ask(url, 3, `Cierra la auditoría ${proposal.id} porque concluyó la revisión documentada.`);
+  assert.equal((await closePreview.json()).message.mode, "action-preview");
+  const closeConfirmed = await ask(url, 3, "Confirmar cambio");
+  assert.equal(closeConfirmed.status, 200, JSON.stringify(await closeConfirmed.clone().json()));
+  assert.equal((await closeConfirmed.json()).message.mode, "action-executed");
+  assert.equal((await planningRepository.findById(proposal.id)).status, "CLOSED");
   const repeated = await ask(url, 3, "Confirmar cambio");
   assert.equal((await repeated.json()).message.mode, "action-guidance");
   assert.equal((await planningRepository.findById(proposal.id)).status, "CLOSED");
