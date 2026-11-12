@@ -90,7 +90,8 @@ function GlobalSearch({ groups, previewRoles, onNavigate, onPreviewRole, onRevea
     ? { key: "ask-vera", label: `Preguntar a VERA: ${query.trim()}`, group: "Asistente de IA", kind: "ask" } : null;
   const conversational = ask && (query.trim().split(/\s+/).length > 1 || /[¿?]/.test(query));
   const records = recordMatches.map((item) => ({ key: `record-${item.type}-${item.id}`,
-    label: item.title, group: `${item.type} · ${item.code || item.id}`, kind: "record", path: item.path }));
+    label: item.title, group: item.match === "content" ? `Contenido de evidencia · ${item.id}` :
+      `${item.type} · ${item.code || item.id}`, kind: "record", path: item.path }));
   const options = [...records, ...matches];
   const results = ask ? conversational ? [ask, ...options] : [...options, ask] : options;
 

@@ -12,6 +12,7 @@ const riskRepository = require("../repositories/riskRepository");
 const controlRepository = require("../repositories/controlRepository");
 const findingRepository = require("../repositories/findingRepository");
 const evidenceRepository = require("../repositories/evidenceRepository");
+const evidenceTextIndex = require("../repositories/evidenceTextIndex");
 const conversationRepository = require("../repositories/assistantConversationRepository");
 const { currentScope } = require("../services/assistantConversationScope");
 
@@ -41,7 +42,15 @@ test("universal search returns only records visible to the authenticated user", 
     controlId: control.id, auditId: audit.id, createdBy: admin });
   const evidence = evidenceRepository.create({ title: `Evidencia visible ${stamp}`,
     description: "Documento sintético", entityType: "RISK", entityId: risk.id,
-    entityTitle: risk.title, author: admin });
+    entityTitle: risk.title, file: { mime: "text/plain" }, author: admin });
+  const deniedEvidence = evidenceRepository.create({ title: `Evidencia privada ${stamp}`,
+    description: "Documento sintético", entityType: "AUDIT", entityId: denied.id,
+    entityTitle: denied.title, file: { mime: "text/plain" }, author: admin });
+  const contentTerm = `FRAGMENTO${stamp}`;
+  await evidenceTextIndex.replace(evidence.id, [{ chunkIndex: 0, pageNumber: null,
+    content: `Contenido autorizado ${contentTerm}` }]);
+  await evidenceTextIndex.replace(deniedEvidence.id, [{ chunkIndex: 0, pageNumber: null,
+    content: `Contenido privado ${contentTerm}` }]);
   const get = (id, q) => fetch(`${base}/api/search?q=${encodeURIComponent(q)}`, {
     headers: id ? { Authorization: `Bearer ${token(id)}` } : {}
   });
@@ -59,10 +68,15 @@ test("universal search returns only records visible to the authenticated user", 
   assert(results.some((item) => item.type === "EVIDENCE" && item.id === evidence.id));
   assert(!results.some((item) => item.id === denied.id));
   assert(results.every((item) => !Object.hasOwn(item, "description") && !Object.hasOwn(item, "score")));
+  const contentResults = (await (await get(manager.id, contentTerm)).json()).results;
+  assert(contentResults.some((item) => item.type === "EVIDENCE" && item.id === evidence.id &&
+    item.match === "content"));
+  assert(!contentResults.some((item) => item.id === deniedEvidence.id));
   await revokeGrantForUser(admin, grant.id, { reason: "Revocación de prueba de búsqueda" });
   const after = (await (await get(manager.id, stamp)).json()).results;
   assert(!after.some((item) => item.id === audit.id));
   assert(!after.some((item) => item.id === risk.id));
+  assert(!(await (await get(manager.id, contentTerm)).json()).results.some((item) => item.id === evidence.id));
 });
 
 test("universal search limits people by directory role and conversations by owner and current scope", async (context) => {

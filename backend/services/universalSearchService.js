@@ -4,6 +4,8 @@ const evidenceRepository = require("../repositories/evidenceRepository");
 const conversations = require("../repositories/assistantConversationRepository");
 const { currentScope } = require("./assistantConversationScope");
 const { visibleUsers } = require("./assistantUserDirectoryService");
+const evidenceTextIndex = require("../repositories/evidenceTextIndex");
+const { SEARCHABLE_MIME } = require("./evidenceTextExtraction");
 
 const normalize = (value) => String(value ?? "").normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es");
@@ -29,8 +31,22 @@ const searchForUser = async (user, query) => {
   }))).filter(Boolean);
   const visibleIds = Object.fromEntries(["AUDIT", "RISK", "CONTROL"].map((type) =>
     [type, new Set(collections[type].map((item) => item.id))]));
-  const visibleEvidence = evidence.filter((item) => visibleIds[item.entityType]?.has(item.entityId) &&
+  const scopedEvidence = evidence.filter((item) => visibleIds[item.entityType]?.has(item.entityId));
+  const visibleEvidence = scopedEvidence.filter((item) =>
     normalize(`${item.id} ${item.title} ${item.reference || ""}`).includes(needle)).slice(0, LIMIT);
+  const titleIds = new Set(visibleEvidence.map((item) => item.id));
+  const searchable = scopedEvidence.filter((item) => item.file && SEARCHABLE_MIME.has(item.file.mime))
+    .slice(0, evidenceTextIndex.MAX_SEARCH_FILES);
+  const contentMatches = query.trim().length >= 4 && searchable.length
+    ? await evidenceTextIndex.search(searchable.map((item) => item.id), query.trim()) : [];
+  const byEvidenceId = new Map(searchable.map((item) => [item.id, item]));
+  const contentIds = new Set();
+  const contentEvidence = contentMatches.filter((row) => {
+    if (!byEvidenceId.has(row.evidenceId) || titleIds.has(row.evidenceId) ||
+        contentIds.has(row.evidenceId)) return false;
+    contentIds.add(row.evidenceId);
+    return true;
+  }).map((row) => byEvidenceId.get(row.evidenceId));
   const candidates = [
     ...collections.AUDIT.map((item) => ({ type: "AUDIT", id: item.id, title: item.title,
       path: `/auditorias?auditId=${encodeURIComponent(item.id)}` })),
@@ -43,6 +59,8 @@ const searchForUser = async (user, query) => {
       path: `/auditorias-activas/${encodeURIComponent(item.auditId)}` })),
     ...visibleEvidence.map((item) => ({ type: "EVIDENCE", id: item.id, title: item.title,
       path: `/evidencias#evidence-${encodeURIComponent(item.id)}` })),
+    ...contentEvidence.map((item) => ({ type: "EVIDENCE", id: item.id, title: item.title,
+      match: "content", path: `/evidencias#evidence-${encodeURIComponent(item.id)}` })),
     ...context.map((item) => ({ type: item.kind, id: item.contextId, title: item.name,
       code: item.code, path: `/mapa-negocio?context=${encodeURIComponent(item.contextId)}` })),
     ...(people || []).map((item) => ({ type: "USER", id: String(item.id), title: item.name,
@@ -54,7 +72,8 @@ const searchForUser = async (user, query) => {
   return candidates.map((item) => ({ ...item,
     score: normalize(item.id).startsWith(needle) ? 0 : normalize(item.code).startsWith(needle) ? 1 :
       normalize(item.title).startsWith(needle) ? 2 : 3 }))
-    .filter((item) => normalize(`${item.id} ${item.code || ""} ${item.title}`).includes(needle))
+    .filter((item) => item.match === "content" ||
+      normalize(`${item.id} ${item.code || ""} ${item.title}`).includes(needle))
     .sort((a, b) => a.score - b.score || a.title.localeCompare(b.title, "es"))
     .slice(0, LIMIT)
     .map(({ score, ...item }) => item);
