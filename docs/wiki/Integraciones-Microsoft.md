@@ -12,4 +12,6 @@ El archivo Excel es una instantánea. Publicarlo en otro sistema requiere contro
 
 La actualización automática en Power BI Service y los avisos dirigidos o una pestaña dentro de Teams necesitan un espacio de trabajo y autorizaciones del tenant Microsoft. Sus criterios están en [Power BI #405](https://github.com/VERA-GRC-IRM/VERA/issues/405) y [Teams #406](https://github.com/VERA-GRC-IRM/VERA/issues/406). No se anuncian como conexiones activas.
 
+Por ahora se dispone de una cuenta Microsoft personal. Permite preparar un informe local con Power BI Desktop, pero Power BI Service exige una cuenta de trabajo o escuela. El envío mediante el diálogo web de Teams también necesita una cuenta Teams admitida y aún no se ha probado con el tenant del equipo.
+
 Para columnas, pasos y límites de cada flujo, consulta la [guía completa de integraciones](https://github.com/VERA-GRC-IRM/VERA/blob/main/docs/product/microsoft-integrations.md).

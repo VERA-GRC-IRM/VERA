@@ -22,8 +22,12 @@ VERA separa el intercambio de archivos, la colaboración manual y las conexiones
 
 Un tablero con actualización programada necesita un espacio de trabajo Power BI y una identidad autorizada para una fuente de datos de alcance definido. No se debe pegar el JWT de una persona en Power Query ni publicar un libro con datos más amplios que el público previsto. La aceptación deberá demostrar actualización, control de acceso, errores visibles y concordancia de indicadores. [Tarea #405](https://github.com/VERA-GRC-IRM/VERA/issues/405).
 
+En este momento solo hay acceso a una cuenta Microsoft personal. Power BI Desktop permite trabajar localmente con el libro; Power BI Service pide una cuenta de trabajo o escuela y un espacio autorizado. La cuenta personal no acredita la publicación corporativa.
+
 Los avisos automáticos a Teams requieren relacionar la identidad VERA con el destinatario correcto. Un webhook de canal general no sirve para mensajes privados por usuario. Microsoft recomienda Teams Workflows para webhooks; los antiguos conectores Office 365 están retirados. La configuración debe tener propietario y copropietario, secreto fuera de Git y una prueba de entrega sin revelar expedientes. [Tarea #406](https://github.com/VERA-GRC-IRM/VERA/issues/406).
+
+El diálogo **Compartir en Teams** de Microsoft está documentado para Edge y Chrome de escritorio con una cuenta Teams habilitada. Microsoft no admite en ese flujo cuentas gratuitas o invitadas; se debe ensayar con la cuenta del equipo antes de afirmar que el envío funciona.
 
 **Evidencia:** los PR anteriores contienen pruebas locales y CI. No acreditan un informe publicado en Power BI Service, una app instalada en el Teams de FEMSA ni aceptación con cuentas corporativas.
 
-Referencias de Microsoft: [importar Excel a Power BI](https://learn.microsoft.com/en-us/power-bi/connect-data/service-excel-workbook-files), [compartir desde una web a Teams](https://learn.microsoft.com/en-us/microsoftteams/platform/concepts/build-and-test/share-to-teams-from-web-apps) y [webhooks mediante Teams Workflows](https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook).
+Referencias de Microsoft: [importar Excel a Power BI](https://learn.microsoft.com/en-us/power-bi/connect-data/service-excel-workbook-files), [cuentas admitidas por Power BI Service](https://learn.microsoft.com/en-us/power-bi/fundamentals/service-self-service-signup-purchase-for-power-bi), [compartir desde una web a Teams](https://learn.microsoft.com/en-us/microsoftteams/platform/concepts/build-and-test/share-to-teams-from-web-apps) y [webhooks mediante Teams Workflows](https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook).
