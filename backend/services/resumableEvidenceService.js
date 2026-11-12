@@ -82,14 +82,16 @@ const putPart = async (user, id, index, bytes) => {
   }
   const expectedSize = Math.min(evidenceStorage.CHUNK_BYTES,
     session.size - partIndex * evidenceStorage.CHUNK_BYTES);
-  if (!Buffer.isBuffer(bytes) || bytes.length !== expectedSize) throw fail("Parte incompleta.", 400);
-  const hash = sha256(bytes);
+  if (!Buffer.isBuffer(bytes)) throw fail("La parte debe ser binaria.", 400);
+  const chunk = Buffer.from(bytes);
+  if (chunk.length !== expectedSize) throw fail("Parte incompleta.", 400);
+  const hash = sha256(chunk);
   const existing = session.parts?.[partIndex];
   if (existing) {
     if (existing !== hash) throw fail("La parte existente pertenece a otro archivo.", 409);
     return describe(session);
   }
-  try { await evidenceStorage.uploadChunk(id, partIndex, session.mime, bytes); }
+  try { await evidenceStorage.uploadChunk(id, partIndex, session.mime, chunk); }
   catch (error) {
     // Un POST pudo terminar en Storage aunque se perdiera la respuesta.
     let saved;

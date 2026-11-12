@@ -55,7 +55,11 @@ const chunkPath = (sessionId, index, mime) => {
 
 const uploadChunk = async (sessionId, index, mime, bytes) => {
   const path = chunkPath(sessionId, index, mime);
-  if (!Buffer.isBuffer(bytes) || bytes.length === 0 || bytes.length > CHUNK_BYTES) {
+  if (!Buffer.isBuffer(bytes)) {
+    throw new EvidenceStorageError("La parte debe ser binaria.", 400);
+  }
+  const chunk = Buffer.from(bytes);
+  if (chunk.length === 0 || chunk.length > CHUNK_BYTES) {
     throw new EvidenceStorageError("La parte supera el tamaño permitido.", 400);
   }
   const { root, key } = config();
@@ -63,7 +67,7 @@ const uploadChunk = async (sessionId, index, mime, bytes) => {
   let response;
   try { response = await fetch(url, { method: "POST", headers: {
     ...headersFor(key), "Content-Type": mime, "x-upsert": "false"
-  }, body: bytes, signal: AbortSignal.timeout(15_000) }); }
+  }, body: chunk, signal: AbortSignal.timeout(15_000) }); }
   catch { throw new EvidenceStorageError("No se pudo guardar la parte del archivo."); }
   if (!response.ok) throw new EvidenceStorageError("No se pudo guardar la parte del archivo.", response.status === 409 ? 409 : 503);
   return path;
