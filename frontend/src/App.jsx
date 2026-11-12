@@ -14,6 +14,7 @@ const Usuarios = lazy(routeLoaders.usuarios);
 const MiRol = lazy(routeLoaders.miRol);
 const Registro = lazy(routeLoaders.registro);
 const BuscarAuditorias = lazy(routeLoaders.buscarAuditorias);
+const Trabajos = lazy(routeLoaders.trabajos);
 const PublicOverview = lazy(routeLoaders.publicOverview);
 const PublicSolutions = lazy(routeLoaders.publicSolutions);
 const PublicTrust = lazy(routeLoaders.publicTrust);
@@ -80,6 +81,8 @@ function App() {
           />
 
           <Route path="/registro" element={<Registro />} />
+          {import.meta.env.VITE_VERA_JOBS_ENABLED === "true" &&
+            <Route path="/trabajos" element={<ProtectedRoute><Trabajos /></ProtectedRoute>} />}
           <Route path="/acerca" element={<PublicOverview />} />
           <Route path="/soluciones" element={<PublicSolutions />} />
           <Route path="/confianza" element={<PublicTrust />} />
