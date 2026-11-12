@@ -94,7 +94,7 @@ function BuscarAuditorias() {
           <div className="dashboard-header">
             <div><span className="eyebrow">HU-26 · CONSULTA DEL PORTAFOLIO</span><h1>Buscar auditorías</h1>
               <p>Consulta propuestas y auditorías según los permisos de tu cuenta.</p></div>
-            <ShareLinkButton path={`/buscar-auditorias${urlQuery ? `?${urlQuery}` : ""}`} label="Copiar vista" />
+            <ShareLinkButton path={`/auditorias${urlQuery ? `?${urlQuery}` : ""}`} label="Copiar vista" />
           </div>
           <form className="audit-search-form" onSubmit={submit} aria-label="Filtros de auditorías">
             <label>Búsqueda por ID, nombre, área, objetivo o responsable
@@ -154,7 +154,7 @@ function BuscarAuditorias() {
               <p>{audit.area} · {audit.year} · {audit.quarter || "Sin trimestre"} · Riesgo {audit.risk}</p>
               <p>Responsable: {audit.responsible || "Sin asignar"}</p>
               <button type="button" className="secondary-action" onClick={() => setSelected(audit)}>Ver detalles</button>
-              <ShareLinkButton path={`/buscar-auditorias?auditId=${encodeURIComponent(audit.id)}`} />
+              <ShareLinkButton path={`/auditorias?auditId=${encodeURIComponent(audit.id)}`} />
               {audit.status === "ACTIVE" && <button type="button" className="secondary-action" onClick={() => navigate(`/auditorias-activas/${encodeURIComponent(audit.id)}`)}>Abrir auditoría</button>}
             </article>)}
           </div>

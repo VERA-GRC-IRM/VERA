@@ -50,7 +50,7 @@ test("universal search returns only records visible to the authenticated user", 
   assert.match(response.headers.get("cache-control"), /no-store/);
   const { results } = await response.json();
   assert(results.some((item) => item.type === "AUDIT" && item.id === audit.id &&
-    item.path.includes(encodeURIComponent(audit.id))));
+    item.path === `/auditorias?auditId=${encodeURIComponent(audit.id)}`));
   assert(results.some((item) => item.type === "RISK" && item.id === risk.id));
   assert(results.some((item) => item.type === "CONTROL" && item.id === control.id));
   assert(results.some((item) => item.type === "FINDING" && item.id === finding.id));
