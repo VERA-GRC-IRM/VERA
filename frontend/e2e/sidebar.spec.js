@@ -25,7 +25,10 @@ test("TC-08: el menú abre Planificación desde el panel", async ({ page }) => {
   await page.route("**/api/planning", (route) => route.fulfill({ json: { proposals: [] } }));
   await page.goto("/dashboard");
   const mobileMenu = page.getByRole("button", { name: "Abrir menú de navegación" });
-  if (await mobileMenu.isVisible()) await mobileMenu.click();
+  if (page.viewportSize().width <= 750) {
+    await expect(mobileMenu).toBeVisible();
+    await mobileMenu.click();
+  }
   await page.getByRole("navigation", { name: "Módulos principales" })
     .getByRole("button", { name: "Planificación" }).click();
   await expect(page).toHaveURL(/\/planificacion$/);
@@ -53,7 +56,10 @@ test("TC-09: cerrar sesión borra la sesión local y protege la URL directa", as
   });
   await page.goto("/dashboard");
   const mobileMenu = page.getByRole("button", { name: "Abrir menú de navegación" });
-  if (await mobileMenu.isVisible()) await mobileMenu.click();
+  if (page.viewportSize().width <= 750) {
+    await expect(mobileMenu).toBeVisible();
+    await mobileMenu.click();
+  }
   await page.getByRole("button", { name: "Cerrar sesión" }).click();
   await expect(page).toHaveURL(/\/$/);
   expect(await page.evaluate(() => [localStorage.getItem("token"), localStorage.getItem("user")]))

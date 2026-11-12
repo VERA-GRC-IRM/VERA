@@ -313,8 +313,8 @@ function Planificacion() {
             )}
           </div>
 
-          {message && <p className="planning-message success">{message}</p>}
-          {error && <p className="planning-message error">{error}</p>}
+          {message && <p className="planning-message success" role="status">{message}</p>}
+          {error && !isModalOpen && <p className="planning-message error" role="alert">{error}</p>}
 
           <div className="planning-summary">
             <div><strong>{openProposals.length}</strong><span>Propuestas abiertas</span></div>
@@ -583,7 +583,7 @@ function Planificacion() {
                   </button>
                 </div>
                 {draftFromAssistant && <p className="planning-message">Borrador preparado por el asistente. Revisa todos los campos y completa el periodo antes de guardar; todavía no se ha creado ninguna propuesta.</p>}
-                {error && <p className="planning-message error">{error}</p>}
+                {error && <p className="planning-message error" role="alert">{error}</p>}
                 <div className="proposal-form-grid">
                   <label className="full-width">Título de la propuesta
                     <input required value={form.title} onChange={(event) => updateForm("title", event.target.value)} placeholder="Revisión de controles de acceso" />

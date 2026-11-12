@@ -231,8 +231,8 @@ function Riesgos() {
           <SaveViewButton userId={user?.roleTour ? null : user?.id} path={`${location.pathname}${location.search}`} defaultName="Búsqueda de riesgos" />
           {canManage && <button className="primary-action" onClick={startCreate}><Plus size={18} /> Registrar riesgo</button>}
         </header>
-        {message && <p className="risk-feedback success">{message}</p>}
-        {error && !modal && <p className="risk-feedback error">{error}</p>}
+        {message && <p className="risk-feedback success" role="status">{message}</p>}
+        {error && !modal && !responding && <p className="risk-feedback error" role="alert">{error}</p>}
         <div className="risk-summary">
           {summary.map(({ level, count }) => <article key={level} className={`risk-summary-card risk-summary-${level.toLowerCase()}`}><span>Riesgo {level.toLowerCase()}</span><strong>{count}</strong><small>registros visibles</small></article>)}
         </div>
@@ -283,7 +283,7 @@ function Riesgos() {
       <div className="modal-header"><div><span className="eyebrow">{assessing ? `EVALUACIÓN ${assessing.id}` : editing ? `EDITAR ${editing.id}` : "NUEVO REGISTRO"}</span><h2>{assessing ? "Reevaluar riesgo" : editing ? "Editar riesgo" : "Registrar riesgo"}</h2><p>{assessing ? "Cada evaluación conserva sus valores, motivo, autor y fecha." : "Documenta el riesgo, su responsable y la primera evaluación."}</p></div><button type="button" className="modal-close" onClick={closeModal} aria-label="Cerrar"><X size={20} /></button></div>
       {editing && staleEdit && <p className="risk-feedback error" role="alert">Este riesgo cambió o dejó de estar disponible mientras lo editabas. Copia tus cambios si los necesitas y vuelve a consultar la lista. <button type="button" onClick={() => refresh().then(closeModal).catch((cause) => setError(cause.message))}>Consultar lista actual</button></p>}
       {editing && otherEditors.length > 0 && <p className="risk-feedback" role="status">También está editando este riesgo: {otherEditors.map((person) => person.name).join(", ")}. Antes de guardar, comprueba si hubo cambios.</p>}
-      {error && <p className="risk-feedback error">{error}</p>}
+      {error && <p className="risk-feedback error" role="alert">{error}</p>}
       <div className="proposal-form-grid">
         {!assessing && <>
           {!editing && <label className="full-width">Escenario de biblioteca (opcional)
