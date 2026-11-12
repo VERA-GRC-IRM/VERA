@@ -15,3 +15,5 @@ La actualización automática en Power BI Service y los avisos dirigidos o una p
 Por ahora se dispone de una cuenta Microsoft personal. Permite preparar un informe local con Power BI Desktop, pero Power BI Service exige una cuenta de trabajo o escuela. El envío mediante el diálogo web de Teams también necesita una cuenta Teams admitida y aún no se ha probado con el tenant del equipo.
 
 Para columnas, pasos y límites de cada flujo, consulta la [guía completa de integraciones](https://github.com/VERA-GRC-IRM/VERA/blob/main/docs/product/microsoft-integrations.md).
+
+La [sección de integraciones del portal de calidad](https://vera-grc-irm.github.io/VERA/#integraciones-microsoft) muestra la última demostración automática, su estado y el enlace a los libros y tiempos de la corrida. Su alcance es sintético; las activaciones corporativas siguen separadas.
