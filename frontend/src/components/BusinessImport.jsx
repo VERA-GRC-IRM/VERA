@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FileUp } from "lucide-react";
-import { applyBusinessImport, previewBusinessImport } from "../services/businessContextService";
+import { applyBusinessImport, downloadBusinessImportTemplate, previewBusinessImport } from "../services/businessContextService";
 
 const STATUS = { CREATE: "Lista para publicar", UNCHANGED: "Sin cambios", CONFLICT: "Conflicto", INVALID: "Dato inválido" };
 
@@ -16,11 +16,20 @@ export default function BusinessImport({ onApplied }) {
   const prepare = async (event) => {
     event.preventDefault(); setBusy(true); reset();
     try {
-      if (!file || file.size > 55_000) throw new Error("Selecciona un archivo CSV o JSON de hasta 55 KB.");
+      if (!file || file.size > 55_000) throw new Error("Selecciona un archivo CSV, JSON o Excel de hasta 55 KB.");
       const format = file.name.toLowerCase().endsWith(".json") ? "json" :
-        file.name.toLowerCase().endsWith(".csv") ? "csv" : null;
-      if (!format) throw new Error("El archivo debe terminar en .csv o .json.");
-      const content = await file.text();
+        file.name.toLowerCase().endsWith(".csv") ? "csv" :
+          file.name.toLowerCase().endsWith(".xlsx") ? "xlsx" : null;
+      if (!format) throw new Error("El archivo debe terminar en .csv, .json o .xlsx.");
+      let content;
+      if (format === "xlsx") {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        let binary = "";
+        for (let index = 0; index < bytes.length; index += 8192) {
+          binary += String.fromCharCode(...bytes.subarray(index, index + 8192));
+        }
+        content = btoa(binary);
+      } else content = await file.text();
       const candidate = { format, sourceName, content };
       const next = await previewBusinessImport(candidate);
       setPrepared({ ...candidate, expectedDigest: next.previewDigest });
@@ -53,10 +62,11 @@ export default function BusinessImport({ onApplied }) {
       <label>Fuente declarada<input required minLength={3} maxLength={120} value={sourceName}
         onChange={(event) => { setSourceName(event.target.value); reset(); }}
         placeholder="Nombre del sistema o archivo de origen" /></label>
-      <label>Archivo CSV o JSON<input required type="file" accept=".csv,.json,text/csv,application/json"
+      <label>Archivo CSV, JSON o Excel<input required type="file" accept=".csv,.json,.xlsx,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         onChange={(event) => { setFile(event.target.files?.[0] || null); reset(); }} /></label>
       <button type="submit" disabled={busy}>{busy ? "Revisando…" : "Revisar archivo"}</button>
       <a href="/plantillas/mapa-negocio.csv" download>Descargar plantilla CSV</a>
+      <button type="button" className="secondary-action" onClick={() => downloadBusinessImportTemplate().catch((cause) => setError(cause.message))}>Descargar plantilla Excel</button>
     </form>
     {error && <p className="business-context-error" role="alert">{error}</p>}
     {preview && <div className="business-import-preview">
