@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Activity, Bot, ClipboardCheck, Pencil, Plus, ShieldAlert, X } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
+import useRecordFreshness from "../hooks/useRecordFreshness";
 import ShareLinkButton from "../components/ShareLinkButton";
 import { BookmarkButton, SaveViewButton } from "../components/WorkspaceActions";
 import AssistantDrawer from "../components/AssistantDrawer";
@@ -81,6 +82,7 @@ function Riesgos() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [assistantFocus, setAssistantFocus] = useState(null);
+  const staleEdit = useRecordFreshness(editing, "/api/risks", "risks");
 
   const refresh = async () => setRisks(await getRisks(serverRiskFilters(filters)));
   useAutomaticRefresh(refresh, !modal && !saving);
@@ -184,7 +186,8 @@ function Riesgos() {
       else if (editing) {
         const changes = { ...form };
         delete changes.orgUnitId;
-        await updateRisk(editing.id, changes);
+        await updateRisk(editing.id, { ...changes, expectedStorageVersion: editing.storageVersion,
+          expectedUpdatedAt: editing.updatedAt });
       } else {
         const changes = { ...form };
         if (form.linkedAuditId) delete changes.orgUnitId;
@@ -268,6 +271,7 @@ function Riesgos() {
     {assistantFocus && <AssistantDrawer key={assistantFocus.id} focus={assistantFocus} onClose={() => setAssistantFocus(null)} />}
     {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeModal(); }}><form className="proposal-modal risk-modal" onSubmit={submit}>
       <div className="modal-header"><div><span className="eyebrow">{assessing ? `EVALUACIÓN ${assessing.id}` : editing ? `EDITAR ${editing.id}` : "NUEVO REGISTRO"}</span><h2>{assessing ? "Reevaluar riesgo" : editing ? "Editar riesgo" : "Registrar riesgo"}</h2><p>{assessing ? "Cada evaluación conserva sus valores, motivo, autor y fecha." : "Documenta el riesgo, su responsable y la primera evaluación."}</p></div><button type="button" className="modal-close" onClick={closeModal} aria-label="Cerrar"><X size={20} /></button></div>
+      {editing && staleEdit && <p className="risk-feedback error" role="alert">Este riesgo cambió o dejó de estar disponible mientras lo editabas. Copia tus cambios si los necesitas y vuelve a consultar la lista. <button type="button" onClick={() => refresh().then(closeModal).catch((cause) => setError(cause.message))}>Consultar lista actual</button></p>}
       {error && <p className="risk-feedback error">{error}</p>}
       <div className="proposal-form-grid">
         {!assessing && <>
@@ -314,7 +318,7 @@ function Riesgos() {
           <label className="full-width">Justificación de la evaluación<textarea required minLength="10" maxLength="1000" value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Explica la evidencia que sustenta esta calificación." /></label>
         </>}
       </div>
-      <div className="modal-actions"><button type="button" className="secondary-action" onClick={closeModal}>Cancelar</button><button type="submit" className="primary-action" disabled={saving || (!editing && !assessing && (orgUnitsLoading || Boolean(orgUnitsError)))}>{saving ? "Guardando..." : assessing ? "Guardar evaluación" : editing ? "Guardar cambios" : "Crear riesgo"}</button></div>
+      <div className="modal-actions"><button type="button" className="secondary-action" onClick={closeModal}>Cancelar</button><button type="submit" className="primary-action" disabled={saving || staleEdit || (!editing && !assessing && (orgUnitsLoading || Boolean(orgUnitsError)))}>{saving ? "Guardando..." : assessing ? "Guardar evaluación" : editing ? "Guardar cambios" : "Crear riesgo"}</button></div>
     </form></div>}
     {responding && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setResponding(null); }}>
       <form className="proposal-modal risk-modal" onSubmit={submitResponse}>
