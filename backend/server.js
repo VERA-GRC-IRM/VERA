@@ -27,6 +27,16 @@ const jobRoutes = require("./routes/jobRoutes");
 
 const app = express();
 
+console.error("[API_ROUTER_DIAGNOSTIC]", JSON.stringify(Object.fromEntries([
+  ["auth", authRoutes], ["users", userRoutes], ["audit", auditRoutes],
+  ["dashboard", dashboardRoutes], ["risks", riskRoutes], ["controls", controlRoutes],
+  ["findings", findingRoutes], ["notifications", notificationRoutes],
+  ["actions", actionRoutes], ["evidence", evidenceRoutes], ["assistant", assistantRoutes],
+  ["orgUnits", orgUnitRoutes], ["riskLibrary", riskLibraryRoutes],
+  ["businessContext", businessContextRoutes], ["search", searchRoutes],
+  ["workspace", workspaceRoutes], ["jobs", jobRoutes]
+].map(([name, router]) => [name, typeof router]))));
+
 app.set("trust proxy", 1); // 1 = one proxy hop in front of your app
 
 app.use(cors());
