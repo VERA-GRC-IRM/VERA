@@ -25,7 +25,6 @@ const businessContextRoutes = require("./routes/businessContextRoutes");
 const searchRoutes = require("./routes/searchRoutes");
 const workspaceRoutes = require("./routes/workspaceRoutes");
 const jobRoutes = require("./routes/jobRoutes");
-const liveRoutes = require("./routes/liveRoutes");
 
 const app = express();
 
@@ -71,7 +70,12 @@ app.use("/api/push", (req, res, next) => {
   }
   return require("./routes/pushRoutes")(req, res, next);
 });
-app.use("/api/live", liveRoutes);
+app.use("/api/live", (req, res, next) => {
+  if (process.env.VERA_LIVE_UPDATES_ENABLED !== "true" && process.env.VERA_PRESENCE_ENABLED !== "true") {
+    return res.status(404).json({ message: "Actualización en vivo no disponible." });
+  }
+  return require("./routes/liveRoutes")(req, res, next);
+});
 
 app.get("/", (req, res) => {
   res.json({
