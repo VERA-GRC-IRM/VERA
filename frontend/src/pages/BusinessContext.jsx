@@ -4,6 +4,7 @@ import { Building2, CalendarDays, FileUp, Network, Plus, Search } from "lucide-r
 import Sidebar from "../components/Sidebar";
 import BusinessGraph from "../components/BusinessGraph";
 import BusinessImport from "../components/BusinessImport";
+import ShareLinkButton from "../components/ShareLinkButton";
 import { createOrgUnit, getAvailableOrgUnits } from "../services/orgUnitService";
 import { createBusinessContext, getBusinessContext, getBusinessContextOwners, getBusinessContextRevisions,
   publishBusinessContextRevision } from "../services/businessContextService";
@@ -267,6 +268,7 @@ function BusinessContext() {
             </div>}
             <small><CalendarDays size={15} aria-hidden="true" /> Vigente desde {record.effectiveFrom}{record.effectiveTo ? ` hasta ${record.effectiveTo}` : ""}{record.sourceNote ? ` · Fuente: ${record.sourceNote}` : " · Fuente no indicada"}</small>
             <div className="business-context-card-actions">
+              <ShareLinkButton path={`/mapa-negocio?context=${encodeURIComponent(record.contextId)}&revision=${record.revision}`} />
               <details onToggle={(event) => { if (event.currentTarget.open) loadHistory(record.contextId); }}><summary>Ver historial de versiones</summary>
                 {histories[record.contextId]?.loading && <p role="status">Consultando historial…</p>}
                 {histories[record.contextId]?.error && <p role="alert">{histories[record.contextId].error}</p>}

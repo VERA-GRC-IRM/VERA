@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { ExternalLink, FileCheck2, FileImage, FileText, Plus, Search, X } from "lucide-react";
 import Sidebar from "../components/Sidebar";
+import ShareLinkButton from "../components/ShareLinkButton";
 import EvidenceAssistantDialog from "../components/EvidenceAssistantDialog";
 import { createEvidence, getEvidence, getEvidenceDownloadUrl, uploadEvidenceFile } from "../services/evidenceService";
 import { getRisks } from "../services/riskService";
@@ -120,6 +121,7 @@ function Evidencias() {
           <div className="evidence-reference"><b>{item.file ? "Archivo:" : "Referencia:"}</b> {item.file ? <button type="button" className="secondary-action" onClick={() => download(item)}>Descargar archivo ({Math.ceil(item.file.size / 1024)} KB)</button> : safeLink(item.reference) ? <a href={item.reference} target="_blank" rel="noreferrer">Abrir referencia <ExternalLink size={13} /></a> : <span>{item.reference}</span>}</div>
           {item.file && <small className="evidence-index-coverage">{indexLabel(item.contentIndex, item.file.mime)}</small>}
           {item.file && ["application/pdf", "text/plain", "text/csv", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/png", "image/jpeg", "image/webp"].includes(item.file.mime) && <button type="button" className="secondary-action evidence-ai-open" onClick={() => setAssistantEvidence(item)}><FileText size={15} aria-hidden="true" /> Consultar contenido con IA</button>}
+          <ShareLinkButton path={`/evidencias#evidence-${encodeURIComponent(item.id)}`} />
         </div>
       </article>)}</div>}
     <p className="evidence-footnote">La persistencia de metadatos depende de `VERA_EVIDENCE_COMMENT_STORE`; los archivos se guardan en un bucket privado de Supabase. La activación del despliegue debe verificarse por separado.</p>
