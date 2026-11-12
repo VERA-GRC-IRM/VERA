@@ -1,5 +1,5 @@
 const PAGE_SIZE = 1000;
-const TABLES = new Set(["vera_risks", "vera_controls", "vera_findings", "vera_evidence", "vera_audit_comments", "vera_notification_reads", "vera_actions", "vera_org_units", "vera_org_grants", "vera_risk_library", "vera_business_context", "vera_risk_methods"]);
+const TABLES = new Set(["vera_risks", "vera_controls", "vera_findings", "vera_evidence", "vera_evidence_uploads", "vera_audit_comments", "vera_notification_reads", "vera_actions", "vera_org_units", "vera_org_grants", "vera_risk_library", "vera_business_context", "vera_risk_methods"]);
 
 class DomainStorageError extends Error {
   constructor(message, status = 503) {
@@ -81,7 +81,10 @@ const createStore = (table) => {
     if (!rows.length) throw new DomainStorageError("El registro cambió mientras lo editabas. Actualiza y vuelve a intentar.", 409);
     return unpack(rows[0]);
   };
-  return { getAll, findById, create, mutate };
+  const remove = async (id) => {
+    await request("DELETE", { id: `eq.${id}` });
+  };
+  return { getAll, findById, create, mutate, remove };
 };
 
 module.exports = { createStore, DomainStorageError };

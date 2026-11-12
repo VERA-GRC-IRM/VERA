@@ -2,6 +2,7 @@ const { randomUUID } = require("node:crypto");
 
 const BUCKET = "vera-evidence";
 const MAX_BYTES = 3 * 1024 * 1024;
+const CHUNK_BYTES = 256 * 1024;
 const MIME_EXTENSIONS = {
   "application/pdf": "pdf",
   "application/vnd.ms-excel": "xls",
@@ -43,6 +44,44 @@ const pathFor = (entityType, entityId, mime) => {
   const extension = MIME_EXTENSIONS[mime];
   if (!extension) throw new EvidenceStorageError("Tipo de archivo no permitido.", 415);
   return `${entityType.toLowerCase()}/${encodeURIComponent(entityId)}/${randomUUID()}.${extension}`;
+};
+
+const chunkPath = (sessionId, index, mime) => {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId) ||
+      !Number.isInteger(index) || index < 0 || index >= MAX_BYTES / CHUNK_BYTES ||
+      !MIME_EXTENSIONS[mime]) throw new EvidenceStorageError("Parte de archivo no válida.", 400);
+  return `uploads/${sessionId}/${index}.${MIME_EXTENSIONS[mime]}`;
+};
+
+const uploadChunk = async (sessionId, index, mime, bytes) => {
+  const path = chunkPath(sessionId, index, mime);
+  if (!Buffer.isBuffer(bytes) || bytes.length === 0 || bytes.length > CHUNK_BYTES) {
+    throw new EvidenceStorageError("La parte supera el tamaño permitido.", 400);
+  }
+  const { root, key } = config();
+  const url = new URL(`/storage/v1/object/${BUCKET}/${path}`, root);
+  let response;
+  try { response = await fetch(url, { method: "POST", headers: {
+    ...headersFor(key), "Content-Type": mime, "x-upsert": "false"
+  }, body: bytes, signal: AbortSignal.timeout(15_000) }); }
+  catch { throw new EvidenceStorageError("No se pudo guardar la parte del archivo."); }
+  if (!response.ok) throw new EvidenceStorageError("No se pudo guardar la parte del archivo.", response.status === 409 ? 409 : 503);
+  return path;
+};
+
+const downloadChunk = async (sessionId, index, mime) => {
+  const path = chunkPath(sessionId, index, mime);
+  const { root, key } = config();
+  const url = new URL(`/storage/v1/object/${BUCKET}/${path}`, root);
+  let response;
+  try { response = await fetch(url, { headers: headersFor(key), signal: AbortSignal.timeout(15_000) }); }
+  catch { throw new EvidenceStorageError("No se pudo leer una parte del archivo."); }
+  if (!response.ok || Number(response.headers.get("content-length")) > CHUNK_BYTES) {
+    throw new EvidenceStorageError("No se pudo leer una parte del archivo.", response.status === 404 ? 404 : 503);
+  }
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length === 0 || bytes.length > CHUNK_BYTES) throw new EvidenceStorageError("Parte del archivo incompleta.");
+  return bytes;
 };
 
 const hasValidSignature = (bytes, mime) => {
@@ -140,6 +179,19 @@ const remove = async (file) => {
   if (!response.ok) throw new EvidenceStorageError("No se pudo retirar un archivo sin metadatos.");
 };
 
+const removeChunks = async (sessionId, count, mime) => {
+  if (!Number.isInteger(count) || count < 1 || count > MAX_BYTES / CHUNK_BYTES) {
+    throw new EvidenceStorageError("Cantidad de partes no válida.", 400);
+  }
+  const prefixes = Array.from({ length: count }, (_, index) => chunkPath(sessionId, index, mime));
+  const { root, key } = config();
+  const url = new URL(`/storage/v1/object/${BUCKET}`, root);
+  const response = await fetch(url, { method: "DELETE", headers: {
+    ...headersFor(key), "Content-Type": "application/json"
+  }, body: JSON.stringify({ prefixes }), signal: AbortSignal.timeout(15_000) });
+  if (!response.ok) throw new EvidenceStorageError("No se pudieron retirar las partes temporales.");
+};
+
 const validFile = (file) => file && file.bucket === BUCKET &&
   /^(risk|control|audit|ai)\/[^/]+\/[0-9a-f-]{36}\.(pdf|xls|xlsx|doc|docx|png|jpg|webp|csv|txt)$/.test(file.path) &&
   MIME_EXTENSIONS[file.mime] && file.path.endsWith(`.${MIME_EXTENSIONS[file.mime]}`);
@@ -184,4 +236,5 @@ const signedDownloadUrl = async (file) => {
   return new URL(`/storage/v1${data.signedURL}`, root).toString();
 };
 
-module.exports = { MAX_BYTES, MIME_EXTENSIONS, EvidenceStorageError, upload, remove, signedDownloadUrl, downloadBytes };
+module.exports = { MAX_BYTES, CHUNK_BYTES, MIME_EXTENSIONS, EvidenceStorageError, upload, uploadChunk,
+  downloadChunk, chunkPath, remove, removeChunks, signedDownloadUrl, downloadBytes };
