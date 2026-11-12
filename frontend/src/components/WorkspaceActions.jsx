@@ -29,7 +29,8 @@ export function SaveViewButton({ userId, path, defaultName }) {
   if (!userId) return null;
   const submit = (event) => {
     event.preventDefault();
-    if (saveView(userId, path, name)) { setMessage("Vista guardada en este navegador"); setOpen(false); }
+    if (saveView(userId, path, name)) { setMessage(import.meta.env.VITE_VERA_WORKSPACE_SYNC_ENABLED === "true"
+      ? "Vista guardada; sincronización en curso" : "Vista guardada en este navegador"); setOpen(false); }
     else setMessage("No se pudo guardar la vista.");
   };
   return <span className="workspace-action">

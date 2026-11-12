@@ -43,6 +43,7 @@ import AssistantConversationProvider from "./contexts/AssistantConversationProvi
 import ConnectivityStatus from "./components/ConnectivityStatus";
 import PwaUpdateNotice from "./components/PwaUpdateNotice";
 import DesktopAlerts from "./components/DesktopAlerts";
+import WorkspaceSync from "./components/WorkspaceSync";
 import { ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "./constants/roles";
 
 
@@ -59,6 +60,7 @@ function App() {
       <ConnectivityStatus />
       <PwaUpdateNotice />
       <DesktopAlerts />
+      <WorkspaceSync />
       <AssistantConversationProvider>
         <Suspense fallback={null}>
         <Routes>
