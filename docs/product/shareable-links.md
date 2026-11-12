@@ -1,6 +1,6 @@
 # Enlaces de trabajo
 
-Las vistas de búsqueda de auditorías y riesgos conservan filtros en la URL. «Copiar vista» permite enviarla a otra persona; «Copiar enlace» apunta a una auditoría, riesgo, control, evidencia o ficha del mapa del negocio. El enlace no incluye el contenido del expediente, contraseñas ni tokens, pero sí los filtros escritos. Al abrirlo se exige iniciar sesión y la API vuelve a comprobar los permisos vigentes; compartir un enlace no concede acceso.
+Las vistas de búsqueda de auditorías y riesgos conservan filtros en la URL. «Copiar vista» permite enviarla a otra persona; «Copiar enlace» apunta a una propuesta desde Planificación, una auditoría activa desde su tablero, o a un riesgo, control, evidencia o ficha del mapa del negocio. El enlace no incluye el contenido del expediente, contraseñas ni tokens, pero sí los filtros escritos. Al abrirlo se exige iniciar sesión y la API vuelve a comprobar los permisos vigentes; compartir un enlace no concede acceso.
 
 La vista de evidencias también conserva su búsqueda (`q`) y tipo (`type`) en la URL. Se puede copiar o guardar en «Tu espacio» del mismo navegador. La búsqueda escrita queda visible para cualquiera que reciba el enlace; conviene no usar términos privados en él. Los parámetros solo ajustan la presentación de los registros que el servidor ya autorizó a esa cuenta.
 
