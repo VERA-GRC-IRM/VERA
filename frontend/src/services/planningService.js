@@ -1,4 +1,5 @@
 import { fetchWithOfflineFallback } from "./offlineSnapshots";
+import { downloadReportFile } from "./reportDownload";
 
 const API_URL = "/api/planning";
 
@@ -45,26 +46,12 @@ const reportParams = (filters, format) => {
   return params.toString();
 };
 
-export const getPortfolioReport = (filters = {}) => request(`/report?${reportParams(filters)}`);
+export const getPortfolioReport = (filters = {}, options = {}) => request(`/report?${reportParams(filters)}`, options);
 
-export const downloadPortfolioReport = async (filters = {}, format = "csv") => {
+export const downloadPortfolioReport = async (filters = {}, format = "csv", { signal } = {}) => {
   if (!["csv", "pdf"].includes(format)) throw new Error("El formato no es válido.");
-  const response = await fetch(`${API_URL}/report?${reportParams(filters, format)}`, {
-    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-  });
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.message || "No se pudo descargar el reporte.");
-  }
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `vera-reporte-portafolio.${format}`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  return downloadReportFile(`${API_URL}/report?${reportParams(filters, format)}`,
+    localStorage.getItem("token"), `vera-reporte-portafolio.${format}`, { signal });
 };
 
 export const getActiveAudits = async () => {
