@@ -99,6 +99,8 @@ test("RF-29: report includes linked facts and filtered CSV with UTF-8 headings",
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(Buffer.from(await excelResponse.arrayBuffer()));
   assert.equal(workbook.getWorksheet("Resumen").getCell("B4").value, 1);
+  assert.equal(workbook.getWorksheet("Resumen").getCell("A11").value, "Versión del contrato BI");
+  assert.equal(workbook.getWorksheet("Resumen").getCell("B11").value, 1);
   const excelRows = workbook.getWorksheet("Auditorías");
   assert.equal(excelRows.rowCount, 2);
   assert.equal(excelRows.getCell("A2").value, proposal.id);
