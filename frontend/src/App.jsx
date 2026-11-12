@@ -46,6 +46,7 @@ import PwaUpdateNotice from "./components/PwaUpdateNotice";
 import DesktopAlerts from "./components/DesktopAlerts";
 import WorkspaceSync from "./components/WorkspaceSync";
 import RouteLoading from "./components/RouteLoading";
+import RouteTitle from "./components/RouteTitle";
 import { ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "./constants/roles";
 
 
@@ -59,6 +60,7 @@ function App() {
   }, []);
   return (
     <BrowserRouter>
+      <RouteTitle />
       <ConnectivityStatus />
       <PwaUpdateNotice />
       <DesktopAlerts />

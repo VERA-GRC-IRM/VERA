@@ -212,6 +212,7 @@ function Riesgos() {
     finally { setSaving(false); }
   };
   const closeModal = () => { setModal(false); setAssessing(null); setEditing(null); setError(""); };
+  const hasActiveFilters = Object.values(filters).some(Boolean);
 
   return <div className="dashboard-layout">
     <Sidebar active="riesgos" />
@@ -246,7 +247,7 @@ function Riesgos() {
           <label>Seguimiento<select value={filters.response} onChange={(event) => setFilters({ ...filters, response: event.target.value })}><option value="">Todas las estrategias</option>{RESPONSE_STATES.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}</select></label>
         </section>
         {!loading && <p className="risk-response-result-count" role="status">Mostrando {visibleRisks.length} de {risks.length} riesgos visibles con los filtros de búsqueda, área y nivel.</p>}
-        {loading ? <div className="risk-empty">Cargando registro...</div> : visibleRisks.length === 0 ? <div className="risk-empty">No hay riesgos que coincidan con estos filtros.</div> :
+        {loading ? <div className="risk-empty" role="status">Cargando registro...</div> : visibleRisks.length === 0 ? <div className="risk-empty"><p>{hasActiveFilters ? "No hay riesgos que coincidan con estos filtros." : "Aún no hay riesgos visibles en este registro."}</p>{hasActiveFilters ? <button type="button" className="secondary-action" onClick={() => setFilters({ search: "", area: "", level: "", response: "" })}>Limpiar filtros</button> : canManage && <button type="button" className="secondary-action" onClick={startCreate}>Registrar riesgo</button>}</div> :
           <div className="risk-list">{visibleRisks.map((risk) => <article className="risk-record" id={`risk-${risk.id}`} key={risk.id}>
             <div className="risk-record-icon"><ShieldAlert size={22} /></div>
             <div className="risk-record-main">
