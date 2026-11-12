@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, ClipboardList, MoreHorizontal, Pencil, Plus, Trash2, X, XCircle } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
+import useUnsavedChanges from "../hooks/useUnsavedChanges";
 import PlanningHistoryButton from "../components/PlanningHistoryButton";
 import ShareLinkButton from "../components/ShareLinkButton";
 import { getAvailableOrgUnits } from "../services/orgUnitService";
@@ -69,6 +70,7 @@ function Planificacion() {
   const [actionItem, setActionItem] = useState(null);
   const [detailItem, setDetailItem] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [initialForm, setInitialForm] = useState(JSON.stringify(EMPTY_FORM));
   const [editingId, setEditingId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [draftFromAssistant, setDraftFromAssistant] = useState(false);
@@ -128,12 +130,14 @@ function Planificacion() {
         if (!canCreate || Number(value.userId) !== Number(user?.id) || value.expiresAt < Date.now()) return;
         const draft = value.draft;
         if (!draft || typeof draft !== "object") return;
-        setForm({ ...EMPTY_FORM,
+        const next = { ...EMPTY_FORM,
           title: String(draft.title || "").slice(0, 120), area: String(draft.area || "").slice(0, 100),
           objective: String(draft.objective || "").slice(0, 500), scope: String(draft.scope || "").slice(0, 500),
           justification: String(draft.justification || "").slice(0, 500),
           likelihood: [1, 2, 3].includes(Number(draft.likelihood)) ? Number(draft.likelihood) : 2,
-          impact: [1, 2, 3].includes(Number(draft.impact)) ? Number(draft.impact) : 2 });
+          impact: [1, 2, 3].includes(Number(draft.impact)) ? Number(draft.impact) : 2 };
+        setInitialForm(JSON.stringify(next));
+        setForm(next);
         setEditingId(null);
         setDraftFromAssistant(true);
         setIsModalOpen(true);
@@ -170,13 +174,14 @@ function Planificacion() {
     setEditingId(null);
     setDraftFromAssistant(false);
     setForm(EMPTY_FORM);
+    setInitialForm(JSON.stringify(EMPTY_FORM));
     setIsModalOpen(true);
   };
 
   const openEdit = (item) => {
     setEditingId(item.id);
     setDraftFromAssistant(false);
-    setForm({
+    const next = {
       title: item.title,
       area: item.area,
       orgUnitId: item.orgUnitId || "",
@@ -193,15 +198,19 @@ function Planificacion() {
       objective: item.objective,
       scope: item.scope || "",
       justification: item.justification || ""
-    });
+    };
+    setInitialForm(JSON.stringify(next));
+    setForm(next);
     setIsModalOpen(true);
   };
 
-  const closeModal = () => {
+  const confirmDiscard = useUnsavedChanges(isModalOpen, form, initialForm);
+  const finishModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
     setDraftFromAssistant(false);
   };
+  const closeModal = () => { if (confirmDiscard()) finishModal(); };
 
   const run = async (action, successMessage) => {
     try {
@@ -227,7 +236,7 @@ function Planificacion() {
       editingId ? "La propuesta fue actualizada." : "La propuesta fue creada y quedó abierta para revisión."
     );
     setSaving(false);
-    if (ok) closeModal();
+    if (ok) finishModal();
   };
 
   const handleApprove = async (item) => {

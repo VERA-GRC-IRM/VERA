@@ -5,6 +5,7 @@ import Sidebar from "../components/Sidebar";
 import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
 import useRecordFreshness from "../hooks/useRecordFreshness";
 import useEditPresence from "../hooks/useEditPresence";
+import useUnsavedChanges from "../hooks/useUnsavedChanges";
 import ShareLinkButton from "../components/ShareLinkButton";
 import { BookmarkButton, SaveViewButton } from "../components/WorkspaceActions";
 import AssistantDrawer from "../components/AssistantDrawer";
@@ -73,6 +74,7 @@ function Riesgos() {
     navigate({ pathname: location.pathname, search: query ? `?${query}` : "", hash: location.hash }, { replace: true });
   };
   const [form, setForm] = useState(EMPTY);
+  const [initialForm, setInitialForm] = useState(JSON.stringify(EMPTY));
   const [editing, setEditing] = useState(null);
   const [assessing, setAssessing] = useState(null);
   const [responding, setResponding] = useState(null);
@@ -167,7 +169,8 @@ function Riesgos() {
       : [...references.filter((reference) => reference.contextId !== record.contextId),
         { contextId: record.contextId, revision: record.revision }] };
   });
-  const startCreate = () => { setEditing(null); setForm(EMPTY); setError(""); setModal(true); };
+  const openForm = (next) => { setInitialForm(JSON.stringify(next)); setForm(next); setError(""); setModal(true); };
+  const startCreate = () => { setEditing(null); setAssessing(null); openForm(EMPTY); };
   const selectTemplate = (templateId) => {
     const template = riskTemplates.find((item) => item.templateId === templateId);
     setForm((current) => ({ ...current, templateId: template?.templateId || "",
@@ -177,9 +180,9 @@ function Riesgos() {
   };
   const startEdit = (risk) => {
     setEditing(risk);
-    setForm({ title: risk.title, description: risk.description, area: risk.area, orgUnitId: risk.orgUnitId || "", ownerId: String(risk.ownerId), responsePlan: risk.responsePlan || "", linkedAuditId: risk.linkedAuditId || "",
+    setAssessing(null);
+    openForm({ title: risk.title, description: risk.description, area: risk.area, orgUnitId: risk.orgUnitId || "", ownerId: String(risk.ownerId), responsePlan: risk.responsePlan || "", linkedAuditId: risk.linkedAuditId || "",
       businessContextReferences: (risk.businessContextReferences || []).map(({ contextId, revision, kind, code, name }) => ({ contextId, revision, kind, code, name })) });
-    setError(""); setModal(true);
   };
   const submit = async (event) => {
     event.preventDefault(); setSaving(true); setError("");
@@ -199,9 +202,11 @@ function Riesgos() {
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
   };
-  const startAssessment = (risk) => { setAssessing(risk); setEditing(null); setForm({ likelihood: risk.likelihood, impact: risk.impact, note: "" }); setError(""); setModal(true); };
+  const startAssessment = (risk) => { setAssessing(risk); setEditing(null); openForm({ likelihood: risk.likelihood, impact: risk.impact, note: "" }); };
   const startResponse = (risk) => {
-    setResponding(risk); setResponseForm({ ...EMPTY_RESPONSE, ownerId: String(risk.ownerId) }); setError("");
+    const next = { ...EMPTY_RESPONSE, ownerId: String(risk.ownerId) };
+    setInitialForm(JSON.stringify(next));
+    setResponding(risk); setResponseForm(next); setError("");
   };
   const submitResponse = async (event) => {
     event.preventDefault(); setSaving(true); setError("");
@@ -211,7 +216,9 @@ function Riesgos() {
     } catch (cause) { setError(cause.message); }
     finally { setSaving(false); }
   };
-  const closeModal = () => { setModal(false); setAssessing(null); setEditing(null); setError(""); };
+  const confirmDiscard = useUnsavedChanges(modal || Boolean(responding), modal ? form : responseForm, initialForm);
+  const closeModal = () => { if (!confirmDiscard()) return; setModal(false); setAssessing(null); setEditing(null); setError(""); };
+  const closeResponse = () => { if (confirmDiscard()) setResponding(null); };
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
   return <div className="dashboard-layout">
@@ -324,11 +331,11 @@ function Riesgos() {
       </div>
       <div className="modal-actions"><button type="button" className="secondary-action" onClick={closeModal}>Cancelar</button><button type="submit" className="primary-action" disabled={saving || staleEdit || (!editing && !assessing && (orgUnitsLoading || Boolean(orgUnitsError)))}>{saving ? "Guardando..." : assessing ? "Guardar evaluación" : editing ? "Guardar cambios" : "Crear riesgo"}</button></div>
     </form></div>}
-    {responding && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setResponding(null); }}>
+    {responding && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeResponse(); }}>
       <form className="proposal-modal risk-modal" onSubmit={submitResponse}>
         <div className="modal-header"><div><span className="eyebrow">RESPUESTA AL RIESGO · {responding.id}</span><h2>Proponer estrategia</h2>
           <p>Documenta una propuesta; la aprobación formal y el cálculo residual se gestionan por separado.</p></div>
-          <button type="button" className="modal-close" onClick={() => setResponding(null)} aria-label="Cerrar"><X size={20} /></button></div>
+          <button type="button" className="modal-close" onClick={closeResponse} aria-label="Cerrar"><X size={20} /></button></div>
         {error && <p className="risk-feedback error" role="alert">{error}</p>}
         <div className="proposal-form-grid">
           <label>Estrategia<select value={responseForm.strategy} onChange={(event) => setResponseForm({ ...responseForm, strategy: event.target.value })}>
@@ -342,7 +349,7 @@ function Riesgos() {
           <label className="full-width">Acciones o condiciones<textarea required minLength="10" maxLength="2000" value={responseForm.actions}
             onChange={(event) => setResponseForm({ ...responseForm, actions: event.target.value })} /></label>
         </div>
-        <div className="modal-actions"><button type="button" className="secondary-action" onClick={() => setResponding(null)}>Cancelar</button>
+        <div className="modal-actions"><button type="button" className="secondary-action" onClick={closeResponse}>Cancelar</button>
           <button type="submit" className="primary-action" disabled={saving}>{saving ? "Guardando…" : "Guardar propuesta"}</button></div>
       </form>
     </div>}

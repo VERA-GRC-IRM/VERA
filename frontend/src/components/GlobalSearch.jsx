@@ -100,11 +100,11 @@ function GlobalSearch({ groups, previewRoles, onNavigate, onPreviewRole, onRevea
   const choose = (key) => {
     const result = results.find((item) => item.key === key);
     if (!result) return;
+    if ((result.kind === "navigate" || result.kind === "record") && onNavigate(result.path) === false) return;
     if (result.kind === "focus") focusAfterCloseRef.current = result.element;
     else skipRestoreRef.current = true;
     const selectedQuestion = result.kind === "ask" ? query.trim() : "";
     dialogRef.current?.close();
-    if (result.kind === "navigate" || result.kind === "record") onNavigate(result.path);
     if (result.kind === "preview") onPreviewRole(result.role);
     if (result.kind === "appearance") onRevealAppearance();
     if (result.kind === "logout") onLogout();
