@@ -9,3 +9,13 @@
 
 .coverage-qualification { margin: -6px 0 16px; color: var(--vera-text-muted); font-size: 12px; line-height: 1.5; }
 .coverage-linked { background: var(--vera-accent-soft); color: var(--vera-text-strong); }
+.coverage-scroll { max-height: min(68vh, 720px); border: 1px solid var(--vera-border-soft); border-radius: 9px; }
+.coverage-scroll:focus-visible { outline: 3px solid var(--vera-focus); outline-offset: 2px; }
+.coverage-matrix thead th { position: sticky; top: 0; z-index: 1; background: var(--vera-surface); }
+.coverage-matrix tr > th:first-child { position: sticky; left: 0; z-index: 2; background: var(--vera-surface); }
+.coverage-matrix thead th:first-child { z-index: 3; }
+.coverage-matrix thead th span, .coverage-matrix tbody th small,
+.coverage-matrix td small, .coverage-legend span, .control-type,
+.effectiveness-pill, .control-history li small { font-size: 12px; }
+.control-card-meta, .control-actions button, .control-id { font-size: 13px; }
+.control-actions button, .control-history summary { min-height: 44px; }

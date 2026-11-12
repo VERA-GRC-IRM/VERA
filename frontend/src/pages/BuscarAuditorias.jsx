@@ -154,7 +154,7 @@ function BuscarAuditorias() {
           </form>
           {error && <p className="planning-message error" role="alert">{error}</p>}
           <p role="status" aria-live="polite">{loading ? "Buscando auditorías…" : `${audits.length} resultado(s)`}</p>
-          {!loading && audits.length === 0 && <div className="planning-empty">No hay auditorías visibles que coincidan con los filtros.</div>}
+          {!loading && audits.length === 0 && <div className="planning-empty"><p>{Object.values(appliedFilters).some(Boolean) ? "No hay auditorías visibles que coincidan con los filtros." : "Aún no hay auditorías visibles para esta cuenta."}</p>{Object.values(appliedFilters).some(Boolean) && <button type="button" className="secondary-action" onClick={clear}>Limpiar filtros</button>}</div>}
           <div className="audit-report-actions">
             <div><h2>Reporte del portafolio</h2><p>Incluye auditorías y sus riesgos, controles, hallazgos y evidencias vinculadas, según tu acceso. Usa los últimos filtros aplicados.</p></div>
             <button className="secondary-action" type="button" onClick={openReport} disabled={loading || reportBusy}>Ver reporte</button>
