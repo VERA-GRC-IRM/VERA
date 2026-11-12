@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Building2, CalendarDays, Network, Plus, Search } from "lucide-react";
 import Sidebar from "../components/Sidebar";
+import BusinessGraph from "../components/BusinessGraph";
 import { createOrgUnit, getAvailableOrgUnits } from "../services/orgUnitService";
 import { createBusinessContext, getBusinessContext, getBusinessContextOwners, getBusinessContextRevisions,
   publishBusinessContextRevision } from "../services/businessContextService";
@@ -41,6 +42,7 @@ function BusinessContext() {
   const [unitForm, setUnitForm] = useState(newUnit);
   const [saving, setSaving] = useState(false);
   const [openForm, setOpenForm] = useState("");
+  const [showGraph, setShowGraph] = useState(false);
 
   const refresh = async () => {
     const [nextRecords, nextUnits] = await Promise.all([getBusinessContext(), getAvailableOrgUnits()]);
@@ -169,6 +171,11 @@ function BusinessContext() {
           <button type="button" aria-expanded={openForm === "unit"} onClick={() => { setOpenForm(openForm === "unit" ? "" : "unit"); setError(""); }}><Building2 size={18} /> Registrar ámbito</button>
           <button type="button" aria-expanded={openForm === "record"} onClick={() => { setRevisionTarget(null); setRecordForm(newRecord()); setOpenForm(openForm === "record" ? "" : "record"); setError(""); }}><Plus size={18} /> Añadir al mapa</button>
         </div>}
+
+        <div className="business-context-actions"><button type="button" aria-expanded={showGraph}
+          onClick={() => setShowGraph((current) => !current)}><Network size={18} aria-hidden="true" />
+          {showGraph ? "Cerrar vista de relaciones" : "Explorar relaciones del negocio"}</button></div>
+        {showGraph && <BusinessGraph />}
 
         {canPublish && openForm === "unit" && <form className="business-context-form" onSubmit={submitUnit}>
           <h2>Nuevo ámbito empresarial</h2>
