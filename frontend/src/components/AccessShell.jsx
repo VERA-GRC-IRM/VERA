@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import ThemeControl from "./ThemeControl";
 import LoginCompanion from "./LoginCompanion";
 import { PUBLIC_NAVIGATION } from "../constants/publicNavigation";
+import { prefetchNavigation } from "../routeLoaders";
 
 const journey = ["Planificación", "Auditorías", "Riesgos y controles", "Evidencias"];
 
@@ -9,13 +10,13 @@ function AccessShell({ children, variant = "login" }) {
   return <div className={`access-page access-page--${variant}`}>
     <a className="skip-link" href="#access-content">Saltar al contenido</a>
     <header className="access-header">
-      <Link className="access-brand" to="/acerca" aria-label="VERA, conocer la plataforma">
+      <Link className="access-brand" to="/acerca" onPointerEnter={() => prefetchNavigation("/acerca")} onFocus={() => prefetchNavigation("/acerca")} aria-label="VERA, conocer la plataforma">
         <img src="/vera-logo.svg" alt="" width="42" height="42" />
         <span><strong>VERA</strong><small>Digital Systems</small></span>
       </Link>
       <nav className="access-header__links" aria-label="Navegación pública">
-        {PUBLIC_NAVIGATION.map(({ to, label }) => <Link key={to} to={to}>{label}</Link>)}
-        <Link to="/privacidad">Privacidad</Link>
+        {PUBLIC_NAVIGATION.map(({ to, label }) => <Link key={to} to={to} onPointerEnter={() => prefetchNavigation(to)} onFocus={() => prefetchNavigation(to)}>{label}</Link>)}
+        <Link to="/privacidad" onPointerEnter={() => prefetchNavigation("/privacidad")} onFocus={() => prefetchNavigation("/privacidad")}>Privacidad</Link>
       </nav>
       <div className="access-header__appearance"><ThemeControl compact /></div>
     </header>

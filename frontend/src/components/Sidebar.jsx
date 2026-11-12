@@ -29,6 +29,7 @@ import { clearRoleTourSession, startRoleTour } from "../services/roleTour";
 import { lockOfflineVault } from "../services/offlineVault";
 import ThemeControl from "./ThemeControl";
 import GlobalSearch from "./GlobalSearch";
+import { prefetchNavigation } from "../routeLoaders";
 import "../pages/Dashboard.css";
 import "./Sidebar.css";
 
@@ -193,6 +194,7 @@ function Sidebar({ active }) {
               <h3 className="nav-group-title">{group.label}</h3>
               {group.items.map(({ id, label, Icon, path }) => <button type="button" key={id}
                 className={`nav-item${active === id ? " active" : ""}`}
+                onPointerEnter={() => prefetchNavigation(path)} onFocus={() => prefetchNavigation(path)}
                 onClick={() => goTo(path)} aria-label={label} aria-current={active === id ? "page" : undefined}
                 title={collapsed && !isMobile ? label : undefined}>
                 <Icon size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
