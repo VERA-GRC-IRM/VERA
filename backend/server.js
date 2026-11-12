@@ -10,7 +10,6 @@ const { getJwtSecret } = require("./config/jwtSecret");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const auditRoutes = require("./routes/auditRoutes");
-const planningRoutes = require("./routes/planningRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const riskRoutes = require("./routes/riskRoutes");
 const controlRoutes = require("./routes/controlRoutes");
@@ -25,23 +24,10 @@ const businessContextRoutes = require("./routes/businessContextRoutes");
 const searchRoutes = require("./routes/searchRoutes");
 const workspaceRoutes = require("./routes/workspaceRoutes");
 const jobRoutes = require("./routes/jobRoutes");
+const pushRoutes = require("./routes/pushRoutes");
+const liveRoutes = require("./routes/liveRoutes");
 
 const app = express();
-
-console.error("[API_ROUTER_DIAGNOSTIC]", JSON.stringify(Object.fromEntries([
-  ["auth", authRoutes], ["users", userRoutes], ["audit", auditRoutes],
-  ["planning", planningRoutes], ["dashboard", dashboardRoutes], ["risks", riskRoutes],
-  ["controls", controlRoutes], ["findings", findingRoutes],
-  ["notifications", notificationRoutes], ["actions", actionRoutes],
-  ["evidence", evidenceRoutes], ["assistant", assistantRoutes],
-  ["orgUnits", orgUnitRoutes], ["riskLibrary", riskLibraryRoutes],
-  ["businessContext", businessContextRoutes], ["search", searchRoutes],
-  ["workspace", workspaceRoutes], ["jobs", jobRoutes]
-].map(([name, router]) => [name, typeof router]))));
-console.error("[PLANNING_ROUTER_DIAGNOSTIC]", JSON.stringify({
-  keys: Object.keys(planningRoutes || {}),
-  defaultType: typeof planningRoutes?.default
-}));
 
 app.set("trust proxy", 1); // 1 = one proxy hop in front of your app
 
@@ -61,7 +47,11 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/audit", auditRoutes);
-app.use("/api/planning", planningRoutes);
+// Resolve this route after the server module has initialized. The Vercel
+// bundle otherwise receives an incomplete CommonJS export during startup.
+app.use("/api/planning", (req, res, next) => {
+  return require("./routes/planningRoutes")(req, res, next);
+});
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/risks", riskRoutes);
 app.use("/api/controls", controlRoutes);
@@ -76,21 +66,8 @@ app.use("/api/business-context", businessContextRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/workspace", workspaceRoutes);
 app.use("/api/jobs", jobRoutes);
-// Keep the optional push integration out of the server startup path until it
-// is enabled. Vercel's server bundle can otherwise fail before any API route
-// (including login) is available, even when push itself is disabled.
-app.use("/api/push", (req, res, next) => {
-  if (process.env.VERA_PUSH_ENABLED !== "true") {
-    return res.status(404).json({ message: "Avisos push no disponibles." });
-  }
-  return require("./routes/pushRoutes")(req, res, next);
-});
-app.use("/api/live", (req, res, next) => {
-  if (process.env.VERA_LIVE_UPDATES_ENABLED !== "true" && process.env.VERA_PRESENCE_ENABLED !== "true") {
-    return res.status(404).json({ message: "Actualización en vivo no disponible." });
-  }
-  return require("./routes/liveRoutes")(req, res, next);
-});
+app.use("/api/push", pushRoutes);
+app.use("/api/live", liveRoutes);
 
 app.get("/", (req, res) => {
   res.json({
