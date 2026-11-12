@@ -13,10 +13,12 @@ const auth = (id, extra = {}) => ({ Authorization: `Bearer ${tokenFor(id)}`, ...
 test("HU-16: carga archivo privado, vincula metadatos y firma descarga autorizada", async (context) => {
   const base = await startTestServer(context, app);
   const originalFetch = global.fetch;
-  const before = { url: process.env.SUPABASE_URL, secret: process.env.SUPABASE_SECRET_KEY };
+  const before = { url: process.env.SUPABASE_URL, secret: process.env.SUPABASE_SECRET_KEY,
+    versions: process.env.VERA_EVIDENCE_VERSIONS_ENABLED };
   context.after(() => {
     global.fetch = originalFetch;
-    for (const [name, value] of [["SUPABASE_URL", before.url], ["SUPABASE_SECRET_KEY", before.secret]]) {
+    for (const [name, value] of [["SUPABASE_URL", before.url], ["SUPABASE_SECRET_KEY", before.secret],
+      ["VERA_EVIDENCE_VERSIONS_ENABLED", before.versions]]) {
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
     }
@@ -115,4 +117,29 @@ test("HU-16: carga archivo privado, vincula metadatos y firma descarga autorizad
   });
   assert.equal(tooLarge.status, 413);
   assert.equal(uploaded, 3);
+
+  const revisionQuery = new URLSearchParams({ ...Object.fromEntries(query), revisionOf: evidence.id });
+  const disabled = await fetch(`${base}/api/evidence/upload?${revisionQuery}`, {
+    method: "POST", headers: auth(5, { "Content-Type": "application/pdf" }), body
+  });
+  assert.equal(disabled.status, 503);
+  process.env.VERA_EVIDENCE_VERSIONS_ENABLED = "true";
+  const revision = await fetch(`${base}/api/evidence/upload?${revisionQuery}`, {
+    method: "POST", headers: auth(5, { "Content-Type": "application/pdf" }), body
+  });
+  assert.equal(revision.status, 201);
+  const version2 = (await revision.json()).evidence;
+  assert.equal(version2.previousVersionId, evidence.id);
+  assert.equal(version2.versionRootId, evidence.id);
+  assert.equal(version2.versionNumber, 2);
+  assert.notEqual(version2.file.path, evidence.file.path);
+  assert.equal((await fetch(`${base}/api/evidence/${evidence.id}/download`, { headers: auth(5) })).status, 200);
+  const stale = await fetch(`${base}/api/evidence/upload?${revisionQuery}`, {
+    method: "POST", headers: auth(5, { "Content-Type": "application/pdf" }), body
+  });
+  assert.equal(stale.status, 409);
+  const list = await fetch(`${base}/api/evidence`, { headers: auth(5) });
+  const listed = (await list.json()).evidence;
+  assert.ok(listed.some((item) => item.id === evidence.id));
+  assert.ok(listed.some((item) => item.id === version2.id));
 });
