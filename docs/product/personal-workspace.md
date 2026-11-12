@@ -1,0 +1,5 @@
+# Espacio personal del navegador
+
+El panel «Tu espacio» reúne hasta 20 registros guardados, 10 vistas filtradas y 12 secciones recientes. Cada entrada conserva una ruta interna y una etiqueta breve en el almacenamiento local, separada por ID de cuenta. Las pantallas de auditorías y riesgos permiten nombrar una vista; auditorías, riesgos, controles, evidencias y fichas del mapa admiten guardado rápido. Se pueden quitar entradas desde el panel.
+
+Esta versión funciona **solo en el navegador y dispositivo actuales**. No sincroniza entre dispositivos ni constituye una copia de respaldo. Un enlace guardado no concede permisos: al abrirlo, la API vuelve a comprobar la sesión y el ámbito. En un dispositivo compartido, otra persona con acceso al perfil del navegador podría ver los identificadores locales; no se guardan descripciones ni archivos. La persistencia entre dispositivos requiere una tabla privada y una migración de Supabase; su activación quedó pendiente por decisión del equipo y no se simula con datos temporales del servidor.

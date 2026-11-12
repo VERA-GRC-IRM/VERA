@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Activity, Bot, ClipboardCheck, Pencil, Plus, ShieldAlert, X } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import ShareLinkButton from "../components/ShareLinkButton";
+import { BookmarkButton, SaveViewButton } from "../components/WorkspaceActions";
 import AssistantDrawer from "../components/AssistantDrawer";
 import { RISK_CONTROL_MANAGE_ROLES } from "../constants/planning";
 import { createRisk, evaluateRisk, getRiskOwners, getRisks, proposeRiskResponse, updateRisk } from "../services/riskService";
@@ -212,6 +213,7 @@ function Riesgos() {
         <header className="dashboard-header">
           <div><span className="eyebrow">GESTIÓN Y PRIORIZACIÓN</span><h1>Registro de riesgos</h1><p>Identifica, evalúa y da seguimiento a los riesgos del portafolio.</p></div>
           <ShareLinkButton path={`${location.pathname}${location.search}`} label="Copiar vista" />
+          <SaveViewButton userId={user?.roleTour ? null : user?.id} path={`${location.pathname}${location.search}`} defaultName="Búsqueda de riesgos" />
           {canManage && <button className="primary-action" onClick={startCreate}><Plus size={18} /> Registrar riesgo</button>}
         </header>
         {message && <p className="risk-feedback success">{message}</p>}
@@ -257,7 +259,7 @@ function Riesgos() {
               </div>}
               <details className="risk-history"><summary><Activity size={15} /> Historial de evaluación ({risk.evaluations.length})</summary><ol>{[...risk.evaluations].reverse().map((evaluation) => <li key={evaluation.version}><div><b>Versión {evaluation.version}</b><span className={`risk-badge risk-${evaluation.level.toLowerCase()}`}>{evaluation.level} · {evaluation.score}/9</span></div><p>{evaluation.note}</p><small>{evaluation.assessedBy?.name || "Usuario"} · {dateLabel(evaluation.assessedAt)} · Probabilidad {evaluation.likelihood}, impacto {evaluation.impact}</small></li>)}</ol></details>
             </div>
-            <div className="risk-record-actions"><ShareLinkButton path={`/riesgos#risk-${encodeURIComponent(risk.id)}`} /><button type="button" onClick={() => setAssistantFocus({ type: "risk", id: risk.id, title: risk.title })}><Bot size={15} /> Analizar con IA</button>{canManage && <><button onClick={() => startEdit(risk)}><Pencil size={15} /> Editar</button><button onClick={() => startAssessment(risk)}><ClipboardCheck size={15} /> Reevaluar</button><button onClick={() => startResponse(risk)}>Definir estrategia</button></>}</div>
+            <div className="risk-record-actions"><ShareLinkButton path={`/riesgos#risk-${encodeURIComponent(risk.id)}`} /><BookmarkButton userId={user?.roleTour ? null : user?.id} path={`/riesgos#risk-${encodeURIComponent(risk.id)}`} label={`Riesgo ${risk.id}`} /><button type="button" onClick={() => setAssistantFocus({ type: "risk", id: risk.id, title: risk.title })}><Bot size={15} /> Analizar con IA</button>{canManage && <><button onClick={() => startEdit(risk)}><Pencil size={15} /> Editar</button><button onClick={() => startAssessment(risk)}><ClipboardCheck size={15} /> Reevaluar</button><button onClick={() => startResponse(risk)}>Definir estrategia</button></>}</div>
           </article>)}</div>}
       </section>
     </main>
