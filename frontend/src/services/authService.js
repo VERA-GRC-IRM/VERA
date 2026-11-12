@@ -11,6 +11,29 @@ export const verify2FA = async (tempToken, code) => {
   return data;
 };
 
+const parseApiResponse = async (response) => {
+  const text = await response.text();
+
+  if (!text) {
+    throw new Error(
+      `El servidor devolvió una respuesta vacía (HTTP ${response.status}).`
+    );
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.error("[AUTH_RESPONSE_INVALID]", {
+      status: response.status,
+      body: text.slice(0, 500)
+    });
+
+    throw new Error(
+      `El servidor devolvió una respuesta inválida (HTTP ${response.status}).`
+    );
+  }
+};
+
 export const loginUser = async (username, password) => {
   const response = await fetch(`${API_URL}/login`, {
     method: "POST",
@@ -23,11 +46,16 @@ export const loginUser = async (username, password) => {
     })
   });
 
-  const data = await response.json();
+  const data = await parseApiResponse(response);
 
   if (!response.ok) {
-    const error = new Error(data.message || "Error al iniciar sesión");
+    const error = new Error(
+      data.message || "Error al iniciar sesión"
+    );
+
     error.status = response.status;
+    error.code = data.code;
+
     throw error;
   }
 
