@@ -2,13 +2,15 @@
 
 Esta guía reúne funciones de uso transversal. Cada enlace describe lo que está disponible y su límite operativo; una verificación de código no equivale por sí sola a aceptación con cuentas y datos del entorno desplegado.
 
+Para distinguir código integrado de funciones activas y seguir el orden de pruebas, consulta la [bitácora de activación de capacidades](technology-activation.md).
+
 | Función | Disponible ahora | Alcance y límite |
 | --- | --- | --- |
 | [Búsqueda de registros](universal-search.md) | Barra superior y resultados autorizados | Expedientes, evidencias, mapa del negocio, personas visibles, conversaciones propias y texto de evidencias ya indexadas en lotes. |
 | [Enlaces de trabajo](shareable-links.md) | Botón de la barra superior en todas las pantallas autenticadas; propuestas, auditorías activas, registros y vistas filtradas | El enlace no concede permisos; los filtros escritos quedan visibles en la URL. |
 | [Tu espacio](personal-workspace.md) | Favoritos, vistas guardadas y secciones recientes; sincronización entre dispositivos preparada | La sincronización requiere migración y banderas aún no activadas en producción. |
-| [Actualización de vistas](automatic-refresh.md) | Consulta periódica de seis vistas y aviso de cambios al editar riesgos o controles | Hasta 40 segundos en vistas y 15 segundos en formularios; no hay presencia ni edición simultánea. |
-| [Carga de evidencias](evidence-upload.md) | Hasta 10 archivos de 3 MB, progreso y resultado individual; reintento solo tras rechazo confirmado | No reanuda cargas después de cerrar la pestaña ni resuelve automáticamente resultados inciertos. |
+| [Actualización de vistas](automatic-refresh.md) | Consulta periódica de seis vistas y aviso de cambios al editar riesgos o controles | Hasta 40 segundos en vistas y 15 segundos en formularios; señal en vivo y presencia preparadas, pendientes de activación. |
+| [Carga de evidencias](evidence-upload.md) | Hasta 10 archivos de 3 MB, progreso y resultado individual; reintento solo tras rechazo confirmado | Reanudación y versiones preparadas, pendientes de migración y aceptación. |
 | [Avisos de escritorio](desktop-alerts.md) | Activación individual y mensaje genérico | Necesita VERA abierta; no es push con la aplicación cerrada. |
 | [Push con VERA cerrada](desktop-alerts.md) | Suscripción por cuenta y dispositivo, mensaje genérico y entrega deduplicada | Preparado en código; requiere migración, VAPID y aceptación real antes de activarse. |
 | [Estado de reportes](report-export-feedback.md) | Operación, tiempo transcurrido y cancelación de la petición | La ruta inmediata no detiene necesariamente el procesamiento del servidor. |
