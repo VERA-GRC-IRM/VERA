@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Activity, Bot, ClipboardCheck, Pencil, Plus, ShieldAlert, X } from "lucide-react";
 import Sidebar from "../components/Sidebar";
+import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
 import ShareLinkButton from "../components/ShareLinkButton";
 import { BookmarkButton, SaveViewButton } from "../components/WorkspaceActions";
 import AssistantDrawer from "../components/AssistantDrawer";
@@ -82,6 +83,7 @@ function Riesgos() {
   const [assistantFocus, setAssistantFocus] = useState(null);
 
   const refresh = async () => setRisks(await getRisks(serverRiskFilters(filters)));
+  useAutomaticRefresh(refresh, !modal && !saving);
   const loadOrgUnits = () => {
     setOrgUnitsLoading(true);
     setOrgUnitsError("");

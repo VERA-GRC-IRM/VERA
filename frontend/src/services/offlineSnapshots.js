@@ -1,4 +1,5 @@
 import { readOfflineVault, saveOfflineVault } from "./offlineVault";
+import { notifyDataChanged } from "./dataChange";
 
 export const SNAPSHOT_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_MODULE_BYTES = 2 * 1024 * 1024;
@@ -153,6 +154,7 @@ export const fetchWithOfflineFallback = async (input, options) => {
       try { await removeOfflineSnapshot(module.id); } catch { /* El marcador impide mostrar la copia hasta revalidarla. */ }
     }
     window.dispatchEvent(new Event("vera:online-data"));
+    if (response.ok && (options?.method || "GET").toUpperCase() !== "GET") notifyDataChanged();
     return response;
   }
   catch (networkError) {

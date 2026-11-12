@@ -3,6 +3,7 @@ import { AlertCircle, ArrowRight, BellRing, CalendarClock, CheckCircle2, Clipboa
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ActionQueue from "../components/ActionQueue";
+import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
 import { getNotifications, setNotificationRead } from "../services/notificationService";
 import "./Notificaciones.css";
 
@@ -53,9 +54,10 @@ function Notificaciones() {
     finally { setLoading(false); }
   };
   const reloadFromAction = async () => {
-    try { const data = await getNotifications(); setNotifications(data.notifications); setActionAlertsAvailable(data.actionAlertsAvailable !== false); setError(""); }
+    try { const data = await getNotifications(); setNotifications(data.notifications); setActionAlertsAvailable(data.actionAlertsAvailable !== false); setError(""); setActionRevision((current) => current + 1); }
     catch (loadError) { setError(loadError.message); }
   };
+  useAutomaticRefresh(reloadFromAction);
   useEffect(() => {
     let cancelled = false;
     getNotifications()

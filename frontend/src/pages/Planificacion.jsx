@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, ClipboardList, MoreHorizontal, Pencil, Plus, Trash2, X, XCircle } from "lucide-react";
 import Sidebar from "../components/Sidebar";
+import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
 import PlanningHistoryButton from "../components/PlanningHistoryButton";
 import { getAvailableOrgUnits } from "../services/orgUnitService";
 import { getBusinessContext } from "../services/businessContextService";
@@ -98,6 +99,7 @@ function Planificacion() {
       setLoading(false);
     }
   };
+  useAutomaticRefresh(loadItems, !isModalOpen && !saving && !actionItem && !detailItem && !rejectingId);
 
   useEffect(() => {
     getPlanningAudits()
