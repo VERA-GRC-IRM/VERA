@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Building2, CalendarDays, Network, Plus, Search } from "lucide-react";
+import { Building2, CalendarDays, FileUp, Network, Plus, Search } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import BusinessGraph from "../components/BusinessGraph";
+import BusinessImport from "../components/BusinessImport";
 import { createOrgUnit, getAvailableOrgUnits } from "../services/orgUnitService";
 import { createBusinessContext, getBusinessContext, getBusinessContextOwners, getBusinessContextRevisions,
   publishBusinessContextRevision } from "../services/businessContextService";
@@ -43,6 +44,7 @@ function BusinessContext() {
   const [saving, setSaving] = useState(false);
   const [openForm, setOpenForm] = useState("");
   const [showGraph, setShowGraph] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const refresh = async () => {
     const [nextRecords, nextUnits] = await Promise.all([getBusinessContext(), getAvailableOrgUnits()]);
@@ -170,7 +172,9 @@ function BusinessContext() {
         {canPublish && <div className="business-context-actions">
           <button type="button" aria-expanded={openForm === "unit"} onClick={() => { setOpenForm(openForm === "unit" ? "" : "unit"); setError(""); }}><Building2 size={18} /> Registrar ámbito</button>
           <button type="button" aria-expanded={openForm === "record"} onClick={() => { setRevisionTarget(null); setRecordForm(newRecord()); setOpenForm(openForm === "record" ? "" : "record"); setError(""); }}><Plus size={18} /> Añadir al mapa</button>
+          <button type="button" aria-expanded={showImport} onClick={() => setShowImport((current) => !current)}><FileUp size={18} aria-hidden="true" /> Importar catálogo</button>
         </div>}
+        {canPublish && showImport && <BusinessImport onApplied={refresh} />}
 
         <div className="business-context-actions"><button type="button" aria-expanded={showGraph}
           onClick={() => setShowGraph((current) => !current)}><Network size={18} aria-hidden="true" />

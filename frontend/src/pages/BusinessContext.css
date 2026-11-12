@@ -80,3 +80,20 @@
 .business-graph-detail li > span { color: var(--vera-text-muted); font-size: .82rem; min-width: 130px; }
 .business-graph-footnote { margin-bottom: 0; font-size: .82rem; }
 @media (max-width: 900px) { .business-graph-columns { grid-template-columns: 1fr; } .business-graph-node-list { max-height: 190px; } }
+.business-import { margin-bottom: 1.5rem; padding: 1.4rem; border: 1px solid var(--vera-border); border-radius: 16px; background: var(--vera-surface); color: var(--vera-text); }
+.business-import-heading { display: flex; align-items: start; gap: .75rem; }
+.business-import-heading svg { color: var(--vera-accent); flex: 0 0 auto; }
+.business-import-heading h2, .business-import-preview h3 { margin: 0 0 .35rem; color: var(--vera-text-strong); }
+.business-import-heading p, .business-import-preview p, .business-import-note { color: var(--vera-text-muted); line-height: 1.5; }
+.business-import-form { display: flex; flex-wrap: wrap; align-items: end; gap: .8rem; margin: 1rem 0; }
+.business-import-form label { display: grid; gap: .35rem; flex: 1 1 230px; font-weight: 650; color: var(--vera-text-strong); }
+.business-import-form input { box-sizing: border-box; width: 100%; min-height: 44px; padding: .5rem .65rem; border: 1px solid var(--vera-border); border-radius: 9px; background: var(--vera-surface); color: var(--vera-text); font: inherit; }
+.business-import-form button, .business-import-preview button { min-height: 44px; padding: .6rem .9rem; border: 1px solid var(--vera-border); border-radius: 9px; background: var(--vera-accent-strong); color: var(--vera-on-accent); font: inherit; font-weight: 700; cursor: pointer; }
+.business-import-form button:disabled, .business-import-preview button:disabled { opacity: .55; cursor: not-allowed; }
+.business-import-form a { align-self: center; color: var(--vera-accent); font-weight: 700; }
+.business-import-table-wrap { max-height: 330px; overflow: auto; border: 1px solid var(--vera-border); border-radius: 9px; }
+.business-import-table-wrap table { width: 100%; border-collapse: collapse; text-align: left; font-size: .85rem; }
+.business-import-table-wrap :is(th, td) { padding: .55rem .65rem; border-bottom: 1px solid var(--vera-border); vertical-align: top; }
+.business-import-table-wrap th { color: var(--vera-text-strong); background: var(--vera-canvas); }
+.business-import-digest code { overflow-wrap: anywhere; }
+.business-import-note { margin: 1rem 0 0; font-size: .82rem; }

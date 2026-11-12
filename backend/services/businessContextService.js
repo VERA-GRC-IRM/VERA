@@ -214,4 +214,4 @@ const publishRevisionForUser = async (user, contextId, input) => {
 };
 
 module.exports = { KINDS, RELATIONS, listForUser, listOwnersForUser, revisionsForUser,
-  createForUser, publishRevisionForUser, resolveReferencesForUnit };
+  createForUser, publishRevisionForUser, resolveReferencesForUnit, definitionFrom };
