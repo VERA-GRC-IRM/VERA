@@ -5,6 +5,7 @@ import { uploadEvidenceFile, getEvidenceDownloadUrl } from "../services/evidence
 import Sidebar from "../components/Sidebar";
 import AssistantDrawer from "../components/AssistantDrawer";
 import PlanningHistoryButton from "../components/PlanningHistoryButton";
+import ShareLinkButton from "../components/ShareLinkButton";
 import EditAuditModal from "../components/EditAuditModal";
 import AuditRisksPanel from "../components/AuditRisksPanel";
 import { PLANNING_APPROVE_ROLES, RISK_FACTORS } from "../constants/planning";
@@ -389,6 +390,7 @@ function AuditoriasActivas() {
                     </div>
                   </div>
                   <div className="planning-card-actions" onClick={(event) => event.stopPropagation()}>
+                    <ShareLinkButton path={`/auditorias-activas/${encodeURIComponent(audit.id)}`} />
                     {canManage && <button type="button" onClick={() => runTransition(audit.id, closeAudit, "Auditoría cerrada.")} disabled={busyId === audit.id}>
                       <CheckCircle2 size={16} aria-hidden="true" />{busyId === audit.id ? "Guardando..." : "Cerrar auditoría"}
                     </button>}
@@ -417,6 +419,7 @@ function AuditoriasActivas() {
                     <p>{audit.area} · Riesgo {riskFor(audit.likelihood ?? 2, audit.impact ?? 2)}</p>
                   </div>
                   <div className="planning-card-actions">
+                    <ShareLinkButton path={`/auditorias?auditId=${encodeURIComponent(audit.id)}`} />
                     {canManage && <button type="button" onClick={() => runTransition(audit.id, startAudit, "Auditoría iniciada y visible en la matriz.")} disabled={busyId === audit.id}>
                       <Play size={16} aria-hidden="true" />{busyId === audit.id ? "Guardando..." : "Iniciar auditoría"}
                     </button>}

@@ -3,6 +3,7 @@ import { Check, ClipboardList, MoreHorizontal, Pencil, Plus, Trash2, X, XCircle 
 import Sidebar from "../components/Sidebar";
 import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
 import PlanningHistoryButton from "../components/PlanningHistoryButton";
+import ShareLinkButton from "../components/ShareLinkButton";
 import { getAvailableOrgUnits } from "../services/orgUnitService";
 import { getBusinessContext } from "../services/businessContextService";
 import {
@@ -366,6 +367,7 @@ function Planificacion() {
                     </div>
                   </div>
                   <div className="planning-card-actions">
+                    <ShareLinkButton path={`/auditorias?auditId=${encodeURIComponent(item.id)}`} />
                     <button
                       type="button"
                       className="actions-trigger"
@@ -552,7 +554,7 @@ function Planificacion() {
                     </div>
                     <p className="rejection-reason"><b>Motivo:</b> {item.rejectionReason}</p>
                   </div>
-                  <div className="planning-card-actions"><PlanningHistoryButton proposal={item} /></div>
+                  <div className="planning-card-actions"><ShareLinkButton path={`/auditorias?auditId=${encodeURIComponent(item.id)}`} /><PlanningHistoryButton proposal={item} /></div>
                 </article>
               ))}
             </div>
