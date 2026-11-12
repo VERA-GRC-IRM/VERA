@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
   BellRing,
@@ -27,6 +27,7 @@ import { ROLE_LABELS, ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "../constants/r
 import { managedAuth } from "../services/managedAuth";
 import { clearRoleTourSession, startRoleTour } from "../services/roleTour";
 import { lockOfflineVault } from "../services/offlineVault";
+import { recordVisit } from "../services/personalWorkspace";
 import ThemeControl from "./ThemeControl";
 import GlobalSearch from "./GlobalSearch";
 import { prefetchNavigation } from "../routeLoaders";
@@ -37,6 +38,12 @@ const ICON_SIZE = 20;
 const ICON_STROKE = 1.75;
 const PREVIEW_ROLES = ["AUDITOR", "JEFATURA", "GERENTE", "DIRECTOR"];
 const NAV_STORAGE_KEY = "vera:navigation-collapsed";
+const RECENT_LABELS = {
+  "/dashboard": "Panel de Portafolio", "/mapa-negocio": "Mapa del negocio", "/planificacion": "Planificación",
+  "/auditorias": "Buscar auditorías", "/auditorias-activas": "Auditorías activas", "/riesgos": "Riesgos",
+  "/controles": "Controles", "/evidencias": "Evidencias", "/notificaciones": "Pendientes",
+  "/asistente": "Asistente de IA", "/sin-conexion": "Sin conexión"
+};
 const OFFLINE_SECTIONS_BY_VIEW = {
   dashboard: "dashboard", planificacion: "planning", "auditorias-activas": "activeAudits",
   riesgos: "risks", controles: "controls", notificaciones: "notifications", evidencias: "evidence"
@@ -44,7 +51,12 @@ const OFFLINE_SECTIONS_BY_VIEW = {
 
 function Sidebar({ active }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = JSON.parse(localStorage.getItem("user") || "null");
+  useEffect(() => {
+    if (user?.id && !user.roleTour) recordVisit(user.id, location.pathname,
+      RECENT_LABELS[location.pathname] || (location.pathname.startsWith("/auditorias-activas/") ? "Auditoría" : "Sección de VERA"));
+  }, [user?.id, user?.roleTour, location.pathname]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 750px)").matches);
   const [collapsed, setCollapsed] = useState(() => {

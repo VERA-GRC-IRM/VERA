@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ShareLinkButton from "../components/ShareLinkButton";
+import { BookmarkButton, SaveViewButton } from "../components/WorkspaceActions";
 import { emptyAuditFilters, readAuditFilters, writeAuditFilters } from "../utils/auditSearchFilters";
 import { getAvailableOrgUnits } from "../services/orgUnitService";
 import { downloadPortfolioReport, getPortfolioReport, searchPlanningAudits } from "../services/planningService";
@@ -16,6 +17,8 @@ const STATUS_LABELS = {
 
 function BuscarAuditorias() {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const workspaceUserId = user?.roleTour ? null : user?.id;
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQuery = searchParams.toString();
   const auditId = searchParams.get("auditId");
@@ -95,6 +98,7 @@ function BuscarAuditorias() {
             <div><span className="eyebrow">HU-26 · CONSULTA DEL PORTAFOLIO</span><h1>Buscar auditorías</h1>
               <p>Consulta propuestas y auditorías según los permisos de tu cuenta.</p></div>
             <ShareLinkButton path={`/auditorias${urlQuery ? `?${urlQuery}` : ""}`} label="Copiar vista" />
+            <SaveViewButton userId={workspaceUserId} path={`/auditorias${urlQuery ? `?${urlQuery}` : ""}`} defaultName="Búsqueda de auditorías" />
           </div>
           <form className="audit-search-form" onSubmit={submit} aria-label="Filtros de auditorías">
             <label>Búsqueda por ID, nombre, área, objetivo o responsable
@@ -155,6 +159,7 @@ function BuscarAuditorias() {
               <p>Responsable: {audit.responsible || "Sin asignar"}</p>
               <button type="button" className="secondary-action" onClick={() => setSelected(audit)}>Ver detalles</button>
               <ShareLinkButton path={`/auditorias?auditId=${encodeURIComponent(audit.id)}`} />
+              <BookmarkButton userId={workspaceUserId} path={`/auditorias?auditId=${encodeURIComponent(audit.id)}`} label={`Auditoría ${audit.id}`} />
               {audit.status === "ACTIVE" && <button type="button" className="secondary-action" onClick={() => navigate(`/auditorias-activas/${encodeURIComponent(audit.id)}`)}>Abrir auditoría</button>}
             </article>)}
           </div>
