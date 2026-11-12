@@ -42,6 +42,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AssistantConversationProvider from "./contexts/AssistantConversationProvider";
 import ConnectivityStatus from "./components/ConnectivityStatus";
 import PwaUpdateNotice from "./components/PwaUpdateNotice";
+import DesktopAlerts from "./components/DesktopAlerts";
 import { ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "./constants/roles";
 
 
@@ -57,6 +58,7 @@ function App() {
     <BrowserRouter>
       <ConnectivityStatus />
       <PwaUpdateNotice />
+      <DesktopAlerts />
       <AssistantConversationProvider>
         <Suspense fallback={null}>
         <Routes>
