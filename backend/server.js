@@ -26,6 +26,7 @@ const searchRoutes = require("./routes/searchRoutes");
 const workspaceRoutes = require("./routes/workspaceRoutes");
 const jobRoutes = require("./routes/jobRoutes");
 const pushRoutes = require("./routes/pushRoutes");
+const liveRoutes = require("./routes/liveRoutes");
 
 const app = express();
 
@@ -63,6 +64,7 @@ app.use("/api/search", searchRoutes);
 app.use("/api/workspace", workspaceRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/push", pushRoutes);
+app.use("/api/live", liveRoutes);
 
 app.get("/", (req, res) => {
   res.json({

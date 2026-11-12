@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { subscribeLiveUpdates } from "../services/liveUpdates";
 
 // Consulta el servidor, nunca la copia sin conexión, antes de avisar de una edición ajena.
 export default function useRecordFreshness(record, collectionPath, field) {
@@ -28,8 +29,10 @@ export default function useRecordFreshness(record, collectionPath, field) {
     };
     check();
     const timer = window.setInterval(check, 15_000);
+    const stopLive = import.meta.env.VITE_VERA_LIVE_UPDATES_ENABLED === "true"
+      ? subscribeLiveUpdates(check) : () => {};
     document.addEventListener("visibilitychange", check);
-    return () => { active = false; window.clearInterval(timer); document.removeEventListener("visibilitychange", check); };
+    return () => { active = false; window.clearInterval(timer); stopLive(); document.removeEventListener("visibilitychange", check); };
   }, [record?.id, record?.storageVersion, record?.updatedAt, key, collectionPath, field]);
   return Boolean(key && warning === key);
 }

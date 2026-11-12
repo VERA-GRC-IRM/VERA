@@ -74,6 +74,10 @@ const validateStoreModes = (environment = process.env) => {
       environment.VERA_EVIDENCE_COMMENT_STORE !== "supabase") {
     throw new Error("Las versiones de archivos en Production requieren evidencias persistentes.");
   }
+  if (environment.VERCEL_ENV === "production" && environment.VERA_LIVE_UPDATES_ENABLED === "true" &&
+      environment.VERA_AUDIT_STORE !== "supabase") {
+    throw new Error("La actualización en vivo en Production requiere la bitácora persistente.");
+  }
   if (environment.VERCEL_ENV === "production" && environment.VERA_PUSH_ENABLED === "true" &&
       (environment.VERA_PUSH_STORE !== "supabase" || environment.VERA_NOTIFICATION_STORE !== "supabase" ||
         !environment.VERA_VAPID_PUBLIC_KEY || !environment.VERA_VAPID_PRIVATE_KEY ||
