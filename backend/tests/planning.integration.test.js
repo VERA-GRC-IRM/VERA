@@ -266,8 +266,65 @@ test("HU-09: risk is derived from probability and impact; approved audits follow
     const repeatedStart = await fetch(`${baseUrl}/api/planning/${created.id}/start`, json(managerToken, "POST", {}));
     assert.equal(repeatedStart.status, 409);
 
-    const closeResponse = await fetch(`${baseUrl}/api/planning/${created.id}/close`, json(managerToken, "POST", {}));
+    const closeBeforeClosure = await fetch(
+      `${baseUrl}/api/planning/${created.id}/close`,
+      json(managerToken, "POST", {})
+    );
+    assert.equal(closeBeforeClosure.status, 409);
+
+    const skipToClosure = await fetch(
+      `${baseUrl}/api/planning/${created.id}/workflow-step`,
+      json(managerToken, "PATCH", { step: "closure" })
+    );
+    assert.equal(skipToClosure.status, 409);
+
+    for (const step of ["kickoff", "understanding", "execution", "supervision", "closure"]) {
+      const stepResponse = await fetch(
+        `${baseUrl}/api/planning/${created.id}/workflow-step`,
+        json(managerToken, "PATCH", { step })
+      );
+      assert.equal(stepResponse.status, 200, `No se pudo avanzar a ${step}`);
+    }
+
+    const findingResponse = await fetch(
+      `${baseUrl}/api/findings`,
+      json(managerToken, "POST", {
+        auditId: created.id,
+        title: `Hallazgo HU-24 ${Date.now()}`,
+        description: "Hallazgo abierto para probar la validación del cierre.",
+        rootCause: "La revisión detectó una causa pendiente de seguimiento.",
+        severity: "HIGH",
+        responsibleId: 3
+      })
+    );
+    assert.equal(findingResponse.status, 201);
+    const finding = (await findingResponse.json()).finding;
+
+    const closeWithoutFollowUp = await fetch(
+      `${baseUrl}/api/planning/${created.id}/close`,
+      json(managerToken, "POST", {})
+    );
+    assert.equal(closeWithoutFollowUp.status, 409);
+
+    const followUpResponse = await fetch(
+      `${baseUrl}/api/actions`,
+      json(managerToken, "POST", {
+        sourceType: "FINDING",
+        sourceId: finding.id,
+        title: "Dar seguimiento al hallazgo",
+        rationale: "Documentar la corrección y revisar el resultado.",
+        dueDate: "2026-12-31",
+        assigneeId: 3
+      })
+    );
+    assert.equal(followUpResponse.status, 201);
+
+    const closeResponse = await fetch(
+      `${baseUrl}/api/planning/${created.id}/close`,
+      json(managerToken, "POST", {})
+    );
     assert.equal(closeResponse.status, 200);
+
     const closed = (await closeResponse.json()).audit;
     assert.equal(closed.status, "CLOSED");
     assert.equal(closed.progress, 100);

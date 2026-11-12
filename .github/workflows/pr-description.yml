@@ -2,7 +2,7 @@ name: PR documentation
 
 on:
   pull_request_target:
-    types: [opened, edited, synchronize, reopened, ready_for_review]
+    types: [opened, edited, synchronize, reopened, ready_for_review, assigned, unassigned]
 
 permissions:
   contents: read

@@ -50,6 +50,15 @@ const createApprovedAudit = async (baseUrl, { start = false } = {}) => {
 
 const edit = (baseUrl, id, body, token = manager) =>
   fetch(`${baseUrl}/api/planning/${id}/details`, json(token, "PATCH", body));
+const advanceAuditToClosure = async (baseUrl, id) => {
+  for (const step of ["kickoff", "understanding", "execution", "supervision", "closure"]) {
+    const stepResponse = await fetch(
+      `${baseUrl}/api/planning/${id}/workflow-step`,
+      json(manager, "PATCH", { step })
+    );
+    assert.equal(stepResponse.status, 200, `No se pudo avanzar la auditoría a ${step}`);
+  }
+};
 
 test("HU-12: se edita una auditoría aprobada, se recalcula el riesgo y queda en el historial", async (context) => {
   const baseUrl = await startTestServer(context, app);
@@ -115,6 +124,7 @@ test("HU-12: no se editan auditorías cerradas y Director no puede editar", asyn
   assert.equal((await edit(baseUrl, id, { objective: "Cambio sin token." }, "token-invalido")).status, 401);
   assert.equal((await edit(baseUrl, "AUD-NO-EXISTE", { objective: "Nada." })).status, 404);
 
+  await advanceAuditToClosure(baseUrl, id);
   const closed = await fetch(`${baseUrl}/api/planning/${id}/close`, json(manager, "POST", {}));
   assert.equal(closed.status, 200);
   assert.equal((await edit(baseUrl, id, { objective: "Ya está cerrada." })).status, 409);
