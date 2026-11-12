@@ -28,6 +28,7 @@ import { ROLE_LABELS, ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "../constants/r
 import { managedAuth } from "../services/managedAuth";
 import { clearRoleTourSession, startRoleTour } from "../services/roleTour";
 import { lockOfflineVault } from "../services/offlineVault";
+import { disablePush } from "../services/pushService";
 import { recordVisit } from "../services/personalWorkspace";
 import ThemeControl from "./ThemeControl";
 import GlobalSearch from "./GlobalSearch";
@@ -115,6 +116,9 @@ function Sidebar({ active }) {
 
   const logout = async () => {
     lockOfflineVault();
+    if (import.meta.env.VITE_VERA_PUSH_ENABLED === "true") {
+      try { await disablePush(); } catch { /* Se cierra la sesión aun si no hay navegador push. */ }
+    }
     try { if (managedAuth) await managedAuth.auth.signOut(); }
     catch { /* Local VERA logout still proceeds if the identity provider is unavailable. */ }
     localStorage.removeItem("token");

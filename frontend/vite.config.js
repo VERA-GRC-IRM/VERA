@@ -22,6 +22,7 @@ export default defineConfig({
       ]
     },
     workbox: {
+      importScripts: ['/push-handler.js'],
       globPatterns: ['**/*.{js,css,html,svg,png}'],
       // El dictado necesita Azure en línea; no ocupa espacio en la copia local.
       globIgnores: ['**/microsoft.cognitiveservices.speech.sdk-*.js'],

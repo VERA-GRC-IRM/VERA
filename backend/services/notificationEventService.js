@@ -1,5 +1,6 @@
 const userRepository = require("../repositories/userRepository");
 const readRepository = require("../repositories/notificationReadRepository");
+const pushService = require("./pushService");
 const { visibleRecordForUser } = require("./recordReadAccessService");
 const { PLANNING_APPROVE_ROLES } = require("../config/roles");
 const { assignmentId, validationId } = require("./notificationService");
@@ -13,6 +14,9 @@ const deliver = async (recipients, sourceType, sourceId, notification) => {
       const recipient = await userRepository.findById(id);
       if (recipient?.status !== "ACTIVE" || !await visibleRecordForUser(recipient, sourceType, sourceId)) continue;
       await readRepository.syncForUser(id, [notification]);
+      try { await pushService.deliver(id, `${notification.id}:${notification.createdAt || ""}`); }
+      catch (error) { console.error("[PUSH_DELIVERY_PENDING]", { recipientId: id, type: notification.type,
+        reason: error.name }); }
     } catch (error) {
       console.error("[NOTIFICATION_DELIVERY_PENDING]", { type: notification.type, entityId: notification.entityId,
         recipientId: id, reason: error.message });
