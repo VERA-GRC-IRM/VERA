@@ -135,6 +135,9 @@ try {
     assert.match(response.headers.get("content-type"), /spreadsheetml\.sheet/);
     assert.equal(response.headers.get("cache-control"), "no-store");
     const bytes = Buffer.from(await response.arrayBuffer());
+    // This response comes from the loopback server and is written to a fixed artifact path.
+    // Bound it before persistence so a regression cannot produce an unbounded CI artifact.
+    assert.ok(bytes.length > 100 && bytes.length <= 5 * 1024 * 1024, "Tamaño XLSX fuera del ensayo");
     assert.deepEqual([...bytes.subarray(0, 2)], [0x50, 0x4b]);
     await writeFile(resolve(output, "vera-portafolio-sintetico.xlsx"), bytes);
     return "1 auditoría; 1 riesgo; 1 control; 1 hallazgo; horas 40 / 12.5";
@@ -166,6 +169,7 @@ try {
     book.getWorksheet("Catalogo").addRow(["PROCESS", code, "Proceso sintético",
       "Proceso para comprobar Excel.", "2026-01-01", "", unit.unit.code]);
     const bytes = Buffer.from(await book.xlsx.writeBuffer());
+    assert.ok(bytes.length > 100 && bytes.length <= 5 * 1024 * 1024, "Tamaño de plantilla fuera del ensayo");
     await writeFile(resolve(output, "vera-catalogo-sintetico.xlsx"), bytes);
     const input = { format: "xlsx", sourceName: "Ensayo automático", content: bytes.toString("base64") };
     const previewPath = `${base}/api/business-context/import/preview`;
