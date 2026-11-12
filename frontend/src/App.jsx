@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import {
   BrowserRouter,
   Navigate,
@@ -6,33 +6,35 @@ import {
   Route
 } from "react-router-dom";
 
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Usuarios from "./pages/Usuarios";
-import MiRol from "./pages/MiRol";
-import Registro from "./pages/Registro";
-import BuscarAuditorias from "./pages/BuscarAuditorias";
-import PublicOverview from "./pages/PublicOverview";
-import PublicSolutions from "./pages/PublicSolutions";
-import PublicTrust from "./pages/PublicTrust";
-import PublicTechnology from "./pages/PublicTechnology";
-import PrivacyNotice from "./pages/PrivacyNotice";
-import Planificacion from "./pages/Planificacion";
-import AuditoriasActivas from "./pages/AuditoriasActivas";
-import CommitteeDossier from "./pages/CommitteeDossier";
-import Riesgos from "./pages/Riesgos";
-import BibliotecaRiesgos from "./pages/BibliotecaRiesgos";
-import BusinessContext from "./pages/BusinessContext";
-import Controles from "./pages/Controles";
-import Notificaciones from "./pages/Notificaciones";
-import ActividadReciente from "./pages/ActividadReciente";
-import Asistente from "./pages/Asistente";
-import AiQuality from "./pages/AiQuality";
-import Evidencias from "./pages/Evidencias";
-import MetodosRiesgo from "./pages/MetodosRiesgo";
-import OfflineWorkspace from "./pages/OfflineWorkspace";
-import OfflineReport from "./pages/OfflineReport";
-import Trimestres, { TrimestreDetalle } from "./pages/Trimestres";
+const Login = lazy(() => import("./pages/Login"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Usuarios = lazy(() => import("./pages/Usuarios"));
+const MiRol = lazy(() => import("./pages/MiRol"));
+const Registro = lazy(() => import("./pages/Registro"));
+const BuscarAuditorias = lazy(() => import("./pages/BuscarAuditorias"));
+const PublicOverview = lazy(() => import("./pages/PublicOverview"));
+const PublicSolutions = lazy(() => import("./pages/PublicSolutions"));
+const PublicTrust = lazy(() => import("./pages/PublicTrust"));
+const PublicTechnology = lazy(() => import("./pages/PublicTechnology"));
+const PrivacyNotice = lazy(() => import("./pages/PrivacyNotice"));
+const Planificacion = lazy(() => import("./pages/Planificacion"));
+const AuditoriasActivas = lazy(() => import("./pages/AuditoriasActivas"));
+const CommitteeDossier = lazy(() => import("./pages/CommitteeDossier"));
+const Riesgos = lazy(() => import("./pages/Riesgos"));
+const BibliotecaRiesgos = lazy(() => import("./pages/BibliotecaRiesgos"));
+const BusinessContext = lazy(() => import("./pages/BusinessContext"));
+const Controles = lazy(() => import("./pages/Controles"));
+const Notificaciones = lazy(() => import("./pages/Notificaciones"));
+const ActividadReciente = lazy(() => import("./pages/ActividadReciente"));
+const Asistente = lazy(() => import("./pages/Asistente"));
+const AiQuality = lazy(() => import("./pages/AiQuality"));
+const Evidencias = lazy(() => import("./pages/Evidencias"));
+const MetodosRiesgo = lazy(() => import("./pages/MetodosRiesgo"));
+const OfflineWorkspace = lazy(() => import("./pages/OfflineWorkspace"));
+const OfflineReport = lazy(() => import("./pages/OfflineReport"));
+const loadTrimestres = () => import("./pages/Trimestres");
+const Trimestres = lazy(loadTrimestres);
+const TrimestreDetalle = lazy(() => loadTrimestres().then(({ TrimestreDetalle: detail }) => ({ default: detail })));
 import ProtectedRoute from "./components/ProtectedRoute";
 import AssistantConversationProvider from "./contexts/AssistantConversationProvider";
 import ConnectivityStatus from "./components/ConnectivityStatus";
@@ -53,6 +55,7 @@ function App() {
       <ConnectivityStatus />
       <PwaUpdateNotice />
       <AssistantConversationProvider>
+        <Suspense fallback={null}>
         <Routes>
 
           <Route
@@ -161,6 +164,7 @@ function App() {
           />
 
         </Routes>
+        </Suspense>
       </AssistantConversationProvider>
     </BrowserRouter>
   );
