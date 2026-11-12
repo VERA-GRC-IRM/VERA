@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ExternalLink, FileCheck2, FileImage, FileText, Plus, Search, X } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
 import ShareLinkButton from "../components/ShareLinkButton";
-import { BookmarkButton } from "../components/WorkspaceActions";
+import { BookmarkButton, SaveViewButton } from "../components/WorkspaceActions";
 import EvidenceAssistantDialog from "../components/EvidenceAssistantDialog";
 import { createEvidence, getEvidence, getEvidenceDownloadUrl, uploadEvidenceFile } from "../services/evidenceService";
 import { getRisks } from "../services/riskService";
@@ -12,6 +12,7 @@ import { getControls } from "../services/controlService";
 import { getPlanningAudits } from "../services/planningService";
 import "./Evidencias.css";
 import { PLANNING_APPROVE_ROLES } from "../constants/planning";
+import { evidenceViewQuery, parseEvidenceView } from "../services/evidenceView";
 
 const EMPTY = { title: "", description: "", evidenceType: "DOCUMENT", reference: "", entityType: "RISK", entityId: "" };
 const ENTITY_LABELS = { RISK: "Riesgo", CONTROL: "Control", AUDIT: "Auditoría" };
@@ -41,12 +42,18 @@ const canAttachToAudit =
 
 function Evidencias() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [risks, setRisks] = useState([]);
   const [controls, setControls] = useState([]);
   const [audits, setAudits] = useState([]);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("ALL");
+  const { search, filter } = parseEvidenceView(location.search);
+  const updateView = (next) => {
+    const query = evidenceViewQuery(next);
+    navigate({ pathname: location.pathname, search: query ? `?${query}` : "", hash: location.hash }, { replace: true });
+  };
+  const setSearch = (value) => updateView({ search: value, filter });
+  const setFilter = (value) => updateView({ search, filter: value });
   const [form, setForm] = useState(EMPTY);
   const [file, setFile] = useState(null);
   const [modal, setModal] = useState(false);
@@ -131,6 +138,7 @@ function Evidencias() {
       </small>
     )}
     <div className="evidence-toolbar"><label className="evidence-search"><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar evidencia, entidad o referencia" /></label><div className="evidence-filter">{["ALL", "RISK", "CONTROL", "AUDIT"].map((value) => <button key={value} className={filter === value ? "selected" : ""} onClick={() => setFilter(value)}>{value === "ALL" ? "Todas" : ENTITY_LABELS[value]}</button>)}</div></div>
+    <div className="evidence-view-actions"><small>La búsqueda escrita aparece en el enlace.</small><ShareLinkButton path={`${location.pathname}${location.search}`} label="Copiar vista" /><SaveViewButton userId={currentUser?.roleTour ? null : currentUser?.id} path={`${location.pathname}${location.search}`} defaultName="Evidencias" /></div>
     {loading ? <div className="evidence-empty">Cargando expediente...</div> : visible.length === 0 ? <div className="evidence-empty"><FileCheck2 size={22} /><div><b>No hay evidencias para mostrar</b><p>Registra una referencia o carga un archivo y asígnalo a una entidad.</p></div></div> : <div className="evidence-list">{visible.map((item) =>
       <article id={`evidence-${item.id}`} className="evidence-card" key={item.id}>
         <div className="evidence-icon">{item.evidenceType === "SCREENSHOT" ? <FileImage size={21} /> : <FileText size={21} />}</div>

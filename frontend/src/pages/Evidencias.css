@@ -29,3 +29,5 @@
 .evidence-drop-zone small { display: block; margin-top: 7px; color: light-dark(#52636d, var(--vera-text-muted)); overflow-wrap: anywhere; }
 .evidence-upload-status { display: grid; gap: 5px; margin: 10px 0; color: light-dark(#315463, var(--vera-accent)); font-size: 12px; }
 .evidence-upload-status progress { width: 100%; height: 9px; accent-color: var(--vera-accent); }
+.evidence-view-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin: -5px 0 16px; }
+.evidence-view-actions small { align-self: center; color: var(--vera-text-muted); }
