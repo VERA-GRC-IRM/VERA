@@ -8,6 +8,7 @@ on:
       - CodeQL
       - VERA — Informe integral de calidad (navegadores diferidos)
       - AI continuous evaluation
+      - VERA · Demostración Excel, Power BI y Teams
       - Preview role acceptance
       - Production smoke
       - Local Supabase migration and restore rehearsal
@@ -49,6 +50,9 @@ jobs:
         with:
           ref: main
           persist-credentials: false
+
+      - name: Verify current and historical integration states
+        run: python3 -m unittest discover -s scripts/tests -p 'test_quality_portal_integrations.py'
 
       - name: Generate read-only quality portal
         env:

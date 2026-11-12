@@ -6,6 +6,8 @@ Cuando el informe integral aprobado del mismo SHA y de la misma corrida publicad
 
 La fila **Supabase local** enlaza un [ensayo de migraciones y restauración sintética](local-supabase-rehearsal.md) en una base desechable. Ese resultado no es un respaldo de producción ni cierra la verificación de persistencia real.
 
+La sección **Excel, Power BI y Teams** muestra la última [demostración automática](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/microsoft-integration-proof.yml), su SHA, estado y tiempo, con enlace al Summary y sus libros de ejemplo. Compara formatos y límites usando datos sintéticos en memoria. Si el commit de esa corrida ya no es el `main` actual, se muestra como **Histórica**; si GitHub no responde, queda **Sin confirmar**. No acredita una actualización de Power BI Service ni la entrega de mensajes en Teams.
+
 ## Actualización
 
 El workflow [`quality-portal.yml`](../../.github/workflows/quality-portal.yml) publica la página en GitHub Pages después de cada push a `main`, de las verificaciones de `main`, al publicar un Release, diariamente y por ejecución manual. El generador [`build-quality-portal.py`](../../scripts/build-quality-portal.py) consulta la API de GitHub con el `GITHUB_TOKEN` temporal de solo lectura. El navegador usa [`quality-portal-live.js`](../../scripts/quality-portal-live.js) y **únicamente la API pública**, sin token. Ni el generador ni el navegador llaman a Azure OpenAI, Copilot u otros modelos.

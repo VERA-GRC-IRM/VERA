@@ -7,6 +7,7 @@
   const workflowNames = [
     "quality.yml", "e2e.yml", "codeql.yml", "classroom-quality.yml",
     "ai-evaluation.yml", "preview-role-acceptance.yml",
+    "microsoft-integration-proof.yml",
     "production-smoke.yml", "local-supabase-rehearsal.yml",
     "offline-rehearsal.yml", "offline-browser-matrix.yml",
     "offline-two-release-rehearsal.yml",
@@ -23,6 +24,11 @@
     cards: document.getElementById("integral-cards"),
     integralNote: document.getElementById("integral-note"),
     integralLink: document.getElementById("integral-run-link"),
+    integrationStatus: document.getElementById("integration-status"),
+    integrationSha: document.getElementById("integration-sha"),
+    integrationDate: document.getElementById("integration-date"),
+    integrationDuration: document.getElementById("integration-duration"),
+    integrationLink: document.getElementById("integration-run-link"),
     trace: document.getElementById("traceability-wrap"),
     tableTitle: document.getElementById("table-title"),
   };
@@ -96,6 +102,12 @@
     elements.ciStatus.textContent = "Consultar GitHub Actions";
     elements.checked.textContent = "No disponible";
     elements.tableTitle.textContent = "Última instantánea publicada";
+    elements.integrationStatus.textContent = "Sin confirmar";
+    elements.integrationStatus.className = "pill unknown";
+    elements.integrationSha.textContent = "—";
+    elements.integrationDate.textContent = "No disponible";
+    elements.integrationDuration.textContent = "—";
+    elements.integrationLink.href = `https://github.com/${repository}/actions/workflows/microsoft-integration-proof.yml`;
     hideUnverifiedMetrics("No se pudieron confirmar las cifras del informe integral con GitHub. Abra la corrida original.");
     for (const row of document.querySelectorAll("tr[data-workflow]")) {
       const badge = row.cells[1].querySelector(".pill");
@@ -163,6 +175,16 @@
         hour: "2-digit", minute: "2-digit", timeZoneName: "short",
       }).format(new Date());
       elements.tableTitle.textContent = "Corridas y tiempos consultados en GitHub";
+
+      const integration = runs.get("microsoft-integration-proof.yml");
+      const [integrationLabel, integrationClassification] = state(integration, sha);
+      elements.integrationStatus.textContent = integrationLabel;
+      elements.integrationStatus.className = `pill ${integrationClassification}`;
+      elements.integrationSha.textContent = integration && /^[a-f0-9]{40}$/.test(integration.head_sha)
+        ? integration.head_sha.slice(0, 8) : "—";
+      elements.integrationDate.textContent = integration ? utcDate(integration.created_at) : "No disponible";
+      elements.integrationDuration.textContent = duration(integration);
+      elements.integrationLink.href = runUrl(integration, "microsoft-integration-proof.yml");
 
       const integral = runs.get("classroom-quality.yml");
       elements.integralLink.href = runUrl(integral, "classroom-quality.yml");
