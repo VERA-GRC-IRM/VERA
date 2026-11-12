@@ -24,8 +24,6 @@ const businessContextRoutes = require("./routes/businessContextRoutes");
 const searchRoutes = require("./routes/searchRoutes");
 const workspaceRoutes = require("./routes/workspaceRoutes");
 const jobRoutes = require("./routes/jobRoutes");
-const pushRoutes = require("./routes/pushRoutes");
-const liveRoutes = require("./routes/liveRoutes");
 
 const app = express();
 
@@ -66,8 +64,18 @@ app.use("/api/business-context", businessContextRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/workspace", workspaceRoutes);
 app.use("/api/jobs", jobRoutes);
-app.use("/api/push", pushRoutes);
-app.use("/api/live", liveRoutes);
+app.use("/api/push", (req, res, next) => {
+  if (process.env.VERA_PUSH_ENABLED !== "true") {
+    return res.status(404).json({ message: "Avisos push no disponibles." });
+  }
+  return require("./routes/pushRoutes")(req, res, next);
+});
+app.use("/api/live", (req, res, next) => {
+  if (process.env.VERA_LIVE_UPDATES_ENABLED !== "true" && process.env.VERA_PRESENCE_ENABLED !== "true") {
+    return res.status(404).json({ message: "Actualización en vivo no disponible." });
+  }
+  return require("./routes/liveRoutes")(req, res, next);
+});
 
 app.get("/", (req, res) => {
   res.json({
