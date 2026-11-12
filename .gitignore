@@ -8,6 +8,7 @@ __pycache__/
 test-results/
 playwright-report/
 quality-report/
+microsoft-proof/
 supabase/.temp/
 
 .migrations/
