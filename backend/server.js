@@ -10,6 +10,7 @@ const { getJwtSecret } = require("./config/jwtSecret");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const auditRoutes = require("./routes/auditRoutes");
+const planningRoutes = require("./routes/planningRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const riskRoutes = require("./routes/riskRoutes");
 const controlRoutes = require("./routes/controlRoutes");
@@ -24,18 +25,9 @@ const businessContextRoutes = require("./routes/businessContextRoutes");
 const searchRoutes = require("./routes/searchRoutes");
 const workspaceRoutes = require("./routes/workspaceRoutes");
 const jobRoutes = require("./routes/jobRoutes");
+const liveRoutes = require("./routes/liveRoutes");
 
 const app = express();
-
-console.error("[API_ROUTER_DIAGNOSTIC]", JSON.stringify(Object.fromEntries([
-  ["auth", authRoutes], ["users", userRoutes], ["audit", auditRoutes],
-  ["dashboard", dashboardRoutes], ["risks", riskRoutes], ["controls", controlRoutes],
-  ["findings", findingRoutes], ["notifications", notificationRoutes],
-  ["actions", actionRoutes], ["evidence", evidenceRoutes], ["assistant", assistantRoutes],
-  ["orgUnits", orgUnitRoutes], ["riskLibrary", riskLibraryRoutes],
-  ["businessContext", businessContextRoutes], ["search", searchRoutes],
-  ["workspace", workspaceRoutes], ["jobs", jobRoutes]
-].map(([name, router]) => [name, typeof router]))));
 
 app.set("trust proxy", 1); // 1 = one proxy hop in front of your app
 
@@ -55,11 +47,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/audit", auditRoutes);
-// Resolve this route after the server module has initialized. The Vercel
-// bundle otherwise receives an incomplete CommonJS export during startup.
-app.use("/api/planning", (req, res, next) => {
-  return require("./routes/planningRoutes")(req, res, next);
-});
+app.use("/api/planning", planningRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/risks", riskRoutes);
 app.use("/api/controls", controlRoutes);
@@ -74,18 +62,12 @@ app.use("/api/business-context", businessContextRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/workspace", workspaceRoutes);
 app.use("/api/jobs", jobRoutes);
-app.use("/api/push", (req, res, next) => {
-  if (process.env.VERA_PUSH_ENABLED !== "true") {
-    return res.status(404).json({ message: "Avisos push no disponibles." });
-  }
-  return require("./routes/pushRoutes")(req, res, next);
-});
-app.use("/api/live", (req, res, next) => {
-  if (process.env.VERA_LIVE_UPDATES_ENABLED !== "true" && process.env.VERA_PRESENCE_ENABLED !== "true") {
-    return res.status(404).json({ message: "Actualización en vivo no disponible." });
-  }
-  return require("./routes/liveRoutes")(req, res, next);
-});
+if (process.env.VERA_PUSH_ENABLED === "true") {
+  app.use("/api/push", require("./routes/pushRoutes"));
+} else {
+  app.use("/api/push", (req, res) => res.status(404).json({ message: "Avisos push no disponibles." }));
+}
+app.use("/api/live", liveRoutes);
 
 app.get("/", (req, res) => {
   res.json({
