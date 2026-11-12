@@ -10,6 +10,7 @@ const root = resolve(import.meta.dirname, "..");
 const backendRequire = createRequire(resolve(root, "backend/package.json"));
 const jwt = backendRequire("jsonwebtoken");
 const ExcelJS = backendRequire("exceljs");
+const { parse: parseCsv } = backendRequire("csv-parse/sync");
 const { startTestServer } = backendRequire("./tests/helpers/testServer");
 const { buildTeamsShareUrl } = await import("../frontend/src/utils/teamsShare.js");
 const output = resolve(root, "microsoft-proof");
@@ -194,6 +195,116 @@ try {
     assert.equal(url.searchParams.get("preview"), "false");
     assert.equal(buildTeamsShareUrl("https://outside.example/", origin), null);
     return "destino oficial, URL propia, sin vista previa; dominio externo rechazado";
+  });
+
+  await check("Resistencia de exportación: cuatro trimestres y tres formatos", async () => {
+    const prefix = `Resistencia ${stamp}`;
+    const expectedIds = new Map(["Q1", "Q2", "Q3", "Q4"].map((quarter) => [quarter, []]));
+    const metrics = [];
+    for (const quarter of expectedIds.keys()) {
+      for (let index = 0; index < 10; index += 1) {
+        const proposal = await responseJson(await fetch(`${base}/api/planning`, auth(3, "POST", {
+          title: `${prefix} ${quarter} ${index + 1}`, objective: "Comprobar exportación por trimestre.",
+          scope: "Solo datos sintéticos de resistencia.", justification: "Ensayo de interoperabilidad.",
+          area: "Operaciones", quarter, year: 2026, responsibleId: 5, plannedHours: index + 1
+        })), 201);
+        const id = proposal.proposal.id;
+        expectedIds.get(quarter).push(id);
+        assert.equal((await fetch(`${base}/api/planning/${id}/approve`, auth(3, "POST", { quarter }))).status, 200);
+        assert.equal((await fetch(`${base}/api/planning/${id}/start`, auth(3, "POST", {}))).status, 200);
+      }
+    }
+    for (const [quarter, ids] of expectedIds) {
+      const query = `year=2026&quarter=${quarter}&q=${encodeURIComponent(prefix)}`;
+      const jsonStart = performance.now();
+      const report = await responseJson(await fetch(`${base}/api/planning/report?${query}`, auth(3)), 200);
+      const jsonMs = Math.round(performance.now() - jsonStart);
+      assert.equal(report.total, ids.length);
+      assert.deepEqual(report.rows.map((row) => row.audit.id).sort(), [...ids].sort());
+      const csvStart = performance.now();
+      const csvResponse = await fetch(`${base}/api/planning/report?${query}&format=csv`, auth(3));
+      assert.equal(csvResponse.status, 200);
+      const csv = await csvResponse.text();
+      const csvMs = Math.round(performance.now() - csvStart);
+      assert.equal(parseCsv(csv, { bom: true, columns: true }).length, ids.length);
+      const excelStart = performance.now();
+      const excelResponse = await fetch(`${base}/api/planning/report?${query}&format=xlsx`, auth(3));
+      assert.equal(excelResponse.status, 200);
+      const bytes = Buffer.from(await excelResponse.arrayBuffer());
+      assert.ok(bytes.length > 100 && bytes.length <= 5 * 1024 * 1024);
+      const book = new ExcelJS.Workbook();
+      await book.xlsx.load(bytes);
+      const excelMs = Math.round(performance.now() - excelStart);
+      assert.deepEqual(book.getWorksheet("BI_Audits").getColumn(1).values.slice(2).sort(), [...ids].sort());
+      metrics.push({ quarter, records: ids.length, jsonMs, csvMs, excelMs,
+        csvBytes: Buffer.byteLength(csv), excelBytes: bytes.length });
+    }
+    const emptyQuery = `year=2026&q=${encodeURIComponent(`${prefix} inexistente`)}`;
+    const empty = await responseJson(await fetch(`${base}/api/planning/report?${emptyQuery}`, auth(3)), 200);
+    assert.equal(empty.total, 0);
+    const emptyExcel = await fetch(`${base}/api/planning/report?${emptyQuery}&format=xlsx`, auth(3));
+    assert.equal(emptyExcel.status, 200);
+    const emptyBook = new ExcelJS.Workbook();
+    await emptyBook.xlsx.load(Buffer.from(await emptyExcel.arrayBuffer()));
+    assert.equal(emptyBook.getWorksheet("BI_Audits").rowCount, 1);
+    await writeFile(resolve(output, "resilience-export.json"), JSON.stringify({
+      scenario: "40 auditorías sintéticas; 10 por trimestre; 3 formatos", metrics,
+      rssBytes: process.memoryUsage().rss
+    }, null, 2) + "\n");
+    return "40 auditorías · Q1–Q4 · JSON/CSV/XLSX concordantes; resultado vacío correcto";
+  });
+
+  await check("Resistencia de importación: 50 filas y rechazos explícitos", async () => {
+    const previewPath = `${base}/api/business-context/import/preview`;
+    const sendPreview = (content) => fetch(previewPath, auth(1, "POST", {
+      format: "xlsx", sourceName: "Ensayo sintético de límite", content
+    }));
+    const invalid = Buffer.from("archivo inválido").toString("base64");
+    assert.equal((await sendPreview(invalid)).status, 400);
+    assert.equal((await sendPreview("")).status, 400);
+    assert.equal((await sendPreview(Buffer.alloc(55_001, 1).toString("base64"))).status, 413);
+    const template = await fetch(`${base}/api/business-context/import/template.xlsx`, auth(1));
+    assert.equal(template.status, 200);
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(Buffer.from(await template.arrayBuffer()));
+    const unit = await responseJson(await fetch(`${base}/api/org-units`, auth(1, "POST", {
+      kind: "GROUP", code: `LIM_${stamp}`, name: "Unidad sintética de límite", effectiveFrom: "2026-01-01"
+    })), 201);
+    const sheet = book.getWorksheet("Catalogo");
+    for (let index = 0; index < 50; index += 1) {
+      sheet.addRow(["PROCESS", `LIM_${stamp}_${index}`, `Proceso sintético ${index}`,
+        "Fila de prueba para comprobar el límite.", "2026-01-01", "", unit.unit.code]);
+    }
+    const validBytes = Buffer.from(await book.xlsx.writeBuffer());
+    assert.ok(validBytes.length < 55_000);
+    const input = { format: "xlsx", sourceName: "Ensayo sintético de límite",
+      content: validBytes.toString("base64") };
+    const previewStart = performance.now();
+    const preview = await responseJson(await fetch(previewPath, auth(1, "POST", input)), 200);
+    const previewMs = Math.round(performance.now() - previewStart);
+    assert.equal(preview.counts.CREATE, 50);
+    const applyStart = performance.now();
+    const applied = await responseJson(await fetch(`${base}/api/business-context/import/apply`,
+      auth(1, "POST", { ...input, expectedDigest: preview.previewDigest })), 200);
+    const applyMs = Math.round(performance.now() - applyStart);
+    assert.equal(applied.summary.created, 50);
+    const repeat = await responseJson(await fetch(previewPath, auth(1, "POST", input)), 200);
+    assert.equal(repeat.counts.UNCHANGED, 50);
+    sheet.addRow(["PROCESS", `LIM_${stamp}_50`, "Fila extra", "Supera el límite.",
+      "2026-01-01", "", unit.unit.code]);
+    const overflow = Buffer.from(await book.xlsx.writeBuffer());
+    assert.equal((await sendPreview(overflow.toString("base64"))).status, 400);
+    sheet.spliceRows(52, 1);
+    sheet.getCell("C2").value = { formula: 'HYPERLINK("https://invalid.example")', result: "texto" };
+    const formula = Buffer.from(await book.xlsx.writeBuffer());
+    assert.equal((await sendPreview(formula.toString("base64"))).status, 400);
+    await writeFile(resolve(output, "resilience-import.json"), JSON.stringify({
+      acceptedRows: 50, repeatedRows: 50, rejectedOverflowRows: 51,
+      invalidWorkbookStatus: 400, emptyWorkbookStatus: 400,
+      formulaWorkbookStatus: 400, oversizedWorkbookStatus: 413,
+      previewMs, applyMs, workbookBytes: validBytes.length
+    }, null, 2) + "\n");
+    return "50 altas; sin duplicados; 51 filas, vacío, fórmulas, inválido y >55 KB rechazados";
   });
 } catch (error) {
   failure = error;
