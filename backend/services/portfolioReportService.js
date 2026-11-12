@@ -75,17 +75,16 @@ const safeCell = (value) => {
   return `"${text.replace(/"/g, '""')}"`;
 };
 const listTitles = (items) => items.map((item) => `${item.id}: ${item.title}`).join("; ");
+const reportRowValues = ({ audit, risks, controls, findings, evidence = [] }) => [
+  audit.id, audit.title, audit.status, audit.area, audit.orgUnitId, audit.type, audit.objective,
+  audit.responsible, audit.quarter, audit.year, audit.startDate, audit.endDate,
+  audit.risk, audit.progress, listTitles(risks), listTitles(controls),
+  listTitles(findings), listTitles(evidence), audit.plannedHours, audit.executedHours
+];
 const reportToCsv = (report) => {
   const lines = [CSV_COLUMNS.map(safeCell).join(",")];
-  for (const { audit, risks, controls, findings, evidence = [] } of report.rows) {
-    lines.push([
-      audit.id, audit.title, audit.status, audit.area, audit.orgUnitId, audit.type, audit.objective,
-      audit.responsible, audit.quarter, audit.year, audit.startDate, audit.endDate,
-      audit.risk, audit.progress, listTitles(risks), listTitles(controls),
-      listTitles(findings), listTitles(evidence), audit.plannedHours, audit.executedHours
-    ].map(safeCell).join(","));
-  }
+  for (const row of report.rows) lines.push(reportRowValues(row).map(safeCell).join(","));
   return `\uFEFF${lines.join("\r\n")}\r\n`;
 };
 
-module.exports = { buildPortfolioReport, reportToCsv };
+module.exports = { buildPortfolioReport, reportToCsv, CSV_COLUMNS, reportRowValues };
