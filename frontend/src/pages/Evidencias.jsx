@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { ExternalLink, FileCheck2, FileImage, FileText, Plus, Search, X } from "lucide-react";
 import Sidebar from "../components/Sidebar";
+import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
 import ShareLinkButton from "../components/ShareLinkButton";
 import { BookmarkButton } from "../components/WorkspaceActions";
 import EvidenceAssistantDialog from "../components/EvidenceAssistantDialog";
@@ -59,6 +60,7 @@ function Evidencias() {
     const [allEvidence, allRisks, allControls, allAudits] = await Promise.all([getEvidence(), getRisks(), getControls(), getPlanningAudits()]);
     setItems(allEvidence); setRisks(allRisks); setControls(allControls); setAudits(allAudits);
   };
+  useAutomaticRefresh(load, !modal && !saving);
   useEffect(() => {
     let cancelled = false;
     Promise.all([getEvidence(), getRisks(), getControls(), getPlanningAudits()])

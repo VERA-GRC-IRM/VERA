@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Activity, Bot, CheckCircle2, ClipboardCheck, Pencil, Plus, Shield, X } from "lucide-react";
 import Sidebar from "../components/Sidebar";
+import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
 import ShareLinkButton from "../components/ShareLinkButton";
 import { BookmarkButton } from "../components/WorkspaceActions";
 import AssistantDrawer from "../components/AssistantDrawer";
@@ -41,6 +42,7 @@ function Controles() {
     setControls(allControls);
     setRisks(allRisks);
   };
+  useAutomaticRefresh(load, !modal && !saving);
   useEffect(() => {
     Promise.all([getControls(), getRisks(), canManage ? getRiskOwners() : Promise.resolve([])])
       .then(([allControls, allRisks, activeOwners]) => {

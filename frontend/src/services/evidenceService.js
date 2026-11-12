@@ -1,4 +1,5 @@
 import { fetchWithOfflineFallback } from "./offlineSnapshots";
+import { notifyDataChanged } from "./dataChange";
 
 const API_URL = "/api/evidence";
 
@@ -45,6 +46,7 @@ export const uploadEvidenceFile = async (details, file) => {
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || "No se pudo cargar el archivo.");
+  notifyDataChanged();
   return data;
 };
 

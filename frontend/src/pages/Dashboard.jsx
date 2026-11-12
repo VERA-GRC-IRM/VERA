@@ -3,6 +3,7 @@ import { Activity, ArrowRight, CheckCircle2, ClipboardList, RotateCw } from "luc
 import { Link } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import PersonalWorkspace from "../components/PersonalWorkspace";
+import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
 import { getDashboardSummary } from "../services/dashboardService";
 import { getActions } from "../services/actionService";
 import { localDateAfter, localToday } from "../utils/localDate";
@@ -45,6 +46,7 @@ function Dashboard() {
     setActionsLoading(true);
     setRevision((current) => current + 1);
   };
+  useAutomaticRefresh(() => setRevision((current) => current + 1));
 
   useEffect(() => {
     let cancelled = false;
