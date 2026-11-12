@@ -120,7 +120,7 @@
   margin: 0;
   padding: 8px 13px 7px;
   color: var(--vera-text-muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -160,7 +160,7 @@
 :root[data-nav-collapsed="true"] .nav-prepare-action span { display: none; }
 :root[data-nav-collapsed="true"] .role-preview-launcher { margin: 8px 9px; padding: 5px; }
 :root[data-nav-collapsed="true"] .role-preview-buttons { grid-template-columns: 1fr; }
-:root[data-nav-collapsed="true"] .role-preview-buttons button { min-height: 38px; }
+:root[data-nav-collapsed="true"] .role-preview-buttons button { min-height: 44px; }
 :root[data-nav-collapsed="true"] .sidebar .role-preview-short { display: inline; font-weight: 700; }
 :root[data-nav-collapsed="true"] .sidebar-bottom { display: grid; justify-items: center; gap: 9px; padding: 12px 7px; }
 :root[data-nav-collapsed="true"] .sidebar .appearance-rail-button { display: grid; }
@@ -276,16 +276,17 @@
   background: var(--vera-surface-soft);
 }
 
-.role-preview-launcher strong { display: block; margin-bottom: 8px; color: var(--vera-text-muted); font-size: 10px; letter-spacing: .08em; }
+.role-preview-launcher strong { display: block; margin-bottom: 8px; color: var(--vera-text-muted); font-size: 11px; letter-spacing: .08em; }
 .role-preview-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .role-preview-buttons button {
+  min-height: 44px;
   padding: 7px 5px;
   border: 1px solid light-dark(#badbd7, var(--vera-border));
   border-radius: 7px;
   background: var(--vera-surface);
   color: var(--vera-text);
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
 }
 .role-preview-buttons button:hover, .role-preview-buttons button:focus-visible { border-color: var(--vera-accent); background: var(--vera-accent-soft); }
