@@ -62,11 +62,12 @@ app.use("/api/business-context", businessContextRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/workspace", workspaceRoutes);
 app.use("/api/jobs", jobRoutes);
-if (process.env.VERA_PUSH_ENABLED === "true") {
-  app.use("/api/push", require("./routes/pushRoutes"));
-} else {
-  app.use("/api/push", (req, res) => res.status(404).json({ message: "Avisos push no disponibles." }));
-}
+app.use("/api/push", (req, res, next) => {
+  if (process.env.VERA_PUSH_ENABLED !== "true") {
+    return res.status(404).json({ message: "Avisos push no disponibles." });
+  }
+  return require("./routes/pushRoutes")(req, res, next);
+});
 app.use("/api/live", liveRoutes);
 
 app.get("/", (req, res) => {
