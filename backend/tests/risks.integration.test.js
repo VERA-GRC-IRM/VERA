@@ -85,7 +85,13 @@ test("HU-14: risk registration validates fields, calculates level and retains ev
       likelihood: 1, impact: 1, note: evaluationNote, assessmentStage: "RESIDUAL"
     }));
     assert.equal(unapproved.status, 400);
-    const update = await fetch(`${baseUrl}/api/risks/${risk.id}`, json(manager, "PUT", { ...body, title: `${body.title} actualizado` }));
+    const stale = await fetch(`${baseUrl}/api/risks/${risk.id}`, json(manager, "PUT", {
+      ...body, title: `${body.title} actualizado`, expectedUpdatedAt: risk.updatedAt
+    }));
+    assert.equal(stale.status, 409);
+    const update = await fetch(`${baseUrl}/api/risks/${risk.id}`, json(manager, "PUT", {
+      ...body, title: `${body.title} actualizado`, expectedUpdatedAt: reevaluated.updatedAt
+    }));
     assert.equal(update.status, 200);
     assert.equal((await update.json()).risk.title, `${body.title} actualizado`);
   });

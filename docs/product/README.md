@@ -7,7 +7,7 @@ Esta guía reúne funciones de uso transversal. Cada enlace describe lo que est�
 | [Búsqueda de registros](universal-search.md) | Barra superior y resultados autorizados | Expedientes, evidencias, mapa del negocio, personas visibles en el directorio y conversaciones propias vigentes; no busca el contenido de archivos. |
 | [Enlaces de trabajo](shareable-links.md) | Registros y vistas filtradas de auditorías, riesgos y evidencias | El enlace no concede permisos; los filtros escritos quedan visibles en la URL. |
 | [Tu espacio](personal-workspace.md) | Favoritos, vistas guardadas y secciones recientes | Solo en este navegador, separado por cuenta. |
-| [Actualización de vistas](automatic-refresh.md) | Consulta periódica de seis vistas activas | Hasta 40 segundos de espera normal; no hay presencia ni edición simultánea. |
+| [Actualización de vistas](automatic-refresh.md) | Consulta periódica de seis vistas y aviso de cambios al editar riesgos o controles | Hasta 40 segundos en vistas y 15 segundos en formularios; no hay presencia ni edición simultánea. |
 | [Carga de evidencias](evidence-upload.md) | Hasta 10 archivos de 3 MB, progreso y resultado individual; reintento solo tras rechazo confirmado | No reanuda cargas después de cerrar la pestaña ni resuelve automáticamente resultados inciertos. |
 | [Avisos de escritorio](desktop-alerts.md) | Activación individual y mensaje genérico | Necesita VERA abierta; no es push con la aplicación cerrada. |
 | [Estado de reportes](report-export-feedback.md) | Operación, tiempo transcurrido y cancelación de la petición | No crea un trabajo duradero ni detiene necesariamente el procesamiento del servidor. |

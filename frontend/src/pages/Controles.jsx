@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { Activity, Bot, CheckCircle2, ClipboardCheck, Pencil, Plus, Shield, X } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
+import useRecordFreshness from "../hooks/useRecordFreshness";
 import ShareLinkButton from "../components/ShareLinkButton";
 import { BookmarkButton } from "../components/WorkspaceActions";
 import AssistantDrawer from "../components/AssistantDrawer";
@@ -36,6 +37,7 @@ function Controles() {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [assistantFocus, setAssistantFocus] = useState(null);
+  const staleEdit = useRecordFreshness(editing, "/api/controls", "controls");
 
   const load = async () => {
     const [allControls, allRisks] = await Promise.all([getControls(), getRisks()]);
@@ -71,7 +73,8 @@ function Controles() {
     event.preventDefault(); setSaving(true); setError("");
     try {
       if (evaluating) await evaluateControl(evaluating.id, form);
-      else if (editing) await updateControl(editing.id, form);
+      else if (editing) await updateControl(editing.id, { ...form, expectedStorageVersion: editing.storageVersion,
+        expectedUpdatedAt: editing.updatedAt });
       else await createControl(form);
       await load(); setMessage(evaluating ? "Evaluación añadida al historial." : editing ? "Control actualizado." : "Control registrado."); closeModal();
     } catch (submitError) { setError(submitError.message); }
@@ -94,10 +97,10 @@ function Controles() {
       <ControlFindings controls={controls} risks={risks} audits={audits} owners={owners} user={user} />
     </section></main>
     {assistantFocus && <AssistantDrawer key={assistantFocus.id} focus={assistantFocus} onClose={() => setAssistantFocus(null)} />}
-    {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeModal(); }}><form className="proposal-modal control-modal" onSubmit={submit}><div className="modal-header"><div><span className="eyebrow">{evaluating ? `EVALUACIÓN ${evaluating.id}` : editing ? `EDITAR ${editing.id}` : "NUEVO CONTROL"}</span><h2>{evaluating ? "Añadir valoración" : editing ? "Editar control" : "Registrar control"}</h2><p>{evaluating ? "La valoración preliminar se agrega al historial sin reemplazar las anteriores. No sustituye una prueba de diseño u operación." : "Define su tipo, responsable y los riesgos que ayuda a tratar."}</p></div><button type="button" className="modal-close" onClick={closeModal} aria-label="Cerrar"><X size={20} /></button></div>{error && <p className="control-feedback error">{error}</p>}<div className="proposal-form-grid">
+    {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeModal(); }}><form className="proposal-modal control-modal" onSubmit={submit}><div className="modal-header"><div><span className="eyebrow">{evaluating ? `EVALUACIÓN ${evaluating.id}` : editing ? `EDITAR ${editing.id}` : "NUEVO CONTROL"}</span><h2>{evaluating ? "Añadir valoración" : editing ? "Editar control" : "Registrar control"}</h2><p>{evaluating ? "La valoración preliminar se agrega al historial sin reemplazar las anteriores. No sustituye una prueba de diseño u operación." : "Define su tipo, responsable y los riesgos que ayuda a tratar."}</p></div><button type="button" className="modal-close" onClick={closeModal} aria-label="Cerrar"><X size={20} /></button></div>{error && <p className="control-feedback error">{error}</p>}{editing && staleEdit && <p className="control-feedback error" role="alert">Este control cambió o dejó de estar disponible mientras lo editabas. Copia tus cambios si los necesitas y vuelve a consultar la lista. <button type="button" onClick={() => load().then(closeModal).catch((cause) => setError(cause.message))}>Consultar lista actual</button></p>}<div className="proposal-form-grid">
       {!evaluating && <><label className="full-width">Nombre del control<input required minLength="3" maxLength="120" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label><label className="full-width">Descripción<textarea required minLength="10" maxLength="1000" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label><label>Tipo<select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}>{Object.entries(TYPES).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label>Frecuencia<select value={form.frequency} onChange={(event) => setForm({ ...form, frequency: event.target.value })}>{["Daily", "Weekly", "Monthly", "Quarterly", "Annually"].map((frequency) => <option key={frequency}>{frequency}</option>)}</select></label>{canManage ? <label className="full-width">Responsable<select required value={form.ownerId} onChange={(event) => setForm({ ...form, ownerId: event.target.value })}><option value="">Seleccionar responsable</option>{owners.map((owner) => <option key={owner.id} value={owner.id}>{owner.name} · {owner.role}</option>)}</select></label> : <label className="full-width">Responsable<input readOnly value={user?.name || user?.username || "Cuenta actual"} /></label>}<fieldset className="risk-link-picker full-width"><legend>Riesgos relacionados</legend>{risks.map((risk) => <label key={risk.id}><input type="checkbox" checked={form.riskIds.includes(risk.id)} onChange={() => toggleRisk(risk.id)} /><span className={`risk-badge risk-${risk.level.toLowerCase()}`}>{risk.level}</span>{risk.title}</label>)}{risks.length === 0 && <small>Registra riesgos antes de crear controles.</small>}</fieldset></>}
       {!editing && <><label className="full-width">Calificación preliminar<select value={form.rating} onChange={(event) => setForm({ ...form, rating: Number(event.target.value) })}>{RATING_LABELS.map((label, index) => <option value={index + 1} key={label}>{index + 1} · {label}</option>)}</select><small>Resultado: {form.rating >= 4 ? "Efectivo" : "Inefectivo"} (4–5 efectivo, 1–3 inefectivo).</small></label><label className="full-width">Justificación<textarea required minLength="10" maxLength="500" value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Resume la evidencia usada para esta evaluación." /></label></>}
-    </div><div className="modal-actions"><button type="button" className="secondary-action" onClick={closeModal}>Cancelar</button><button type="submit" className="primary-action" disabled={saving || (!evaluating && form.riskIds.length === 0)}>{saving ? "Guardando..." : evaluating ? "Guardar evaluación" : editing ? "Guardar cambios" : "Crear control"}</button></div></form></div>}
+    </div><div className="modal-actions"><button type="button" className="secondary-action" onClick={closeModal}>Cancelar</button><button type="submit" className="primary-action" disabled={saving || staleEdit || (!evaluating && form.riskIds.length === 0)}>{saving ? "Guardando..." : evaluating ? "Guardar evaluación" : editing ? "Guardar cambios" : "Crear control"}</button></div></form></div>}
   </div>;
 }
 

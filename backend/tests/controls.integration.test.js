@@ -96,7 +96,13 @@ test("HU-15: controls link to valid risks, retain effectiveness evaluations and 
   assert.equal(listedControl.effectivenessResult, "INEFFECTIVE");
   assert.deepEqual(listedControl.evaluations.map((item) => item.result), ["EFFECTIVE", "INEFFECTIVE"]);
 
-  const update = await fetch(`${baseUrl}/api/controls/${control.id}`, json(manager, "PUT", { ...body, title: `${body.title} revisado` }));
+  const stale = await fetch(`${baseUrl}/api/controls/${control.id}`, json(manager, "PUT", {
+    ...body, title: `${body.title} revisado`, expectedUpdatedAt: control.updatedAt
+  }));
+  assert.equal(stale.status, 409);
+  const update = await fetch(`${baseUrl}/api/controls/${control.id}`, json(manager, "PUT", {
+    ...body, title: `${body.title} revisado`, expectedUpdatedAt: evaluated.updatedAt
+  }));
   assert.equal(update.status, 200);
   assert.equal((await update.json()).control.title, `${body.title} revisado`);
   const forbidden = await fetch(`${baseUrl}/api/controls`, json(tokenFor(4), "POST", body));

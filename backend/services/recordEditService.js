@@ -48,26 +48,36 @@ const prepareRecordEdit = async (user, type, id, field, value) => {
 
 const updateCoreForUser = async (user, type, id, input, options = {}) => {
   await activeEditor(user);
+  const expectedStorageVersion = options.expectedStorageVersion ?? input?.expectedStorageVersion;
+  const expectedUpdatedAt = Object.hasOwn(input || {}, "expectedUpdatedAt")
+    ? input.expectedUpdatedAt : options.expectedUpdatedAt;
+  if (input?.expectedStorageVersion !== undefined &&
+      (!Number.isSafeInteger(input.expectedStorageVersion) || input.expectedStorageVersion < 1)) {
+    throw fail("La versión del registro no es válida.");
+  }
+  const payload = { ...input };
+  delete payload.expectedStorageVersion;
+  delete payload.expectedUpdatedAt;
   const repository = repositoryFor(type);
   if (!repository) throw fail("Tipo de registro no permitido.");
   const current = await repository.findById(id);
   if (!current) throw fail("El registro no existe o dejó de estar disponible.", 404);
   await assertWritable(user, type, current);
   if (options.operationId && current.aiEditOperationId === options.operationId) return current;
-  if (options.expectedUpdatedAt !== undefined && current.updatedAt !== options.expectedUpdatedAt) {
+  if (expectedUpdatedAt !== undefined && current.updatedAt !== expectedUpdatedAt) {
     throw fail("El registro cambió desde la vista previa. Vuelve a revisarlo.", 409);
   }
-  if (options.expectedStorageVersion !== undefined &&
-      current.storageVersion !== options.expectedStorageVersion) {
+  if (expectedStorageVersion !== undefined &&
+      current.storageVersion !== expectedStorageVersion) {
     throw fail("El registro cambió desde la vista previa. Vuelve a revisarlo.", 409);
   }
   if (options.expectedField && current[options.expectedField] !== options.expectedValue) {
     throw fail("El campo cambió desde la vista previa. Vuelve a revisarlo.", 409);
   }
-  const parsed = await parseFor(type)(type === "RISK" ? { ...current, ...input } : input);
+  const parsed = await parseFor(type)(type === "RISK" ? { ...current, ...payload } : payload);
   if (parsed.error) throw fail(parsed.error);
   const businessContextReferences = type === "RISK"
-    ? await resolveReferencesForUnit(user, input.businessContextReferences, current.orgUnitId)
+    ? await resolveReferencesForUnit(user, payload.businessContextReferences, current.orgUnitId)
     : undefined;
   await assertWritable(user, type, { ...current, ...parsed.data });
   if (type === "RISK" && await riskRepository.findDuplicate({ ...parsed.data, orgUnitId: current.orgUnitId }, id)) {
