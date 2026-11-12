@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import AssistantDrawer from "./AssistantDrawer";
 import "../pages/Asistente.css";
+
+const AssistantDrawer = lazy(() => import("./AssistantDrawer"));
 
 function AssistantQuickAccess() {
   const [open, setOpen] = useState(false);
@@ -35,7 +36,7 @@ function AssistantQuickAccess() {
     <button className="assistant-quick-access" type="button" onClick={() => { setInitialQuestion(""); setOpen(true); }}
       aria-label="Abrir asistente de IA" aria-keyshortcuts="Control+Alt+K Meta+Alt+K"
       title="Abrir asistente · Ctrl+Alt+K"><img src="/vera-logo.svg" alt="" /><span>Preguntar a VERA</span></button>
-    {open && <AssistantDrawer initialQuestion={initialQuestion} onClose={close} />}
+    {open && <Suspense fallback={null}><AssistantDrawer initialQuestion={initialQuestion} onClose={close} /></Suspense>}
   </>;
 }
 
