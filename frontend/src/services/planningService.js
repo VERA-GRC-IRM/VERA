@@ -45,18 +45,19 @@ const reportParams = (filters, format) => {
   return params.toString();
 };
 
-export const getPortfolioReport = (filters = {}) => request(`/report?${reportParams(filters)}`);
+export const getPortfolioReport = (filters = {}, options = {}) => request(`/report?${reportParams(filters)}`, options);
 
-export const downloadPortfolioReport = async (filters = {}, format = "csv") => {
+export const downloadPortfolioReport = async (filters = {}, format = "csv", { signal } = {}) => {
   if (!["csv", "pdf"].includes(format)) throw new Error("El formato no es válido.");
   const response = await fetch(`${API_URL}/report?${reportParams(filters, format)}`, {
-    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }, signal
   });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
     throw new Error(data.message || "No se pudo descargar el reporte.");
   }
   const blob = await response.blob();
+  if (signal?.aborted) throw new DOMException("Descarga cancelada.", "AbortError");
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

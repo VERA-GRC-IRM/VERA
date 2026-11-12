@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ShareLinkButton from "../components/ShareLinkButton";
@@ -30,6 +30,10 @@ function BuscarAuditorias() {
   const [appliedFilters, setAppliedFilters] = useState(EMPTY);
   const [report, setReport] = useState(null);
   const [reportBusy, setReportBusy] = useState(false);
+  const [reportOperation, setReportOperation] = useState("");
+  const [reportStartedAt, setReportStartedAt] = useState(0);
+  const [reportElapsed, setReportElapsed] = useState(0);
+  const reportController = useRef(null);
   const [orgUnits, setOrgUnits] = useState([]);
 
   const load = async (next) => {
@@ -49,6 +53,12 @@ function BuscarAuditorias() {
   useEffect(() => {
     getAvailableOrgUnits().then(setOrgUnits).catch(() => setOrgUnits([]));
   }, []);
+  useEffect(() => {
+    if (!reportBusy) return undefined;
+    const timer = setInterval(() => setReportElapsed(Math.floor((Date.now() - reportStartedAt) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [reportBusy, reportStartedAt]);
+  useEffect(() => () => reportController.current?.abort(), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,17 +86,24 @@ function BuscarAuditorias() {
   };
   const submit = (event) => { event.preventDefault(); showFilters(filters); };
   const clear = () => { setFilters(EMPTY); showFilters(EMPTY); };
+  const beginReport = (label) => {
+    reportController.current = new AbortController();
+    setReportStartedAt(Date.now()); setReportElapsed(0); setReportOperation(label); setReportBusy(true);
+    return reportController.current.signal;
+  };
+  const finishReport = () => { reportController.current = null; setReportBusy(false); setReportOperation(""); };
+  const reportError = (cause) => setError(cause.name === "AbortError" ? "Operación cancelada." : cause.message);
   const openReport = async () => {
-    setReportBusy(true);
-    try { setReport(await getPortfolioReport(appliedFilters)); setError(""); }
-    catch (cause) { setError(cause.message); }
-    finally { setReportBusy(false); }
+    const signal = beginReport("Preparando vista del reporte");
+    try { setReport(await getPortfolioReport(appliedFilters, { signal })); setError(""); }
+    catch (cause) { reportError(cause); }
+    finally { finishReport(); }
   };
   const exportReport = async (format) => {
-    setReportBusy(true);
-    try { await downloadPortfolioReport(appliedFilters, format); setError(""); }
-    catch (cause) { setError(cause.message); }
-    finally { setReportBusy(false); }
+    const signal = beginReport(`Preparando ${format.toUpperCase()}`);
+    try { await downloadPortfolioReport(appliedFilters, format, { signal }); setError(""); }
+    catch (cause) { reportError(cause); }
+    finally { finishReport(); }
   };
 
   return (
@@ -135,7 +152,9 @@ function BuscarAuditorias() {
             <button className="secondary-action" type="button" onClick={openReport} disabled={loading || reportBusy}>Ver reporte</button>
             <button className="secondary-action" type="button" onClick={() => exportReport("csv")} disabled={loading || reportBusy}>Descargar CSV</button>
             <button className="secondary-action" type="button" onClick={() => exportReport("pdf")} disabled={loading || reportBusy}>Descargar PDF</button>
+            {reportBusy && <button className="secondary-action" type="button" onClick={() => reportController.current?.abort()}>Cancelar</button>}
           </div>
+          {reportBusy && <p className="audit-report-progress" role="status" aria-live="polite">{reportOperation} · {reportElapsed} s. Puedes cancelar mientras se prepara.</p>}
           {report && <section className="audit-report-panel" aria-label="Reporte del portafolio">
             <p role="status">{report.total} expediente(s) · {report.scope} · Actualizado: {new Date(report.asOf).toLocaleString("es-MX")}</p>
             <p>Indicadores: {report.indicators.audits} auditorías · {report.indicators.risks} riesgos · {report.indicators.controls} controles · {report.indicators.findings} hallazgos · {report.indicators.evidence} evidencias.</p>
