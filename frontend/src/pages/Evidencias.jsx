@@ -21,6 +21,7 @@ const TYPE_LABELS = { DOCUMENT: "Documento", SCREENSHOT: "Captura", REPORT: "Inf
 const safeLink = (value) => /^https:\/\//i.test(value);
 const formatDate = (value) => new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
 const labelForEntity = (entity) => `${entity.id} · ${entity.title}`;
+const versionsEnabled = import.meta.env.VITE_VERA_EVIDENCE_VERSIONS_ENABLED === "true";
 const indexLabel = (index, mime) => {
   if (index?.unavailable) return "Estado de lectura temporalmente no disponible";
   if (index?.status === "ready") return index.truncated
@@ -68,6 +69,7 @@ function Evidencias() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [assistantEvidence, setAssistantEvidence] = useState(null);
+  const [revisingId, setRevisingId] = useState(null);
 
   const load = async () => {
     const [allEvidence, allRisks, allControls, allAudits] = await Promise.all([getEvidence(), getRisks(), getControls(), getPlanningAudits()]);
@@ -90,8 +92,9 @@ function Evidencias() {
   }, [location.hash, items]);
 
   const entities = useMemo(() => ({ RISK: risks, CONTROL: controls, AUDIT: audits }[form.entityType] || []), [form.entityType, risks, controls, audits]);
-  const visible = items.filter((item) => (filter === "ALL" || item.entityType === filter) && (!search || `${item.title} ${item.description} ${item.reference} ${item.entityTitle}`.toLowerCase().includes(search.toLowerCase())));
-  const counts = ["RISK", "CONTROL", "AUDIT"].map((entityType) => ({ entityType, count: items.filter((item) => item.entityType === entityType).length }));
+  const currentVersions = versionsEnabled ? items.filter((item) => !items.some((candidate) => candidate.previousVersionId === item.id)) : items;
+  const visible = currentVersions.filter((item) => (filter === "ALL" || item.entityType === filter) && (!search || `${item.title} ${item.description} ${item.reference} ${item.entityTitle}`.toLowerCase().includes(search.toLowerCase())));
+  const counts = ["RISK", "CONTROL", "AUDIT"].map((entityType) => ({ entityType, count: currentVersions.filter((item) => item.entityType === entityType).length }));
 
   const chooseFiles = (selected) => {
     const candidates = [...(selected || [])];
@@ -144,11 +147,23 @@ function Evidencias() {
     try { window.location.assign(await getEvidenceDownloadUrl(item.id)); }
     catch (cause) { setError(cause.message); }
   };
+  const revise = async (item, file) => {
+    if (!file) return;
+    if (file.size === 0 || file.size > 3 * 1024 * 1024) { setError("El archivo debe tener entre 1 byte y 3 MB."); return; }
+    setRevisingId(item.id); setError("");
+    try {
+      await uploadEvidenceFile({ title: item.title, description: item.description,
+        evidenceType: item.evidenceType, entityType: item.entityType,
+        entityId: item.entityId, revisionOf: item.id }, file);
+      await load(); setMessage("Nueva versión guardada; las anteriores siguen disponibles.");
+    } catch (cause) { setError(cause.message); }
+    finally { setRevisingId(null); }
+  };
 
   return <div className="dashboard-layout"><Sidebar active="evidencias" /><main className="dashboard-main"><section className="dashboard-content evidence-page">
     <header className="dashboard-header"><div><span className="eyebrow">EXPEDIENTE DIGITAL</span><h1>Evidencias</h1><p>Organiza archivos y referencias de respaldo vinculados con riesgos, controles o auditorías.</p></div>{canCreate && (<button className="primary-action" onClick={openCreate}><Plus size={18} /> Registrar evidencia</button>)}</header>
     {message && <p className="evidence-feedback success">{message}</p>}{error && !modal && <p className="evidence-feedback error">{error}</p>}
-    <div className="evidence-summary"><article><strong>{items.length}</strong><span>referencias registradas</span></article>{counts.map(({ entityType, count }) => <article key={entityType}><strong>{count}</strong><span>vinculadas a {ENTITY_LABELS[entityType].toLowerCase()}s</span></article>)}</div>
+    <div className="evidence-summary"><article><strong>{currentVersions.length}</strong><span>referencias registradas</span></article>{counts.map(({ entityType, count }) => <article key={entityType}><strong>{count}</strong><span>vinculadas a {ENTITY_LABELS[entityType].toLowerCase()}s</span></article>)}</div>
     <div className="evidence-notice"><FileCheck2 size={19} /><p><b>Expediente privado.</b> Puedes registrar una referencia externa o cargar hasta 10 archivos PDF, DOCX, imagen, TXT, Excel o CSV de 3 MB cada uno. La consulta con IA lee texto de PDF, DOCX, TXT y CSV. Para imágenes, puedes iniciar la extracción con IA de forma explícita; los PDF escaneados aún requieren OCR de páginas. Los archivos requieren Supabase Storage configurado en el backend.</p></div>
     {form.entityType === "AUDIT" && !canAttachToAudit && (
       <small>
@@ -165,7 +180,9 @@ function Evidencias() {
           <div className="evidence-card-tags"><span className="evidence-type">{TYPE_LABELS[item.evidenceType]}</span><span className="evidence-entity-type">{ENTITY_LABELS[item.entityType]} · {item.entityId}</span></div>
           <h2>{item.title}</h2><p>{item.description}</p>
           <div className="evidence-meta"><span><b>Relacionada con:</b> {item.entityTitle}</span><span><b>Registró:</b> {item.author.name}</span><span>{formatDate(item.createdAt)}</span></div>
-          <div className="evidence-reference"><b>{item.file ? "Archivo:" : "Referencia:"}</b> {item.file ? <button type="button" className="secondary-action" onClick={() => download(item)}>Descargar archivo ({Math.ceil(item.file.size / 1024)} KB)</button> : safeLink(item.reference) ? <a href={item.reference} target="_blank" rel="noreferrer">Abrir referencia <ExternalLink size={13} /></a> : <span>{item.reference}</span>}</div>
+          <div className="evidence-reference"><b>{item.file ? `Archivo · versión ${item.versionNumber || 1}:` : "Referencia:"}</b> {item.file ? <button type="button" className="secondary-action" onClick={() => download(item)}>Descargar archivo ({Math.ceil(item.file.size / 1024)} KB)</button> : safeLink(item.reference) ? <a href={item.reference} target="_blank" rel="noreferrer">Abrir referencia <ExternalLink size={13} /></a> : <span>{item.reference}</span>}</div>
+          {versionsEnabled && item.file && canCreate && (item.entityType !== "AUDIT" || canAttachToAudit) && <label className="evidence-revision-upload">{revisingId === item.id ? "Guardando versión…" : "Subir nueva versión"}<input type="file" accept=".pdf,.xls,.xlsx,.doc,.docx,.png,.jpg,.jpeg,.webp,.csv,.txt" disabled={Boolean(revisingId)} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; revise(item, file); }} /></label>}
+          {versionsEnabled && item.file && item.versionNumber > 1 && <details className="evidence-version-history"><summary>Versiones anteriores</summary><ol>{items.filter((candidate) => candidate.id === (item.versionRootId || item.id) || candidate.versionRootId === item.versionRootId).filter((candidate) => candidate.id !== item.id).sort((a, b) => (b.versionNumber || 1) - (a.versionNumber || 1)).map((candidate) => <li key={candidate.id}>Versión {candidate.versionNumber || 1} · {formatDate(candidate.createdAt)} · <button type="button" className="secondary-action" onClick={() => download(candidate)}>Descargar</button></li>)}</ol></details>}
           {item.file && <small className="evidence-index-coverage">{indexLabel(item.contentIndex, item.file.mime)}</small>}
           {item.file && ["application/pdf", "text/plain", "text/csv", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/png", "image/jpeg", "image/webp"].includes(item.file.mime) && <button type="button" className="secondary-action evidence-ai-open" onClick={() => setAssistantEvidence(item)}><FileText size={15} aria-hidden="true" /> Consultar contenido con IA</button>}
           <ShareLinkButton path={`/evidencias#evidence-${encodeURIComponent(item.id)}`} />

@@ -59,11 +59,30 @@ const uploadEvidence = async (req, res) => {
   const evidenceType = text(req.query.evidenceType);
   const entityType = text(req.query.entityType);
   const entityId = text(req.query.entityId);
+  const revisionOf = text(req.query.revisionOf);
+  if (revisionOf && process.env.VERA_EVIDENCE_VERSIONS_ENABLED !== "true") {
+    return res.status(503).json({ message: "El historial de versiones aún no está habilitado." });
+  }
+  if (revisionOf && (process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production") &&
+      process.env.VERA_EVIDENCE_COMMENT_STORE !== "supabase") {
+    return res.status(503).json({ message: "El historial de versiones requiere evidencias persistentes." });
+  }
   const mime = text(req.headers["content-type"]).split(";")[0].toLowerCase();
   if (title.length < 3 || title.length > 120) return res.status(400).json({ message: "El nombre debe tener entre 3 y 120 caracteres." });
   if (description.length < 10 || description.length > 1000) return res.status(400).json({ message: "La descripción debe tener entre 10 y 1,000 caracteres." });
   if (!EVIDENCE_TYPES.includes(evidenceType)) return res.status(400).json({ message: "Selecciona un tipo de evidencia válido." });
   if (!ENTITY_TYPES.includes(entityType) || !entityId) return res.status(400).json({ message: "Selecciona un riesgo, control o auditoría." });
+  let previous = null;
+  if (revisionOf) {
+    previous = await evidenceRepository.findById(revisionOf);
+    if (!previous?.file || previous.entityType !== entityType || previous.entityId !== entityId ||
+        !await canAccessEntity(previous.entityType, previous.entityId, req.user)) {
+      return res.status(404).json({ message: "Versión anterior no encontrada." });
+    }
+    if ((await evidenceRepository.getAll()).some((item) => item.previousVersionId === revisionOf)) {
+      return res.status(409).json({ message: "Existe una versión más reciente. Actualiza la lista antes de subir otra." });
+    }
+  }
   if ( entityType === "AUDIT" && !PLANNING_APPROVE_ROLES.includes(req.user.role)) return res.status(403).json({ message: "Tu rol no tiene permiso para adjuntar archivos a auditorías."});
   if (!evidenceStorage.MIME_EXTENSIONS[mime]) return res.status(415).json({ message: "Tipo de archivo no permitido." });
   const entity = await findEntity(entityType, entityId);
@@ -82,6 +101,9 @@ const uploadEvidence = async (req, res) => {
   try {
     evidence = await evidenceRepository.create({
       title, description, evidenceType,
+      ...(previous ? { previousVersionId: previous.id,
+        versionRootId: previous.versionRootId || previous.id,
+        versionNumber: (previous.versionNumber || 1) + 1 } : {}),
       reference: "Archivo privado almacenado en VERA", entityType, entityId, entityTitle: entity.title,
       orgUnitId: entity.orgUnitId || null,
       file, author: { id: req.user.id, username: req.user.username, name: author?.name || req.user.username, role: req.user.role }

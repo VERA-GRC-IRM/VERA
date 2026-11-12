@@ -34,3 +34,9 @@
 .evidence-batch-list small { flex: 0 0 auto; color: var(--vera-text-muted); }
 .evidence-view-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin: -5px 0 16px; }
 .evidence-view-actions small { align-self: center; color: var(--vera-text-muted); }
+.evidence-revision-upload { display: inline-block; position: relative; margin: 8px 0; padding: 7px 10px; border: 1px solid var(--vera-border); border-radius: 8px; color: var(--vera-accent); font-size: 12px; font-weight: 650; cursor: pointer; }
+.evidence-revision-upload input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.evidence-revision-upload:focus-within { outline: 2px solid var(--vera-accent); outline-offset: 2px; }
+.evidence-version-history { margin: 6px 0 10px; font-size: 12px; color: var(--vera-text-muted); }
+.evidence-version-history summary { cursor: pointer; color: var(--vera-accent); }
+.evidence-version-history li { margin: 6px 0; }

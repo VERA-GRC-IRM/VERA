@@ -37,7 +37,8 @@ export const uploadEvidenceFile = async (details, file, { onProgress, signal } =
   const mime = MIME_TYPES[extension] || "application/octet-stream";
   const params = new URLSearchParams({
     title: details.title, description: details.description, evidenceType: details.evidenceType,
-    entityType: details.entityType, entityId: details.entityId
+    entityType: details.entityType, entityId: details.entityId,
+    ...(details.revisionOf ? { revisionOf: details.revisionOf } : {})
   });
   return sendEvidenceUpload(`${API_URL}/upload?${params}`, file, mime,
     localStorage.getItem("token"), { onProgress, signal });
