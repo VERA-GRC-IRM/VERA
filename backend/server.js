@@ -73,16 +73,39 @@ app.get("/", (req, res) => {
 });
 
 app.use((error, req, res, next) => {
-  if (error.type === "entity.too.large") return res.status(413).json({ message: "El archivo supera el límite de 3 MB." });
-  if (error.evidenceStorage) return res.status(error.status).json({ message: error.message });
-  if (error.planningStorage) return res.status(error.status).json({ message: error.message });
-  if (error.userStorage) return res.status(error.status).json({ message: error.message });
-  if (error.roleRequestStorage) return res.status(error.status).json({ message: error.message });
-  if (error.domainStorage) return res.status(error.status).json({ message: error.message });
-  if (error.action) return res.status(error.status).json({ message: error.message });
-  if (error.domainStorage) return res.status(error.status).json({ message: error.message });
-  if (error.auditStorage) return res.status(error.status).json({ message: error.message });
-  next(error);
+  console.error("[API_ERROR]", {
+    method: req.method,
+    path: req.path,
+    message: error.message,
+    stack: error.stack
+  });
+
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  if (error.type === "entity.too.large") {
+    return res.status(413).json({
+      message: "El archivo supera el límite de 3 MB."
+    });
+  }
+
+  if (error.evidenceStorage ||
+      error.planningStorage ||
+      error.userStorage ||
+      error.roleRequestStorage ||
+      error.domainStorage ||
+      error.action ||
+      error.auditStorage) {
+    return res.status(error.status || 500).json({
+      message: error.message || "Error al procesar la solicitud."
+    });
+  }
+
+  return res.status(500).json({
+    message: "Error interno del servidor.",
+    code: "INTERNAL_SERVER_ERROR"
+  });
 });
 
 const PORT = process.env.PORT || 3000;
