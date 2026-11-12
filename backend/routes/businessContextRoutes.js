@@ -15,6 +15,16 @@ router.get("/graph", async (req, res) => {
   res.json(await graphForUser(req.user));
 });
 router.get("/owners", allowRoles(ROLES.SUPER_ADMIN), controller.owners);
+router.get("/import/template.xlsx", allowRoles(ROLES.SUPER_ADMIN), async (req, res, next) => {
+  try {
+    const bytes = await businessImport.templateToXlsx();
+    res.set("Cache-Control", "no-store");
+    res.set("Vary", "Authorization");
+    res.set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.set("Content-Disposition", 'attachment; filename="vera-plantilla-mapa-negocio.xlsx"');
+    res.send(Buffer.from(bytes));
+  } catch (error) { next(error); }
+});
 const importAction = (operation) => async (req, res, next) => {
   try {
     res.set("Cache-Control", "no-store");

@@ -1,3 +1,5 @@
+import { downloadReportFile } from "./reportDownload";
+
 const API_URL = "/api/business-context";
 
 const request = async (options = {}, path = "") => {
@@ -14,6 +16,9 @@ export const getBusinessContext = async () => (await request()).records;
 export const getBusinessGraph = async () => request({}, "/graph");
 export const previewBusinessImport = async (payload) =>
   request({ method: "POST", body: JSON.stringify(payload) }, "/import/preview");
+export const downloadBusinessImportTemplate = () =>
+  downloadReportFile(`${API_URL}/import/template.xlsx`, localStorage.getItem("token"),
+    "vera-plantilla-mapa-negocio.xlsx");
 export const applyBusinessImport = async (payload) => {
   const response = await fetch(`${API_URL}/import/apply`, {
     method: "POST", headers: { "Content-Type": "application/json",

@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const jwt = require("jsonwebtoken");
+const ExcelJS = require("exceljs");
 
 process.env.JWT_SECRET ||= "business-import-integration-secret-32-characters";
 const app = require("../server");
@@ -92,4 +93,45 @@ test("JSON connector rejects unknown units, repeated codes and malformed templat
     body: { ...validInput, expectedDigest: ready.previewDigest } });
   assert.equal(published.status, 200);
   assert.equal((await published.json()).summary.created, 1);
+});
+
+test("Excel connector validates the template, previews and publishes only for Super Admin", async (context) => {
+  const base = await startTestServer(context, app);
+  const path = "/api/business-context/import/template.xlsx";
+  assert.equal((await fetch(`${base}${path}`)).status, 401);
+  assert.equal((await fetch(`${base}${path}`, { headers: {
+    Authorization: `Bearer ${token(3)}` } })).status, 403);
+  const template = await fetch(`${base}${path}`, { headers: { Authorization: `Bearer ${token(1)}` } });
+  assert.equal(template.status, 200);
+  assert.match(template.headers.get("content-type"), /spreadsheetml\.sheet/);
+  assert.equal(template.headers.get("cache-control"), "no-store");
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(Buffer.from(await template.arrayBuffer()));
+  assert.equal(workbook.worksheets.length, 1);
+  assert.equal(workbook.getWorksheet("Catalogo").getCell("A1").value, "kind");
+
+  const stamp = Math.random().toString(36).slice(2, 10).toUpperCase();
+  const unitResponse = await send(base, "/api/org-units", { body: {
+    kind: "GROUP", code: `EX_${stamp}`, name: "Grupo sintético de Excel", effectiveFrom: "2026-01-01" } });
+  assert.equal(unitResponse.status, 201);
+  const unit = (await unitResponse.json()).unit;
+  const sheet = workbook.getWorksheet("Catalogo");
+  sheet.addRow(["PROCESS", `EX_PROC_${stamp}`, "Proceso desde Excel",
+    "Proceso sintético para validar importación.", "2026-01-01", "", unit.code]);
+  const input = { format: "xlsx", sourceName: "Catálogo sintético Excel",
+    content: Buffer.from(await workbook.xlsx.writeBuffer()).toString("base64") };
+  const previewPath = "/api/business-context/import/preview";
+  assert.equal((await send(base, previewPath, { body: input, id: 3 })).status, 403);
+  const previewResponse = await send(base, previewPath, { body: input });
+  assert.equal(previewResponse.status, 200);
+  const preview = await previewResponse.json();
+  assert.deepEqual(preview.counts, { CREATE: 1, UNCHANGED: 0, CONFLICT: 0, INVALID: 0 });
+  assert.equal(preview.rows[0].line, 2);
+  const applied = await send(base, "/api/business-context/import/apply", {
+    body: { ...input, expectedDigest: preview.previewDigest } });
+  assert.equal(applied.status, 200);
+  assert.equal((await applied.json()).summary.created, 1);
+  sheet.getCell("C2").value = { formula: 'HYPERLINK("https://invalid.example")', result: "Engaño" };
+  const formulaInput = { ...input, content: Buffer.from(await workbook.xlsx.writeBuffer()).toString("base64") };
+  assert.equal((await send(base, previewPath, { body: formulaInput })).status, 400);
 });
