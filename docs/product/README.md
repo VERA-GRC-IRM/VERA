@@ -5,7 +5,7 @@ Esta guía reúne funciones de uso transversal. Cada enlace describe lo que est�
 | Función | Disponible ahora | Alcance y límite |
 | --- | --- | --- |
 | [Búsqueda de registros](universal-search.md) | Barra superior y resultados autorizados | Expedientes, evidencias, mapa del negocio, personas visibles, conversaciones propias y texto de evidencias ya indexadas; hasta 500 archivos visibles por consulta. |
-| [Enlaces de trabajo](shareable-links.md) | Propuestas, auditorías activas, registros y vistas filtradas | El enlace no concede permisos; los filtros escritos quedan visibles en la URL. |
+| [Enlaces de trabajo](shareable-links.md) | Botón de la barra superior en todas las pantallas autenticadas; propuestas, auditorías activas, registros y vistas filtradas | El enlace no concede permisos; los filtros escritos quedan visibles en la URL. |
 | [Tu espacio](personal-workspace.md) | Favoritos, vistas guardadas y secciones recientes | Solo en este navegador, separado por cuenta. |
 | [Actualización de vistas](automatic-refresh.md) | Consulta periódica de seis vistas y aviso de cambios al editar riesgos o controles | Hasta 40 segundos en vistas y 15 segundos en formularios; no hay presencia ni edición simultánea. |
 | [Carga de evidencias](evidence-upload.md) | Hasta 10 archivos de 3 MB, progreso y resultado individual; reintento solo tras rechazo confirmado | No reanuda cargas después de cerrar la pestaña ni resuelve automáticamente resultados inciertos. |

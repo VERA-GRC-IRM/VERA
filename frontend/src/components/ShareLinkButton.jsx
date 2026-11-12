@@ -17,8 +17,9 @@ export default function ShareLinkButton({ path, label = "Copiar enlace" }) {
     }
   };
   return <span className="share-link-control">
-    <button type="button" className="secondary-action share-link-button" onClick={(event) => { event.stopPropagation(); copy(); }}>
-      <Link2 size={15} aria-hidden="true" /> {label}
+    <button type="button" className="secondary-action share-link-button" aria-label={label}
+      onClick={(event) => { event.stopPropagation(); copy(); }}>
+      <Link2 size={15} aria-hidden="true" /> <span>{label}</span>
     </button>
     {message && <small role="status">{message}</small>}
     {manual && <input readOnly aria-label="Enlace para copiar" value={url}
