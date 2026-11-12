@@ -1,6 +1,9 @@
 const { visibleCollectionsForUser } = require("./recordReadAccessService");
 const { listForUser: listBusinessContextForUser } = require("./businessContextService");
 const evidenceRepository = require("../repositories/evidenceRepository");
+const conversations = require("../repositories/assistantConversationRepository");
+const { currentScope } = require("./assistantConversationScope");
+const { visibleUsers } = require("./assistantUserDirectoryService");
 
 const normalize = (value) => String(value ?? "").normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es");
@@ -13,9 +16,17 @@ const searchForUser = async (user, query) => {
     throw error;
   }
   const needle = normalize(query.trim());
-  const [collections, context, evidence] = await Promise.all([
-    visibleCollectionsForUser(user), listBusinessContextForUser(user), evidenceRepository.getAll()
+  const [collections, context, evidence, people, threads] = await Promise.all([
+    visibleCollectionsForUser(user), listBusinessContextForUser(user), evidenceRepository.getAll(),
+    visibleUsers(user), conversations.list(user)
   ]);
+  const matchingThreads = threads.filter((item) =>
+    normalize(`${item.id} ${item.title}`).includes(needle));
+  const scopedThreads = (await Promise.all(matchingThreads.map(async (item) => {
+    const stored = await conversations.get(user, item.id);
+    if (!stored || stored.scopeHash !== await currentScope(user, stored.focus)) return null;
+    return item;
+  }))).filter(Boolean);
   const visibleIds = Object.fromEntries(["AUDIT", "RISK", "CONTROL"].map((type) =>
     [type, new Set(collections[type].map((item) => item.id))]));
   const visibleEvidence = evidence.filter((item) => visibleIds[item.entityType]?.has(item.entityId) &&
@@ -33,7 +44,12 @@ const searchForUser = async (user, query) => {
     ...visibleEvidence.map((item) => ({ type: "EVIDENCE", id: item.id, title: item.title,
       path: `/evidencias#evidence-${encodeURIComponent(item.id)}` })),
     ...context.map((item) => ({ type: item.kind, id: item.contextId, title: item.name,
-      code: item.code, path: `/mapa-negocio?context=${encodeURIComponent(item.contextId)}` }))
+      code: item.code, path: `/mapa-negocio?context=${encodeURIComponent(item.contextId)}` })),
+    ...(people || []).map((item) => ({ type: "USER", id: String(item.id), title: item.name,
+      code: item.email, path: `/usuarios?userId=${encodeURIComponent(item.id)}` })),
+    ...scopedThreads.map((item) => ({ type: "CONVERSATION", id: item.id, title: item.title,
+      path: `/asistente?${new URLSearchParams({ ...(item.focus
+        ? { type: item.focus.type, id: item.focus.id } : {}), conversation: item.id })}` }))
   ];
   return candidates.map((item) => ({ ...item,
     score: normalize(item.id).startsWith(needle) ? 0 : normalize(item.code).startsWith(needle) ? 1 :

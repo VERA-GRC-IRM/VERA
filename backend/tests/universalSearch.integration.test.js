@@ -12,6 +12,8 @@ const riskRepository = require("../repositories/riskRepository");
 const controlRepository = require("../repositories/controlRepository");
 const findingRepository = require("../repositories/findingRepository");
 const evidenceRepository = require("../repositories/evidenceRepository");
+const conversationRepository = require("../repositories/assistantConversationRepository");
+const { currentScope } = require("../services/assistantConversationScope");
 
 const admin = { id: 1, username: "admin", role: "SUPER_ADMIN" };
 const manager = { id: 3, username: "gerente", role: "GERENTE" };
@@ -61,4 +63,31 @@ test("universal search returns only records visible to the authenticated user", 
   const after = (await (await get(manager.id, stamp)).json()).results;
   assert(!after.some((item) => item.id === audit.id));
   assert(!after.some((item) => item.id === risk.id));
+});
+
+test("universal search limits people by directory role and conversations by owner and current scope", async (context) => {
+  const base = await startTestServer(context, app);
+  const get = async (id, q) => {
+    const response = await fetch(`${base}/api/search?q=${encodeURIComponent(q)}`,
+      { headers: { Authorization: `Bearer ${token(id)}` } });
+    assert.equal(response.status, 200);
+    return (await response.json()).results;
+  };
+  assert(!(await get(3, "superadmin@vera.local")).some((item) => item.type === "USER"));
+  assert(!(await get(2, "superadmin@vera.local")).some((item) => item.type === "USER"));
+  assert((await get(1, "superadmin@vera.local")).some((item) =>
+    item.type === "USER" && item.path === "/usuarios?userId=1"));
+  assert(!(await get(1, "solicitud@vera.local")).some((item) => item.type === "CONVERSATION"));
+
+  const scope = await currentScope(manager);
+  const created = await conversationRepository.create(manager, null, scope);
+  await conversationRepository.update(manager, created.id, created.version, { title: "Conversación privada Zafiro" });
+  try {
+    const own = await get(manager.id, "Zafiro");
+    assert(own.some((item) => item.type === "CONVERSATION" && item.id === created.id &&
+      item.path === `/asistente?conversation=${created.id}`));
+    assert(!(await get(admin.id, "Zafiro")).some((item) => item.type === "CONVERSATION"));
+  } finally {
+    await conversationRepository.remove(manager, created.id);
+  }
 });

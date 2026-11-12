@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Inbox } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import {
@@ -23,6 +24,8 @@ const formatDate = (iso) =>
     : "";
 
 function Usuarios() {
+  const [searchParams] = useSearchParams();
+  const selectedUserId = searchParams.get("userId");
   const currentUser = JSON.parse(localStorage.getItem("user") || "null");
   const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
 
@@ -65,6 +68,10 @@ function Usuarios() {
   };
 
   const accounts = users.filter((u) => u.status !== USER_STATUS.PENDING);
+
+  useEffect(() => {
+    if (!loading && selectedUserId) document.getElementById(`user-${selectedUserId}`)?.scrollIntoView({ block: "center" });
+  }, [loading, selectedUserId, users]);
 
   // ---------- reglas de la interfaz (el backend valida lo mismo) ----------
 
@@ -268,6 +275,7 @@ function Usuarios() {
                   return (
                     <li
                       key={user.id}
+                      id={`user-${user.id}`}
                       className={`users-row${disabled ? " inactive" : ""}`}
                     >
                       <div className="users-identity">

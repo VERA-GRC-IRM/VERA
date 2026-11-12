@@ -4,7 +4,7 @@ Esta guía reúne funciones de uso transversal. Cada enlace describe lo que est�
 
 | Función | Disponible ahora | Alcance y límite |
 | --- | --- | --- |
-| [Búsqueda de registros](universal-search.md) | Barra superior y resultados autorizados | Título e ID de auditorías, riesgos, controles, hallazgos, evidencias y mapa del negocio; no es búsqueda semántica del contenido de archivos. |
+| [Búsqueda de registros](universal-search.md) | Barra superior y resultados autorizados | Expedientes, evidencias, mapa del negocio, personas visibles en el directorio y conversaciones propias vigentes; no busca el contenido de archivos. |
 | [Enlaces de trabajo](shareable-links.md) | Registros y vistas filtradas de auditorías, riesgos y evidencias | El enlace no concede permisos; los filtros escritos quedan visibles en la URL. |
 | [Tu espacio](personal-workspace.md) | Favoritos, vistas guardadas y secciones recientes | Solo en este navegador, separado por cuenta. |
 | [Actualización de vistas](automatic-refresh.md) | Consulta periódica de seis vistas activas | Hasta 40 segundos de espera normal; no hay presencia ni edición simultánea. |
