@@ -13,13 +13,16 @@ export const sendEvidenceUpload = (url, file, mime, token, { onProgress, signal 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && event.total > 0) onProgress?.(Math.min(99, Math.round(100 * event.loaded / event.total)));
     };
-    xhr.onerror = () => { cleanup(); reject(new Error("No se pudo conectar para cargar el archivo.")); };
+    xhr.onerror = () => { cleanup(); const error = new Error("No se pudo confirmar la carga del archivo.");
+      error.uncertain = true; reject(error); };
     xhr.onabort = () => { cleanup(); reject(new DOMException("Carga cancelada.", "AbortError")); };
     xhr.onload = () => {
       cleanup();
       let data;
-      try { data = JSON.parse(xhr.responseText); } catch { reject(new Error("El servidor devolvió una respuesta inválida.")); return; }
-      if (xhr.status < 200 || xhr.status >= 300) { reject(new Error(data.message || "No se pudo cargar el archivo.")); return; }
+      try { data = JSON.parse(xhr.responseText); } catch { const error = new Error("El servidor devolvió una respuesta inválida.");
+        error.uncertain = true; reject(error); return; }
+      if (xhr.status < 200 || xhr.status >= 300) { const error = new Error(data.message || "No se pudo cargar el archivo.");
+        error.uncertain = xhr.status >= 500; reject(error); return; }
       onProgress?.(100);
       notifyDataChanged();
       resolve(data);
