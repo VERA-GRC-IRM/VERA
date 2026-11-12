@@ -15,6 +15,7 @@ const evidenceRepository = require("../repositories/evidenceRepository");
 const evidenceTextIndex = require("../repositories/evidenceTextIndex");
 const conversationRepository = require("../repositories/assistantConversationRepository");
 const { currentScope } = require("../services/assistantConversationScope");
+const { searchIndexedEvidence } = require("../services/universalSearchService");
 
 const admin = { id: 1, username: "admin", role: "SUPER_ADMIN" };
 const manager = { id: 3, username: "gerente", role: "GERENTE" };
@@ -46,11 +47,17 @@ test("universal search returns only records visible to the authenticated user", 
   const deniedEvidence = evidenceRepository.create({ title: `Evidencia privada ${stamp}`,
     description: "Documento sintético", entityType: "AUDIT", entityId: denied.id,
     entityTitle: denied.title, file: { mime: "text/plain" }, author: admin });
+  const imageEvidence = evidenceRepository.create({ title: `Imagen vinculada ${stamp}`,
+    entityType: "FINDING", entityId: finding.id, entityTitle: finding.title,
+    file: { mime: "image/png" }, author: admin });
   const contentTerm = `FRAGMENTO${stamp}`;
+  const imageTerm = `OCR${stamp}`;
   await evidenceTextIndex.replace(evidence.id, [{ chunkIndex: 0, pageNumber: null,
     content: `Contenido autorizado ${contentTerm}` }]);
   await evidenceTextIndex.replace(deniedEvidence.id, [{ chunkIndex: 0, pageNumber: null,
     content: `Contenido privado ${contentTerm}` }]);
+  await evidenceTextIndex.replace(imageEvidence.id, [{ chunkIndex: 0, pageNumber: null,
+    content: `Texto de imagen ${imageTerm}` }]);
   const get = (id, q) => fetch(`${base}/api/search?q=${encodeURIComponent(q)}`, {
     headers: id ? { Authorization: `Bearer ${token(id)}` } : {}
   });
@@ -72,11 +79,27 @@ test("universal search returns only records visible to the authenticated user", 
   assert(contentResults.some((item) => item.type === "EVIDENCE" && item.id === evidence.id &&
     item.match === "content"));
   assert(!contentResults.some((item) => item.id === deniedEvidence.id));
+  const imageResults = (await (await get(manager.id, imageTerm)).json()).results;
+  assert(imageResults.some((item) => item.id === imageEvidence.id && item.match === "content"));
   await revokeGrantForUser(admin, grant.id, { reason: "Revocación de prueba de búsqueda" });
   const after = (await (await get(manager.id, stamp)).json()).results;
   assert(!after.some((item) => item.id === audit.id));
   assert(!after.some((item) => item.id === risk.id));
   assert(!(await (await get(manager.id, contentTerm)).json()).results.some((item) => item.id === evidence.id));
+  assert(!(await (await get(manager.id, imageTerm)).json()).results.some((item) => item.id === imageEvidence.id));
+});
+
+test("indexed content beyond the first 500 authorized files is still searched", async () => {
+  const ids = Array.from({ length: 501 }, (_, index) => `EVD-${index}`);
+  const calls = [];
+  const matches = await searchIndexedEvidence(ids, "texto", async (batch) => {
+    calls.push(batch);
+    return batch.includes("EVD-500") ? [{ evidenceId: "EVD-500", score: 1 }] : [];
+  });
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].length, 500);
+  assert.deepEqual(calls[1], ["EVD-500"]);
+  assert.deepEqual(matches, [{ evidenceId: "EVD-500", score: 1 }]);
 });
 
 test("universal search limits people by directory role and conversations by owner and current scope", async (context) => {

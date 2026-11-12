@@ -6,10 +6,27 @@ const { currentScope } = require("./assistantConversationScope");
 const { visibleUsers } = require("./assistantUserDirectoryService");
 const evidenceTextIndex = require("../repositories/evidenceTextIndex");
 const { SEARCHABLE_MIME } = require("./evidenceTextExtraction");
+const { IMAGE_MIME } = require("./azureVisionOcrService");
 
 const normalize = (value) => String(value ?? "").normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es");
 const LIMIT = 24;
+
+// La consulta privada admite 500 IDs por llamada. Consultar cada lote evita
+// que la posición del archivo en el portafolio determine si puede encontrarse.
+const searchIndexedEvidence = async (ids, query, search = evidenceTextIndex.search) => {
+  const matches = [];
+  const batchSize = evidenceTextIndex.MAX_SEARCH_FILES;
+  for (let offset = 0; offset < ids.length; offset += batchSize * 4) {
+    const batches = [];
+    for (let start = offset; start < Math.min(ids.length, offset + batchSize * 4); start += batchSize) {
+      batches.push(search(ids.slice(start, start + batchSize), query));
+    }
+    matches.push(...(await Promise.all(batches)).flat());
+  }
+  return matches.sort((a, b) => b.score - a.score || a.evidenceId.localeCompare(b.evidenceId))
+    .slice(0, 5);
+};
 
 const searchForUser = async (user, query) => {
   if (typeof query !== "string" || query.trim().length < 2 || query.trim().length > 80) {
@@ -29,16 +46,16 @@ const searchForUser = async (user, query) => {
     if (!stored || stored.scopeHash !== await currentScope(user, stored.focus)) return null;
     return item;
   }))).filter(Boolean);
-  const visibleIds = Object.fromEntries(["AUDIT", "RISK", "CONTROL"].map((type) =>
+  const visibleIds = Object.fromEntries(["AUDIT", "RISK", "CONTROL", "FINDING"].map((type) =>
     [type, new Set(collections[type].map((item) => item.id))]));
   const scopedEvidence = evidence.filter((item) => visibleIds[item.entityType]?.has(item.entityId));
   const visibleEvidence = scopedEvidence.filter((item) =>
     normalize(`${item.id} ${item.title} ${item.reference || ""}`).includes(needle)).slice(0, LIMIT);
   const titleIds = new Set(visibleEvidence.map((item) => item.id));
-  const searchable = scopedEvidence.filter((item) => item.file && SEARCHABLE_MIME.has(item.file.mime))
-    .slice(0, evidenceTextIndex.MAX_SEARCH_FILES);
+  const searchable = scopedEvidence.filter((item) => item.file &&
+    (SEARCHABLE_MIME.has(item.file.mime) || IMAGE_MIME.has(item.file.mime)));
   const contentMatches = query.trim().length >= 4 && searchable.length
-    ? await evidenceTextIndex.search(searchable.map((item) => item.id), query.trim()) : [];
+    ? await searchIndexedEvidence(searchable.map((item) => item.id), query.trim()) : [];
   const byEvidenceId = new Map(searchable.map((item) => [item.id, item]));
   const contentIds = new Set();
   const contentEvidence = contentMatches.filter((row) => {
@@ -79,4 +96,4 @@ const searchForUser = async (user, query) => {
     .map(({ score, ...item }) => item);
 };
 
-module.exports = { searchForUser };
+module.exports = { searchForUser, searchIndexedEvidence };
