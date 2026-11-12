@@ -22,7 +22,7 @@ const searchForUser = async (user, query) => {
     normalize(`${item.id} ${item.title} ${item.reference || ""}`).includes(needle)).slice(0, LIMIT);
   const candidates = [
     ...collections.AUDIT.map((item) => ({ type: "AUDIT", id: item.id, title: item.title,
-      path: `/buscar-auditorias?auditId=${encodeURIComponent(item.id)}` })),
+      path: `/auditorias?auditId=${encodeURIComponent(item.id)}` })),
     ...collections.RISK.map((item) => ({ type: "RISK", id: item.id, title: item.title,
       path: `/riesgos#risk-${encodeURIComponent(item.id)}` })),
     ...collections.CONTROL.map((item) => ({ type: "CONTROL", id: item.id, title: item.title,
