@@ -38,6 +38,10 @@ console.error("[API_ROUTER_DIAGNOSTIC]", JSON.stringify(Object.fromEntries([
   ["businessContext", businessContextRoutes], ["search", searchRoutes],
   ["workspace", workspaceRoutes], ["jobs", jobRoutes]
 ].map(([name, router]) => [name, typeof router]))));
+console.error("[PLANNING_ROUTER_DIAGNOSTIC]", JSON.stringify({
+  keys: Object.keys(planningRoutes || {}),
+  defaultType: typeof planningRoutes?.default
+}));
 
 app.set("trust proxy", 1); // 1 = one proxy hop in front of your app
 
