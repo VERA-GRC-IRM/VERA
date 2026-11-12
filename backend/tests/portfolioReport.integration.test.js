@@ -105,6 +105,12 @@ test("RF-29: report includes linked facts and filtered CSV with UTF-8 headings",
   assert.equal(excelRows.getCell("S2").value, 40);
   assert.equal(excelRows.getCell("T2").value, 12.5);
   assert.ok(excelRows.getCell("O2").value.includes(risk.id));
+  assert.equal(workbook.getWorksheet("BI_Audits").getCell("A2").value, proposal.id);
+  assert.equal(workbook.getWorksheet("BI_Risks").getCell("B2").value, risk.id);
+  assert.equal(workbook.getWorksheet("BI_Controls").getCell("B2").value, control.id);
+  assert.equal(workbook.getWorksheet("BI_Findings").getCell("B2").value,
+    report.rows[0].findings[0].id);
+  assert.equal(workbook.getWorksheet("BI_Audits").getCell("O2").value, 12.5);
   const pdfResponse = await fetch(`${base}/api/planning/report?${query}&format=pdf`, auth(3));
   assert.equal(pdfResponse.status, 200);
   assert.match(pdfResponse.headers.get("content-type"), /application\/pdf/);
@@ -141,6 +147,7 @@ test("RF-29: auditor sees only assigned records; empty and invalid filters are e
   const auditorWorkbook = new ExcelJS.Workbook();
   await auditorWorkbook.xlsx.load(Buffer.from(await auditorXlsx.arrayBuffer()));
   assert.ok(!auditorWorkbook.getWorksheet("Auditorías").getColumn(1).values.includes("AUD-01"));
+  assert.ok(!auditorWorkbook.getWorksheet("BI_Audits").getColumn(1).values.includes("AUD-01"));
   const auditorPdf = await fetch(`${base}/api/planning/report?format=pdf`, auth(5));
   assert.equal(auditorPdf.status, 200);
   assert.ok(!(await pdfText(Buffer.from(await auditorPdf.arrayBuffer()))).includes("AUD-01"));
@@ -153,6 +160,7 @@ test("RF-29: auditor sees only assigned records; empty and invalid filters are e
   const emptyWorkbook = new ExcelJS.Workbook();
   await emptyWorkbook.xlsx.load(Buffer.from(await emptyXlsx.arrayBuffer()));
   assert.equal(emptyWorkbook.getWorksheet("Auditorías").rowCount, 1);
+  assert.equal(emptyWorkbook.getWorksheet("BI_Audits").rowCount, 1);
   const emptyPdf = await fetch(`${base}/api/planning/report?q=no-existe-ninguna-auditoria&format=pdf`, auth(3));
   assert.equal(emptyPdf.status, 200);
   assert.match(await pdfText(Buffer.from(await emptyPdf.arrayBuffer())), /No hay expedientes visibles/);
