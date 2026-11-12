@@ -155,6 +155,7 @@ function GlobalSearch({ groups, previewRoles, onNavigate, onPreviewRole, onRevea
       </div>
       <p className="global-search-count" aria-live="polite">{results.length} {results.length === 1 ? "resultado" : "resultados"}</p>
       {recordsLoading && <p className="global-search-help" role="status">Buscando registros disponibles…</p>}
+      {query.trim().length > 80 && <p className="global-search-help" role="status">La búsqueda de registros admite hasta 80 caracteres. Puedes enviar el texto completo al asistente.</p>}
       {recordsError && <p className="global-search-help" role="alert">{recordsError}</p>}
       <div className="global-search-results" ref={resultsRef}>
         {results.length ? results.map((result) => <button key={result.key} type="button" className="global-search-result"

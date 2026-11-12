@@ -1,0 +1,25 @@
+.route-loading {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 24px;
+  background: var(--vera-canvas);
+  color: var(--vera-text);
+}
+
+.route-loading-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: min(100%, 240px);
+  padding: 18px 22px;
+  border: 1px solid var(--vera-border);
+  border-radius: 14px;
+  background: var(--vera-surface);
+  box-shadow: var(--vera-shadow);
+}
+
+.route-loading-card img { object-fit: contain; }
+.route-loading-card div { display: grid; gap: 3px; }
+.route-loading-card strong { color: var(--vera-text-strong); font-size: 17px; }
+.route-loading-card span { color: var(--vera-text-muted); font-size: 14px; }
