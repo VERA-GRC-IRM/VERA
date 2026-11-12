@@ -1,5 +1,11 @@
 # Mapa del negocio: procesos, servicios y objetivos
 
+## Vista de relaciones
+
+La opción «Explorar relaciones del negocio» abre una vista navegable para la sesión actual. Agrupa ámbitos, procesos, servicios, objetivos, riesgos, controles y propuestas/auditorías. Al seleccionar una ficha se muestran solo los vínculos guardados; el enlace «Abrir expediente» lleva al módulo correspondiente. Una búsqueda local permite encontrar fichas por nombre, código o tipo. La vista se carga únicamente cuando se abre, para no retrasar la pantalla principal.
+
+`GET /api/business-context/graph` devuelve nodos y relaciones proyectados por el servidor con `Cache-Control: no-store`. Reutiliza el filtrado por ámbito y las restricciones de rol de riesgos y auditorías: el auditor solo recibe sus riesgos y auditorías asignados; un control se incluye únicamente cuando sus riesgos relacionados son visibles. Los nodos no contienen descripciones completas, datos personales, evaluaciones ni claves. Las relaciones organizativas y de contexto aparecen solo cuando ambos extremos son visibles. Un enlace declara una relación guardada, no calcula impacto, conformidad o eficacia. No se deducen relaciones a partir de títulos o del campo libre `area`.
+
 El primer incremento de [#252](https://github.com/VERA-GRC-IRM/VERA/issues/252) añade `/mapa-negocio`. Personas con sesión pueden consultar los procesos, servicios y objetivos vinculados a sus unidades disponibles. Cada ficha muestra código, definición, unidades visibles, periodo, fuente y revisión. La búsqueda filtra código, nombre y descripción. Un `SUPER_ADMIN` puede registrar ámbitos organizativos mediante la API ya existente y publicar la primera revisión de cada concepto.
 
 ## Modelo y límites

@@ -11,6 +11,7 @@ const request = async (options = {}, path = "") => {
 };
 
 export const getBusinessContext = async () => (await request()).records;
+export const getBusinessGraph = async () => request({}, "/graph");
 export const getBusinessContextOwners = async () => (await request({}, "/owners")).owners;
 export const createBusinessContext = async (record) =>
   (await request({ method: "POST", body: JSON.stringify(record) })).record;
