@@ -32,6 +32,20 @@ test("login explains invalid credentials without showing technical details", asy
   await expect(page.getByText(/stack|exception|trace/i)).toHaveCount(0);
 });
 
+test("login explains a plain-text server failure without exposing technical details", async ({ page }) => {
+  await page.route("**/api/auth/login", (route) => route.fulfill({
+    status: 500,
+    contentType: "text/plain",
+    body: "A server error has occurred\nFUNCTION_INVOCATION_FAILED"
+  }));
+  await page.goto("/");
+  await page.locator('input[autocomplete="username"]').fill("demo@vera.local");
+  await page.locator('input[type="password"]').fill("example-password");
+  await page.getByRole("button", { name: "Iniciar sesión" }).click();
+  await expect(page.getByRole("alert")).toHaveText("El servicio de acceso no está disponible. Intenta de nuevo en unos minutos.");
+  await expect(page.getByText(/FUNCTION_INVOCATION_FAILED|Unexpected token/)).toHaveCount(0);
+});
+
 test("login page has no automated WCAG 2.1 A/AA violations", async ({ page }) => {
   await page.goto("/");
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
