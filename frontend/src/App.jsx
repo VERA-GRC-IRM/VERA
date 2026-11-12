@@ -30,7 +30,9 @@ const Asistente = lazy(() => import("./pages/Asistente"));
 const AiQuality = lazy(() => import("./pages/AiQuality"));
 const Evidencias = lazy(() => import("./pages/Evidencias"));
 const MetodosRiesgo = lazy(() => import("./pages/MetodosRiesgo"));
-const OfflineWorkspace = lazy(() => import("./pages/OfflineWorkspace"));
+const loadOfflineRoutes = () => import("./pages/OfflineRoutes");
+const OfflineWorkspace = lazy(loadOfflineRoutes);
+const OfflineReport = lazy(() => loadOfflineRoutes().then(({ OfflineReport: report }) => ({ default: report })));
 const loadTrimestres = () => import("./pages/Trimestres");
 const Trimestres = lazy(loadTrimestres);
 const TrimestreDetalle = lazy(() => loadTrimestres().then(({ TrimestreDetalle: detail }) => ({ default: detail })));
@@ -38,7 +40,6 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AssistantConversationProvider from "./contexts/AssistantConversationProvider";
 import ConnectivityStatus from "./components/ConnectivityStatus";
 import PwaUpdateNotice from "./components/PwaUpdateNotice";
-import OfflineReport from "./pages/OfflineReport";
 import { ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "./constants/roles";
 
 
