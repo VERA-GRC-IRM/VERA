@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import "../pages/Asistente.css";
+import "./AssistantQuickAccess.css";
 
 const AssistantDrawer = lazy(() => import("./AssistantDrawer"));
 
