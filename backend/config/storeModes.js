@@ -9,7 +9,7 @@ const validateStoreModes = (environment = process.env) => {
     "VERA_EVIDENCE_COMMENT_STORE", "VERA_AUDIT_STORE", "VERA_NOTIFICATION_STORE",
     "VERA_ORG_STORE", "VERA_RISK_LIBRARY_STORE", "VERA_BUSINESS_CONTEXT_STORE",
     "VERA_RISK_METHOD_STORE", "VERA_WORKSPACE_STORE", "VERA_JOB_STORE", "VERA_PUSH_STORE",
-    "VERA_RESUMABLE_STORE"
+    "VERA_RESUMABLE_STORE", "VERA_PRESENCE_STORE"
   ]) {
     if (environment[name] !== undefined && !["memory", "supabase"].includes(environment[name])) {
       throw new Error(`${name} debe ser memory o supabase.`);
@@ -77,6 +77,13 @@ const validateStoreModes = (environment = process.env) => {
   if (environment.VERCEL_ENV === "production" && environment.VERA_LIVE_UPDATES_ENABLED === "true" &&
       environment.VERA_AUDIT_STORE !== "supabase") {
     throw new Error("La actualización en vivo en Production requiere la bitácora persistente.");
+  }
+  if (environment.VERA_PRESENCE_STORE === "supabase" && environment.VERA_USER_STORE !== "supabase") {
+    throw new Error("La presencia persistente requiere cuentas persistentes.");
+  }
+  if (environment.VERCEL_ENV === "production" && environment.VERA_PRESENCE_ENABLED === "true" &&
+      environment.VERA_PRESENCE_STORE !== "supabase") {
+    throw new Error("La presencia en Production requiere almacenamiento persistente.");
   }
   if (environment.VERCEL_ENV === "production" && environment.VERA_PUSH_ENABLED === "true" &&
       (environment.VERA_PUSH_STORE !== "supabase" || environment.VERA_NOTIFICATION_STORE !== "supabase" ||

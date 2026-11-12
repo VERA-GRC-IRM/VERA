@@ -4,6 +4,7 @@ import { Activity, Bot, ClipboardCheck, Pencil, Plus, ShieldAlert, X } from "luc
 import Sidebar from "../components/Sidebar";
 import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
 import useRecordFreshness from "../hooks/useRecordFreshness";
+import useEditPresence from "../hooks/useEditPresence";
 import ShareLinkButton from "../components/ShareLinkButton";
 import { BookmarkButton, SaveViewButton } from "../components/WorkspaceActions";
 import AssistantDrawer from "../components/AssistantDrawer";
@@ -83,6 +84,7 @@ function Riesgos() {
   const [message, setMessage] = useState("");
   const [assistantFocus, setAssistantFocus] = useState(null);
   const staleEdit = useRecordFreshness(editing, "/api/risks", "risks");
+  const otherEditors = useEditPresence("RISK", modal && editing ? editing.id : null);
 
   const refresh = async () => setRisks(await getRisks(serverRiskFilters(filters)));
   useAutomaticRefresh(refresh, !modal && !saving);
@@ -272,6 +274,7 @@ function Riesgos() {
     {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeModal(); }}><form className="proposal-modal risk-modal" onSubmit={submit}>
       <div className="modal-header"><div><span className="eyebrow">{assessing ? `EVALUACIÓN ${assessing.id}` : editing ? `EDITAR ${editing.id}` : "NUEVO REGISTRO"}</span><h2>{assessing ? "Reevaluar riesgo" : editing ? "Editar riesgo" : "Registrar riesgo"}</h2><p>{assessing ? "Cada evaluación conserva sus valores, motivo, autor y fecha." : "Documenta el riesgo, su responsable y la primera evaluación."}</p></div><button type="button" className="modal-close" onClick={closeModal} aria-label="Cerrar"><X size={20} /></button></div>
       {editing && staleEdit && <p className="risk-feedback error" role="alert">Este riesgo cambió o dejó de estar disponible mientras lo editabas. Copia tus cambios si los necesitas y vuelve a consultar la lista. <button type="button" onClick={() => refresh().then(closeModal).catch((cause) => setError(cause.message))}>Consultar lista actual</button></p>}
+      {editing && otherEditors.length > 0 && <p className="risk-feedback" role="status">También está editando este riesgo: {otherEditors.map((person) => person.name).join(", ")}. Antes de guardar, comprueba si hubo cambios.</p>}
       {error && <p className="risk-feedback error">{error}</p>}
       <div className="proposal-form-grid">
         {!assessing && <>
