@@ -2,6 +2,9 @@
 .personal-workspace-heading { display: flex; justify-content: space-between; align-items: end; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
 .personal-workspace-heading h2 { margin: 3px 0 0; font-size: 22px; color: var(--vera-text-strong); }
 .personal-workspace-heading small { color: var(--vera-text-muted); }
+.personal-workspace-import { margin-bottom: 14px; padding: 12px; border: 1px solid var(--vera-border); border-radius: 10px; }
+.personal-workspace-import p { margin: 0 0 8px; }
+.personal-workspace-import button { margin: 0 8px 4px 0; padding: 8px 12px; border: 1px solid var(--vera-border); border-radius: 8px; background: var(--vera-surface-soft); color: var(--vera-text); cursor: pointer; }
 .personal-workspace-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .personal-workspace-group { padding: 14px; border: 1px solid var(--vera-border); border-radius: 10px; background: var(--vera-surface-soft); min-width: 0; }
 .personal-workspace-group h3 { margin: 0 0 10px; font-size: 14px; color: var(--vera-text-strong); }

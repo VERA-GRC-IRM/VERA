@@ -8,7 +8,7 @@ const validateStoreModes = (environment = process.env) => {
     "VERA_PLANNING_STORE", "VERA_USER_STORE", "VERA_RISK_CONTROL_STORE",
     "VERA_EVIDENCE_COMMENT_STORE", "VERA_AUDIT_STORE", "VERA_NOTIFICATION_STORE",
     "VERA_ORG_STORE", "VERA_RISK_LIBRARY_STORE", "VERA_BUSINESS_CONTEXT_STORE",
-    "VERA_RISK_METHOD_STORE"
+    "VERA_RISK_METHOD_STORE", "VERA_WORKSPACE_STORE"
   ]) {
     if (environment[name] !== undefined && !["memory", "supabase"].includes(environment[name])) {
       throw new Error(`${name} debe ser memory o supabase.`);
@@ -46,6 +46,13 @@ const validateStoreModes = (environment = process.env) => {
   }
   if (environment.VERA_RISK_METHOD_STORE === "supabase" && environment.VERA_USER_STORE !== "supabase") {
     throw new Error("El catálogo de métodos persistente requiere cuentas persistentes.");
+  }
+  if (environment.VERA_WORKSPACE_STORE === "supabase" && environment.VERA_USER_STORE !== "supabase") {
+    throw new Error("El espacio personal persistente requiere cuentas persistentes.");
+  }
+  if (environment.VERCEL_ENV === "production" && environment.VERA_WORKSPACE_SYNC_ENABLED === "true" &&
+      environment.VERA_WORKSPACE_STORE !== "supabase") {
+    throw new Error("La sincronización en Production requiere almacenamiento persistente.");
   }
 };
 

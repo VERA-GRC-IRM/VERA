@@ -23,6 +23,7 @@ const orgUnitRoutes = require("./routes/orgUnitRoutes");
 const riskLibraryRoutes = require("./routes/riskLibraryRoutes");
 const businessContextRoutes = require("./routes/businessContextRoutes");
 const searchRoutes = require("./routes/searchRoutes");
+const workspaceRoutes = require("./routes/workspaceRoutes");
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use("/api/org-units", orgUnitRoutes);
 app.use("/api/risk-library", riskLibraryRoutes);
 app.use("/api/business-context", businessContextRoutes);
 app.use("/api/search", searchRoutes);
+app.use("/api/workspace", workspaceRoutes);
 
 app.get("/", (req, res) => {
   res.json({

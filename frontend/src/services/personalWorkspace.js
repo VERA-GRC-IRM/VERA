@@ -2,7 +2,7 @@ const PREFIX = "vera:workspace:v1:";
 const EMPTY = () => ({ favorites: [], views: [], recent: [] });
 const validUserId = (id) => Number.isSafeInteger(Number(id)) && Number(id) > 0;
 const validPath = (path) => typeof path === "string" && path.startsWith("/") &&
-  !path.startsWith("//") && path.length <= 500 && !/[\p{Cc}]/u.test(path);
+  !path.startsWith("//") && !path.startsWith("/\\") && path.length <= 500 && !/[\p{Cc}\\]/u.test(path);
 const clean = (items, limit) => Array.isArray(items) ? items.filter((item) =>
   item && validPath(item.path) && typeof item.label === "string" && item.label.length <= 80)
   .slice(0, limit).map(({ path, label }) => ({ path, label })) : [];
@@ -24,6 +24,22 @@ function writeWorkspace(id, next) {
   try {
     localStorage.setItem(key, JSON.stringify(next));
     window.dispatchEvent(new CustomEvent("vera:workspace-change", { detail: { userId: Number(id) } }));
+    return true;
+  } catch { return false; }
+}
+
+export function replaceWorkspace(id, next) {
+  const key = keyFor(id);
+  if (!key) return false;
+  const payload = { favorites: clean(next?.favorites, 20), views: clean(next?.views, 10),
+    recent: clean(next?.recent, 12) };
+  try {
+    const serialized = JSON.stringify(payload);
+    if (localStorage.getItem(key) !== serialized) {
+      localStorage.setItem(key, serialized);
+      window.dispatchEvent(new CustomEvent("vera:workspace-change",
+        { detail: { userId: Number(id), source: "remote" } }));
+    }
     return true;
   } catch { return false; }
 }
