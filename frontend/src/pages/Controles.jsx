@@ -5,6 +5,7 @@ import Sidebar from "../components/Sidebar";
 import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
 import useRecordFreshness from "../hooks/useRecordFreshness";
 import useEditPresence from "../hooks/useEditPresence";
+import useUnsavedChanges from "../hooks/useUnsavedChanges";
 import ShareLinkButton from "../components/ShareLinkButton";
 import { BookmarkButton } from "../components/WorkspaceActions";
 import AssistantDrawer from "../components/AssistantDrawer";
@@ -34,6 +35,7 @@ function Controles() {
   const [editing, setEditing] = useState(null);
   const [evaluating, setEvaluating] = useState(null);
   const [form, setForm] = useState(EMPTY);
+  const [initialForm, setInitialForm] = useState(JSON.stringify(EMPTY));
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -67,10 +69,13 @@ function Controles() {
   const coveredRisks = risks.filter((risk) => linkedRiskIds.has(risk.id)).length;
   const assessments = controls.reduce((sum, control) => sum + control.evaluations.length, 0);
 
-  const openCreate = () => { setEditing(null); setEvaluating(null); setForm({ ...EMPTY, ownerId: user?.role === "AUDITOR" ? String(user.id) : "", riskIds: risks.slice(0, 1).map((risk) => risk.id) }); setError(""); setModal(true); };
-  const openEdit = (control) => { setEditing(control); setEvaluating(null); setForm({ title: control.title, description: control.description, type: control.type, frequency: control.frequency, ownerId: String(control.ownerId), riskIds: control.riskIds, rating: control.effectiveness, note: "" }); setError(""); setModal(true); };
-  const openEvaluation = (control) => { setEvaluating(control); setEditing(null); setForm({ rating: control.effectiveness, note: "" }); setError(""); setModal(true); };
-  const closeModal = () => { setModal(false); setEditing(null); setEvaluating(null); setError(""); };
+  const confirmDiscard = useUnsavedChanges(modal, form, initialForm);
+  const openForm = (next) => { setInitialForm(JSON.stringify(next)); setForm(next); setError(""); setModal(true); };
+  const openCreate = () => { setEditing(null); setEvaluating(null); openForm({ ...EMPTY, ownerId: user?.role === "AUDITOR" ? String(user.id) : "", riskIds: risks.slice(0, 1).map((risk) => risk.id) }); };
+  const openEdit = (control) => { setEditing(control); setEvaluating(null); openForm({ title: control.title, description: control.description, type: control.type, frequency: control.frequency, ownerId: String(control.ownerId), riskIds: control.riskIds, rating: control.effectiveness, note: "" }); };
+  const openEvaluation = (control) => { setEvaluating(control); setEditing(null); openForm({ rating: control.effectiveness, note: "" }); };
+  const finishModal = () => { setModal(false); setEditing(null); setEvaluating(null); setError(""); };
+  const closeModal = () => { if (confirmDiscard()) finishModal(); };
   const submit = async (event) => {
     event.preventDefault(); setSaving(true); setError("");
     try {
@@ -78,7 +83,7 @@ function Controles() {
       else if (editing) await updateControl(editing.id, { ...form, expectedStorageVersion: editing.storageVersion,
         expectedUpdatedAt: editing.updatedAt });
       else await createControl(form);
-      await load(); setMessage(evaluating ? "Evaluación añadida al historial." : editing ? "Control actualizado." : "Control registrado."); closeModal();
+      await load(); setMessage(evaluating ? "Evaluación añadida al historial." : editing ? "Control actualizado." : "Control registrado."); finishModal();
     } catch (submitError) { setError(submitError.message); }
     finally { setSaving(false); }
   };

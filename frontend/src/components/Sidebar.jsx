@@ -32,6 +32,7 @@ import { disablePush } from "../services/pushService";
 import { recordVisit } from "../services/personalWorkspace";
 import ThemeControl from "./ThemeControl";
 import GlobalSearch from "./GlobalSearch";
+import { cancelViewChange, requestViewChange } from "../hooks/useUnsavedChanges";
 import { prefetchNavigation } from "../routeLoaders";
 import "../pages/Dashboard.css";
 import "./Sidebar.css";
@@ -102,10 +103,11 @@ function Sidebar({ active }) {
 
   const openPreviewRole = async (role) => {
     if (tourLoading) return;
+    if (!requestViewChange({ hardNavigation: true })) return;
     setTourLoading(true);
     setTourError("");
     try { await startRoleTour(role); }
-    catch (error) { setTourError(error.message); setTourLoading(false); }
+    catch (error) { cancelViewChange(); setTourError(error.message); setTourLoading(false); }
   };
 
   const revealAppearance = () => {
@@ -115,6 +117,7 @@ function Sidebar({ active }) {
   };
 
   const logout = async () => {
+    if (!requestViewChange()) return;
     lockOfflineVault();
     if (import.meta.env.VITE_VERA_PUSH_ENABLED === "true") {
       try { await disablePush(); } catch { /* Se cierra la sesión aun si no hay navegador push. */ }
@@ -157,7 +160,11 @@ function Sidebar({ active }) {
     { label: "Cuenta y administración", ids: ["offline", "mi-rol", "usuarios"] }
   ].map((group) => ({ ...group, items: group.ids.map((id) => items.find((item) => item.id === id)).filter(Boolean) }));
   const previewRoles = user?.role === "SUPER_ADMIN" ? PREVIEW_ROLES.map((role) => ({ role, label: ROLE_LABELS[role] })) : [];
-  const goTo = (path) => { navigate(path); setMobileOpen(false); };
+  const goTo = (path) => {
+    if (!requestViewChange()) return false;
+    navigate(path); setMobileOpen(false);
+    return true;
+  };
 
   return (
     <>
