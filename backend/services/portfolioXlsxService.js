@@ -1,4 +1,5 @@
 const { CSV_COLUMNS, reportRowValues } = require("./portfolioReportService");
+const BI_CONTRACT_VERSION = 1;
 
 const safeExcelValue = (value) => {
   if (value === null || value === undefined) return "";
@@ -35,6 +36,7 @@ const reportToXlsx = async (report) => {
     ["Evidencias", report.indicators.evidence],
     ["Horas planeadas", report.indicators.plannedHours],
     ["Horas ejecutadas", report.indicators.executedHours],
+    ["Versión del contrato BI", BI_CONTRACT_VERSION],
     ...Object.entries(report.filters).filter(([, value]) => value !== "").map(([key, value]) => [
       `Filtro: ${key}`, safeExcelValue(value)
     ])
@@ -76,4 +78,4 @@ const reportToXlsx = async (report) => {
   return workbook.xlsx.writeBuffer();
 };
 
-module.exports = { reportToXlsx };
+module.exports = { reportToXlsx, BI_CONTRACT_VERSION };

@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "relationshipKey": "audit_id",
+  "tables": [
+    {
+      "name": "VERA_Audits",
+      "sheet": "BI_Audits",
+      "columns": [
+        "audit_id", "title", "status", "area", "org_unit_id", "type",
+        "responsible_id", "quarter", "year", "start_date", "end_date",
+        "risk", "progress_pct", "planned_hours", "executed_hours"
+      ],
+      "numericColumns": ["year", "progress_pct", "planned_hours", "executed_hours"],
+      "key": ["audit_id"]
+    },
+    {
+      "name": "VERA_Risks",
+      "sheet": "BI_Risks",
+      "columns": ["audit_id", "risk_id", "title", "level"],
+      "numericColumns": [],
+      "key": ["audit_id", "risk_id"]
+    },
+    {
+      "name": "VERA_Controls",
+      "sheet": "BI_Controls",
+      "columns": ["audit_id", "control_id", "title", "effectiveness"],
+      "numericColumns": [],
+      "key": ["audit_id", "control_id"]
+    },
+    {
+      "name": "VERA_Findings",
+      "sheet": "BI_Findings",
+      "columns": ["audit_id", "finding_id", "title", "status"],
+      "numericColumns": [],
+      "key": ["audit_id", "finding_id"]
+    },
+    {
+      "name": "VERA_Evidence",
+      "sheet": "BI_Evidence",
+      "columns": ["audit_id", "evidence_id", "title", "entity_type", "created_at"],
+      "numericColumns": [],
+      "key": ["audit_id", "evidence_id"]
+    }
+  ]
+}

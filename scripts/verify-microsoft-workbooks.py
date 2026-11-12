@@ -12,7 +12,6 @@ from zipfile import ZipFile
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "microsoft-proof"
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
-MAIN = "{" + NS["m"] + "}"
 
 
 def require(condition, description):
@@ -61,26 +60,38 @@ def inspect(path):
 def main():
     started = perf_counter()
     sheets, tables = inspect(OUTPUT / "vera-portafolio-sintetico.xlsx")
-    expected = {
-        "VERA_Audits": "BI_Audits", "VERA_Risks": "BI_Risks",
-        "VERA_Controls": "BI_Controls", "VERA_Findings": "BI_Findings",
-        "VERA_Evidence": "BI_Evidence",
-    }
+    contract = json.loads((ROOT / "docs/product/bi-contract.v1.json").read_text(encoding="utf-8"))
+    expected = {table["name"]: table for table in contract["tables"]}
     require(set(tables) == set(expected), "Faltan tablas Power BI o hay tablas inesperadas")
+    require(set(sheets) == {"Resumen", "Auditorías", *[table["sheet"] for table in expected.values()]},
+            "Las hojas del libro no coinciden con el contrato BI")
+    version_rows = [row["B"] for row in sheets["Resumen"] if row.get("A") == "Versión del contrato BI"]
+    require(version_rows == [contract["version"]], "Versión BI ausente o distinta")
     audit = sheets["BI_Audits"]
     require(len(audit) == 2, "Debe haber exactamente una auditoría filtrada")
     audit_id = audit[1]["A"]
     require(audit[0]["A"] == "audit_id", "La clave de auditoría no coincide")
     require(audit[1]["N"] == 40 and audit[1]["O"] == 12.5, "Las horas no coinciden")
     counts = {}
-    for table, sheet in expected.items():
+    for name, table in expected.items():
+        sheet = table["sheet"]
         rows = sheets[sheet]
-        require([rows[0].get(chr(65 + i)) for i in range(len(tables[table]))] == tables[table],
-                f"Cabeceras distintas en {table}")
-        counts[table] = len(rows) - 1
+        require(tables[name] == table["columns"], f"Tabla distinta al contrato: {name}")
+        require([rows[0].get(chr(65 + i)) for i in range(len(table["columns"]))] == table["columns"],
+                f"Cabeceras distintas en {name}")
+        for row in rows[1:]:
+            for column in table["numericColumns"]:
+                index = table["columns"].index(column)
+                value = row.get(chr(65 + index))
+                require(value is None or isinstance(value, (int, float)),
+                        f"{name}.{column} debe ser número o vacío")
+        keys = [tuple(row.get(chr(65 + table["columns"].index(column))) for column in table["key"])
+                for row in rows[1:]]
+        require(len(keys) == len(set(keys)), f"Clave duplicada en {name}")
+        counts[name] = len(rows) - 1
         if sheet != "BI_Audits":
             require(all(row["A"] == audit_id for row in rows[1:]),
-                    f"Relación audit_id inválida en {table}")
+                    f"Relación audit_id inválida en {name}")
     require(counts == {"VERA_Audits": 1, "VERA_Risks": 1, "VERA_Controls": 1,
                        "VERA_Findings": 1, "VERA_Evidence": 0}, "Conteos inesperados")
     require(sheets["Resumen"][3]["B"] == 1, "Resumen y tabla de auditorías difieren")
@@ -88,6 +99,7 @@ def main():
     require(len(imported["Catalogo"]) == 2, "La plantilla no contiene la fila sintética")
     require(imported["Catalogo"][1]["A"] == "PROCESS", "Tipo de fila importada incorrecto")
     result = {"status": "PASS", "reader": "Python stdlib / OOXML independiente de ExcelJS",
+              "contractVersion": contract["version"],
               "tables": counts, "relationships": "audit_id validado", "formulas": 0,
               "importRows": 1, "durationMs": round((perf_counter() - started) * 1000)}
     (OUTPUT / "workbook-check.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n",
