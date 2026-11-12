@@ -1,0 +1,11 @@
+# Centro de trabajos para reportes
+
+La exportación inmediata CSV/PDF sigue disponible. El centro de trabajos es una ruta opcional para reportes que toman más tiempo: registra una solicitud con clave de idempotencia, propietario, formato, filtros, estado, reintentos y vencimiento de siete días. La persona puede cerrar la página, volver al centro y descargar el resultado cuando esté listo. Solo se muestran trabajos propios. Se admiten hasta tres trabajos activos por cuenta y dos por ejecución del procesador.
+
+La cola está en una tabla privada de Supabase. Un procesador protegido con `CRON_SECRET` reclama un trabajo de forma atómica, con `FOR UPDATE SKIP LOCKED` y una concesión de cuatro minutos. Si una función se interrumpe, la concesión expira y se puede reintentar hasta tres veces; una cancelación impide completar y descargar. Los resultados base64 tienen límite de 6 MB y se eliminan tras siete días en la siguiente ejecución. La descarga reconstruye el alcance actual del reporte y compara los IDs de auditorías, riesgos, controles, hallazgos y evidencias antes de entregar bytes antiguos.
+
+## Estado y activación
+
+El código y la migración `20261112020000_create_report_jobs.sql` están preparados; **la función sigue desactivada en Production** mientras no se aplique y verifique la migración en el proyecto VERA. Para activarla: conciliar el historial de Supabase; aplicar la migración; configurar `VERA_JOB_STORE=supabase`, `VERA_JOBS_ENABLED=true` y un `CRON_SECRET` único en el backend; programar en Vercel Cron `GET /api/jobs/worker` cada minuto o según el tiempo de espera aceptado; configurar `VITE_VERA_JOBS_ENABLED=true` en frontend; desplegar y comprobar con dos cuentas que una exportación sobrevive al cierre de la pestaña, la cancelación, el reintento y una revocación de acceso. Mantener la ruta síncrona para reportes pequeños. No colocar el secreto en Git ni en el frontend.
+
+Reversión: apagar primero la bandera del frontend y después `VERA_JOBS_ENABLED`; retirar la programación del cron. Conservar temporalmente la tabla para resolver trabajos pendientes antes de decidir su borrado. Sin cron, los trabajos quedan en espera y el centro no debe anunciarse como operativo.

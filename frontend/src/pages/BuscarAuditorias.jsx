@@ -6,6 +6,7 @@ import { BookmarkButton, SaveViewButton } from "../components/WorkspaceActions";
 import { emptyAuditFilters, readAuditFilters, writeAuditFilters } from "../utils/auditSearchFilters";
 import { getAvailableOrgUnits } from "../services/orgUnitService";
 import { downloadPortfolioReport, getPortfolioReport, searchPlanningAudits } from "../services/planningService";
+import { enqueueReport } from "../services/jobService";
 import "./Planning.css";
 import "./BuscarAuditorias.css";
 
@@ -105,6 +106,13 @@ function BuscarAuditorias() {
     catch (cause) { reportError(cause); }
     finally { finishReport(); }
   };
+  const queueReport = async (format) => {
+    setError("");
+    setReportBusy(true);
+    try { await enqueueReport(appliedFilters, format); navigate("/trabajos"); }
+    catch (cause) { setError(cause.message); }
+    finally { setReportBusy(false); }
+  };
 
   return (
     <div className="dashboard-layout">
@@ -152,6 +160,12 @@ function BuscarAuditorias() {
             <button className="secondary-action" type="button" onClick={openReport} disabled={loading || reportBusy}>Ver reporte</button>
             <button className="secondary-action" type="button" onClick={() => exportReport("csv")} disabled={loading || reportBusy}>Descargar CSV</button>
             <button className="secondary-action" type="button" onClick={() => exportReport("pdf")} disabled={loading || reportBusy}>Descargar PDF</button>
+            {import.meta.env.VITE_VERA_JOBS_ENABLED === "true" && <>
+              <button className="secondary-action" type="button" onClick={() => queueReport("csv")}
+                disabled={loading || reportBusy}>Preparar CSV en segundo plano</button>
+              <button className="secondary-action" type="button" onClick={() => queueReport("pdf")}
+                disabled={loading || reportBusy}>Preparar PDF en segundo plano</button>
+            </>}
             {reportBusy && <button className="secondary-action" type="button" onClick={() => reportController.current?.abort()}>Cancelar</button>}
           </div>
           {reportBusy && <p className="audit-report-progress" role="status" aria-live="polite">{reportOperation} · {reportElapsed} s. Puedes cancelar mientras se prepara.</p>}

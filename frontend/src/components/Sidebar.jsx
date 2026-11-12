@@ -21,6 +21,7 @@ import {
   SunMoon,
   UserCog,
   UserRoundPen,
+  ListTodo,
   X
 } from "lucide-react";
 import { ROLE_LABELS, ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "../constants/roles";
@@ -42,7 +43,7 @@ const RECENT_LABELS = {
   "/dashboard": "Panel de Portafolio", "/mapa-negocio": "Mapa del negocio", "/planificacion": "Planificación",
   "/auditorias": "Buscar auditorías", "/auditorias-activas": "Auditorías activas", "/riesgos": "Riesgos",
   "/controles": "Controles", "/evidencias": "Evidencias", "/notificaciones": "Pendientes",
-  "/asistente": "Asistente de IA", "/sin-conexion": "Sin conexión"
+  "/asistente": "Asistente de IA", "/sin-conexion": "Sin conexión", "/trabajos": "Centro de trabajos"
 };
 const OFFLINE_SECTIONS_BY_VIEW = {
   dashboard: "dashboard", planificacion: "planning", "auditorias-activas": "activeAudits",
@@ -136,6 +137,8 @@ function Sidebar({ active }) {
     { id: "controles", label: "Mapa de controles", Icon: ClipboardCheck, path: "/controles" },
     { id: "notificaciones", label: "Pendientes", Icon: BellRing, path: "/notificaciones" },
     { id: "actividad", label: "Actividad reciente", Icon: Activity, path: "/actividad" },
+    ...(import.meta.env.VITE_VERA_JOBS_ENABLED === "true" && !user?.roleTour
+      ? [{ id: "trabajos", label: "Centro de trabajos", Icon: ListTodo, path: "/trabajos" }] : []),
     { id: "asistente", label: "Asistente de IA", Icon: Bot, path: "/asistente" },
     ...(canSeeAuditLog ? [{ id: "calidad-ia", label: "Calidad de IA", Icon: ChartNoAxesCombined, path: "/calidad-ia" }] : []),
     { id: "evidencias", label: "Evidencias", Icon: Files, path: "/evidencias" },
@@ -145,7 +148,7 @@ function Sidebar({ active }) {
   ];
   const groups = [
     { label: "Portafolio y auditorías", ids: ["dashboard", "business-context", "planificacion", "trimestres", "auditorias-activas"] },
-    { label: "Seguimiento", ids: ["notificaciones", "actividad"] },
+    { label: "Seguimiento", ids: ["notificaciones", "actividad", "trabajos"] },
     { label: "Asistencia", ids: ["asistente", "calidad-ia"] },
     { label: "Cuenta y administración", ids: ["offline", "mi-rol", "usuarios"] }
   ].map((group) => ({ ...group, items: group.ids.map((id) => items.find((item) => item.id === id)).filter(Boolean) }));
