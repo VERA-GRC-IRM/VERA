@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { ExternalLink, FileCheck2, FileImage, FileText, Plus, Search, X } from "lucide-react";
 import Sidebar from "../components/Sidebar";
@@ -52,6 +52,9 @@ function Evidencias() {
   const [modal, setModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const uploadController = useRef(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [assistantEvidence, setAssistantEvidence] = useState(null);
@@ -80,21 +83,35 @@ function Evidencias() {
   const visible = items.filter((item) => (filter === "ALL" || item.entityType === filter) && (!search || `${item.title} ${item.description} ${item.reference} ${item.entityTitle}`.toLowerCase().includes(search.toLowerCase())));
   const counts = ["RISK", "CONTROL", "AUDIT"].map((entityType) => ({ entityType, count: items.filter((item) => item.entityType === entityType).length }));
 
-  const openCreate = () => { setForm({ ...EMPTY, entityId: risks[0]?.id || "" }); setFile(null); setError(""); setModal(true); };
-  const closeModal = () => { setModal(false); setFile(null); setError(""); };
+  const chooseFile = (selected) => {
+    const extension = selected?.name.split(".").pop()?.toLowerCase();
+    if (selected && !["pdf", "xls", "xlsx", "doc", "docx", "png", "jpg", "jpeg", "webp", "csv", "txt"].includes(extension)) {
+      setError("Selecciona PDF, Excel, Word, CSV, TXT o una imagen compatible."); setFile(null); return false;
+    }
+    if (selected?.size > 3 * 1024 * 1024) {
+      setError("El archivo supera el límite de 3 MB."); setFile(null); return false;
+    }
+    setError(""); setFile(selected); setUploadProgress(null); return true;
+  };
+  const openCreate = () => { setForm({ ...EMPTY, entityId: risks[0]?.id || "" }); setFile(null); setUploadProgress(null); setError(""); setModal(true); };
+  const closeModal = () => { if (saving) return; setModal(false); setFile(null); setUploadProgress(null); setError(""); };
   const submit = async (event) => {
     event.preventDefault(); setSaving(true); setError("");
     try {
       let upload = null;
-      if (file) upload = await uploadEvidenceFile(form, file);
+      if (file) {
+        uploadController.current = new AbortController();
+        setUploadProgress(0);
+        upload = await uploadEvidenceFile(form, file, { signal: uploadController.current.signal, onProgress: setUploadProgress });
+      }
       else await createEvidence(form);
       await load(); closeModal(); setMessage(file ? upload.contentIndex?.status === "ready"
         ? upload.contentIndex.truncated ? "Archivo cargado; la IA solo puede consultar una parte del texto indexado."
           : "Archivo cargado; su texto ya puede consultarse con IA. Revisa el original para confirmar la cobertura."
         : "Archivo cargado. La consulta de texto se preparará cuando se solicite, si el formato lo permite."
         : "Referencia de evidencia registrada y vinculada.");
-    } catch (submitError) { setError(submitError.message); }
-    finally { setSaving(false); }
+    } catch (submitError) { setError(submitError.name === "AbortError" ? "Carga detenida. Actualiza el expediente antes de reintentar, por si el archivo ya se guardó." : submitError.message); }
+    finally { uploadController.current = null; setSaving(false); }
   };
 
   const download = async (item) => {
@@ -131,25 +148,24 @@ function Evidencias() {
     <p className="evidence-footnote">La persistencia de metadatos depende de `VERA_EVIDENCE_COMMENT_STORE`; los archivos se guardan en un bucket privado de Supabase. La activación del despliegue debe verificarse por separado.</p>
   </section></main>
     {canCreate && modal && (<div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeModal(); }}><form className="proposal-modal evidence-modal" onSubmit={submit}><div className="modal-header"><div><span className="eyebrow">NUEVA EVIDENCIA</span><h2>Registrar evidencia</h2><p>Vincula un archivo privado o una referencia externa con el portafolio.</p></div><button type="button" className="modal-close" onClick={closeModal} aria-label="Cerrar"><X size={20} /></button></div>{error && <p className="evidence-feedback error">{error}</p>}<div className="proposal-form-grid"><label className="full-width">Nombre<input required minLength="3" maxLength="120" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Informe de revisión trimestral" /></label><label className="full-width">Descripción<textarea required minLength="10" maxLength="1000" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Qué demuestra y por qué respalda el expediente" /></label><label>Tipo<select value={form.evidenceType} onChange={(event) => setForm({ ...form, evidenceType: event.target.value })}>{Object.entries(TYPE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label>Vincular con<select value={form.entityType} onChange={(event) => { const nextType = event.target.value; const nextEntities = { RISK: risks, CONTROL: controls, AUDIT: audits }[nextType]; setForm({ ...form, entityType: nextType, entityId: nextEntities[0]?.id || "" }); }}>{Object.entries(ENTITY_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label className="full-width">Elemento relacionado<select required value={form.entityId} onChange={(event) => setForm({ ...form, entityId: event.target.value })}><option value="">Selecciona una entidad</option>{entities.map((entity) => <option value={entity.id} key={entity.id}>{labelForEntity(entity)}</option>)}</select></label>
-      <label className="full-width">
+      <label className={`full-width evidence-drop-zone ${dragging ? "dragging" : ""}`}
+        onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(event) => { event.preventDefault(); setDragging(false); if (!saving) chooseFile(event.dataTransfer.files?.[0] || null); }}>
         Archivo privado (PDF, Excel, Word, CSV o imágenes; máximo 3 MB)
         <input
           type="file"
-          accept=".pdf,.xls,.xlsx,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif,.csv"
+          accept=".pdf,.xls,.xlsx,.doc,.docx,.png,.jpg,.jpeg,.webp,.csv,.txt"
+          disabled={saving}
           onChange={(event) => {
             const selected = event.target.files?.[0] || null;
-
-            if (selected?.size > 3 * 1024 * 1024) {
-              setError("El archivo supera el límite de 3 MB.");
-              setFile(null);
-              event.target.value = "";
-            } else {
-              setError("");
-              setFile(selected);
-            }
+            if (!chooseFile(selected)) event.target.value = "";
           }}
         />
-      </label> {!file && <label className="full-width">Enlace HTTPS o identificador externo<input required minLength="3" maxLength="500" value={form.reference} onChange={(event) => setForm({ ...form, reference: event.target.value })} placeholder="https://drive.google.com/... o archivo-expediente-042" /></label>}</div><div className="modal-actions"><button type="button" className="secondary-action" onClick={closeModal}>Cancelar</button><button type="submit" className="primary-action" disabled={form.entityType === "AUDIT" && !canAttachToAudit}>{saving ? "Guardando..." : file ? "Cargar archivo" : "Guardar referencia"}</button></div></form></div>)}
+        <small>{file ? `Seleccionado: ${file.name} (${Math.ceil(file.size / 1024)} KB)` : "También puedes arrastrar un archivo aquí."}</small>
+      </label> {!file && <label className="full-width">Enlace HTTPS o identificador externo<input required minLength="3" maxLength="500" value={form.reference} onChange={(event) => setForm({ ...form, reference: event.target.value })} placeholder="https://drive.google.com/... o archivo-expediente-042" /></label>}</div>
+      {saving && file && <div className="evidence-upload-status" role="status"><span>{uploadProgress === 100 ? "Archivo enviado; guardando registro…" : `Cargando archivo · ${uploadProgress ?? 0}%`}</span><progress value={uploadProgress ?? 0} max="100" aria-label="Progreso de carga" /></div>}
+      <div className="modal-actions"><button type="button" className="secondary-action" onClick={saving && file ? () => uploadController.current?.abort() : closeModal} disabled={saving && !file}>{saving && file ? "Detener carga" : "Cancelar"}</button><button type="submit" className="primary-action" disabled={saving || (form.entityType === "AUDIT" && !canAttachToAudit)}>{saving ? "Guardando..." : file ? "Cargar archivo" : "Guardar referencia"}</button></div></form></div>)}
     {assistantEvidence && <EvidenceAssistantDialog evidence={assistantEvidence} onClose={() => setAssistantEvidence(null)} />}
   </div>;
 }

@@ -1,5 +1,5 @@
 import { fetchWithOfflineFallback } from "./offlineSnapshots";
-import { notifyDataChanged } from "./dataChange";
+import { sendEvidenceUpload } from "./fileUpload";
 
 const API_URL = "/api/evidence";
 
@@ -19,7 +19,7 @@ export const getEvidence = async (filters = {}) => {
 };
 export const createEvidence = async (evidence) => (await request("/", { method: "POST", body: JSON.stringify(evidence) })).evidence;
 
-export const uploadEvidenceFile = async (details, file) => {
+export const uploadEvidenceFile = async (details, file, { onProgress, signal } = {}) => {
   const extension = file.name.split(".").pop()?.toLowerCase();
   const MIME_TYPES = {
     pdf: "application/pdf",
@@ -32,22 +32,15 @@ export const uploadEvidenceFile = async (details, file) => {
     jpg: "image/jpeg",
     jpeg: "image/jpeg",
     webp: "image/webp",
-    text: "text/plain"
+    txt: "text/plain"
   };
   const mime = MIME_TYPES[extension] || "application/octet-stream";
   const params = new URLSearchParams({
     title: details.title, description: details.description, evidenceType: details.evidenceType,
     entityType: details.entityType, entityId: details.entityId
   });
-  const response = await fetch(`${API_URL}/upload?${params}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${localStorage.getItem("token")}`, "Content-Type": mime || "application/octet-stream" },
-    body: file
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || "No se pudo cargar el archivo.");
-  notifyDataChanged();
-  return data;
+  return sendEvidenceUpload(`${API_URL}/upload?${params}`, file, mime,
+    localStorage.getItem("token"), { onProgress, signal });
 };
 
 export const getEvidenceDownloadUrl = async (id) => (await request(`/${encodeURIComponent(id)}/download`)).url;

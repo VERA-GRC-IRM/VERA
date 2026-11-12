@@ -24,3 +24,8 @@
 .evidence-ai-citations a { display: inline-flex; align-items: center; gap: 4px; color: light-dark(#126879, var(--vera-accent)); font-size: 12px; }
 .evidence-ai-citations blockquote { margin: 5px 0 0; padding-left: 9px; border-left: 2px solid light-dark(#b9dfd5, var(--vera-accent)); color: light-dark(#52636d, var(--vera-text-muted)); font-size: 12px; overflow-wrap: anywhere; }
 .evidence-ai-note { margin: 15px 0 0; line-height: 1.4; }
+.evidence-drop-zone { border: 1px dashed light-dark(#a8c6ca, var(--vera-border)); border-radius: 10px; padding: 12px; background: light-dark(#f8fbfb, var(--vera-accent-soft)); }
+.evidence-drop-zone.dragging { border-color: var(--vera-accent); box-shadow: inset 0 0 0 1px var(--vera-accent); }
+.evidence-drop-zone small { display: block; margin-top: 7px; color: light-dark(#52636d, var(--vera-text-muted)); overflow-wrap: anywhere; }
+.evidence-upload-status { display: grid; gap: 5px; margin: 10px 0; color: light-dark(#315463, var(--vera-accent)); font-size: 12px; }
+.evidence-upload-status progress { width: 100%; height: 9px; accent-color: var(--vera-accent); }
