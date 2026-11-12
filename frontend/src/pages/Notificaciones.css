@@ -7,3 +7,9 @@
 .notification-partial { margin: 0 0 18px; padding: 13px 16px; border: 1px solid light-dark(#e5cf9b, var(--vera-border)); border-radius: 9px; background: light-dark(#fff9e9, var(--vera-surface)); color: light-dark(#755313, var(--vera-text-strong)); font-size: 13px; }
 @media (max-width: 760px) { .notification-card-actions { margin-left: 57px; }.notification-card-actions .notification-action { margin-left: 0; } }
 @media (max-width: 760px) { .notification-kpis { grid-template-columns: 1fr; }.notification-toolbar { align-items: flex-start; flex-direction: column; }.notification-filters { width: 100%; box-sizing: border-box; }.notification-filters button { flex: 1; }.notification-card { align-items: flex-start; flex-wrap: wrap; }.notification-body { min-width: calc(100% - 60px); }.notification-action { margin-left: 57px; } }
+.notification-desktop-option { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 12px 15px; border: 1px solid var(--vera-border); border-radius: 10px; background: var(--vera-surface); }
+.notification-desktop-option div { display: grid; gap: 3px; }
+.notification-desktop-option strong { color: var(--vera-text-strong); font-size: 13px; }
+.notification-desktop-option span { color: var(--vera-text-muted); font-size: 11px; }
+.notification-desktop-option button { flex: 0 0 auto; }
+@media (max-width: 600px) { .notification-desktop-option { align-items: flex-start; flex-direction: column; } }
