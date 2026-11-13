@@ -13,6 +13,7 @@ import { getEditableOfflineRecords, inspectOfflineRecordConflict,
   saveOfflineRecordDescription, syncOfflineRecordDescription } from "../services/offlineRecordDrafts";
 import { cleanupOfflineVault } from "../services/offlineCleanup";
 import { deleteOfflineDraft, getDraftableActions, getOfflineDrafts, inspectOfflineActionConflict,
+  inspectOfflineFindingConflict, isFindingDraftComplete,
   getEvidenceDraftTargets, getFindingDraftTargets, saveOfflineDraft, saveOfflineEvidenceDraft,
   saveOfflineFindingDraft, syncOfflineDraft, syncOfflineEvidenceDraft,
   syncOfflineFindingDraft } from "../services/offlineDrafts";
@@ -37,6 +38,10 @@ const PREPARATION_PACKS = [
   { id: "fieldwork", label: "Trabajo de auditoría", sections: ["activeAudits", "risks", "riskOwners", "controls", "findings", "actions", "evidence"] },
   { id: "report", label: "Informe local", sections: ["report"] }
 ];
+const isReadyToSend = (draft) => draft.state === "DRAFT" && draft.type !== "GENERAL_NOTE"
+  && (draft.type !== "FINDING_CREATE" || isFindingDraftComplete(draft));
+const needsReview = (draft) => ["CONFLICT", "NEEDS_REVIEW"].includes(draft.state)
+  || (draft.state === "DRAFT" && draft.type === "FINDING_CREATE" && !isFindingDraftComplete(draft));
 
 function OfflineWorkspace() {
   useDocumentTitle("Sin conexión");
@@ -56,6 +61,7 @@ function OfflineWorkspace() {
   const [captureResults, setCaptureResults] = useState([]);
   const [checkedAt, setCheckedAt] = useState(() => Date.now());
   const [drafts, setDrafts] = useState([]);
+  const [queueFilter, setQueueFilter] = useState("all");
   const [draftableActions, setDraftableActions] = useState([]);
   const [draftType, setDraftType] = useState("GENERAL_NOTE");
   const [draftTitle, setDraftTitle] = useState("");
@@ -75,6 +81,8 @@ function OfflineWorkspace() {
   const [findingTargetIndex, setFindingTargetIndex] = useState("");
   const [findingTitle, setFindingTitle] = useState("");
   const [findingDescription, setFindingDescription] = useState("");
+  const [findingRootCause, setFindingRootCause] = useState("");
+  const [findingSeverity, setFindingSeverity] = useState("MEDIUM");
   const [storageStatus, setStorageStatus] = useState(null);
   const [storageMessage, setStorageMessage] = useState("");
   const [confirmCleanup, setConfirmCleanup] = useState(false);
@@ -101,9 +109,24 @@ function OfflineWorkspace() {
     const age = currentTime - Date.parse(item.savedAt);
     return Number.isFinite(age) && age >= 0 && age <= SNAPSHOT_TTL_MS;
   });
-  const pendingDrafts = drafts.filter((item) => item.state === "DRAFT" && item.type !== "GENERAL_NOTE").length;
-  const reviewDrafts = drafts.filter((item) => ["CONFLICT", "NEEDS_REVIEW"].includes(item.state)).length;
+  const pendingDrafts = drafts.filter(isReadyToSend).length;
+  const reviewDrafts = drafts.filter(needsReview).length;
   const completedDrafts = drafts.filter((item) => item.state === "SYNCED").length;
+  const noteDrafts = drafts.filter((item) => item.type === "GENERAL_NOTE").length;
+  const queueFilters = [
+    { id: "all", label: "Todos", count: drafts.length },
+    { id: "ready", label: "Para enviar", count: pendingDrafts },
+    { id: "review", label: "Revisar", count: reviewDrafts },
+    { id: "notes", label: "Notas", count: noteDrafts },
+    { id: "sent", label: "Enviados", count: completedDrafts }
+  ];
+  const visibleDrafts = drafts.filter((draft) => {
+    if (queueFilter === "ready") return isReadyToSend(draft);
+    if (queueFilter === "review") return needsReview(draft);
+    if (queueFilter === "notes") return draft.type === "GENERAL_NOTE";
+    if (queueFilter === "sent") return draft.state === "SYNCED";
+    return true;
+  });
   const searchResults = open ? searchOfflineRecords(snapshots, SNAPSHOT_MODULES, {
     query: searchTerm, moduleId: searchModule, now: currentTime, ttlMs: SNAPSHOT_TTL_MS
   }) : [];
@@ -332,7 +355,8 @@ function OfflineWorkspace() {
     try {
       const draft = drafts.find((item) => item.id === id);
       const current = draft?.type === "RECORD_DESCRIPTION"
-        ? await inspectOfflineRecordConflict(id) : await inspectOfflineActionConflict(id);
+        ? await inspectOfflineRecordConflict(id) : draft?.type === "FINDING_CREATE"
+          ? await inspectOfflineFindingConflict(id) : await inspectOfflineActionConflict(id);
       setConflictDetails((details) => ({ ...details, [id]: current }));
     } catch (cause) {
       setConflictDetails((current) => { const next = { ...current }; delete next[id]; return next; });
@@ -382,9 +406,11 @@ function OfflineWorkspace() {
     try {
       const target = findingTargets[Number(findingTargetIndex)];
       if (!target) throw new Error("Selecciona un control y riesgo guardados.");
-      await saveOfflineFindingDraft({ ...target, title: findingTitle, description: findingDescription });
+      await saveOfflineFindingDraft({ ...target, title: findingTitle, description: findingDescription,
+        rootCause: findingRootCause, severity: findingSeverity });
       setDrafts(getOfflineDrafts());
-      setFindingTitle(""); setFindingDescription(""); setFindingTargetIndex("");
+      setFindingTitle(""); setFindingDescription(""); setFindingRootCause("");
+      setFindingSeverity("MEDIUM"); setFindingTargetIndex("");
     } catch (cause) { setError(cause.message); }
     finally { setBusy(false); }
   };
@@ -430,6 +456,7 @@ function OfflineWorkspace() {
                 <p className="offline-readiness-hint">{readySections.length
                   ? "Estas copias se pueden consultar sin red hasta 24 horas después de guardarlas. Los pendientes aún no están en el servidor."
                   : "Guarda al menos una sección con conexión antes de trabajar sin red."}</p>
+                {drafts.length > 0 && <a className="offline-queue-link" href="#offline-work-queue">Ver trabajo local guardado</a>}
                 {readySections.length > 0 && <p className="offline-readiness-hint">Copia más reciente: {new Date(Math.max(
                   ...readySections.map((item) => Date.parse(item.savedAt))
                 )).toLocaleString("es-MX")}. Consulta la fecha individual de cada sección antes de usarla.</p>}
@@ -574,6 +601,11 @@ function OfflineWorkspace() {
                   </select></label>
                   <label>Nombre del hallazgo<input value={findingTitle} onChange={(event) => setFindingTitle(event.target.value)} minLength={3} maxLength={120} required /></label>
                   <label>Descripción del hallazgo<textarea value={findingDescription} onChange={(event) => setFindingDescription(event.target.value)} minLength={10} maxLength={2000} required /></label>
+                  <label>Causa raíz<textarea value={findingRootCause} onChange={(event) => setFindingRootCause(event.target.value)} minLength={10} maxLength={2000} required /></label>
+                  <label>Severidad<select value={findingSeverity} onChange={(event) => setFindingSeverity(event.target.value)} required>
+                    <option value="LOW">Baja</option><option value="MEDIUM">Media</option>
+                    <option value="HIGH">Alta</option><option value="CRITICAL">Crítica</option>
+                  </select></label>
                   {!findingTargets.length && <p role="status">Actualiza primero Controles y Riesgos con conexión. Solo aparecerán relaciones elegibles en las copias vigentes.</p>}
                   <button type="submit" className="primary-action" disabled={busy || !findingTargets.length}>Guardar hallazgo local</button>
                 </form>}
@@ -594,18 +626,52 @@ function OfflineWorkspace() {
                   <label>Archivo (hasta 3 MiB)<input key={evidenceInputKey} type="file" accept=".pdf,.xls,.xlsx,.doc,.docx,.csv,.png,.jpg,.jpeg,.webp,.txt" onChange={(event) => setEvidenceFile(event.target.files?.[0] || null)} required /></label>
                   <button type="submit" className="primary-action" disabled={busy || !evidenceTargets.length}>Guardar archivo local</button>
                 </form>}
-                {drafts.length > 0 && <ul className="offline-draft-list">{drafts.map((draft) => <li key={draft.id}>
-                  <div><strong>{draft.title}</strong><small>{{ GENERAL_NOTE: "Nota", ACTION_PROGRESS: "Avance", ACTION_COMMENT: "Comentario", EVIDENCE_UPLOAD: "Archivo de evidencia", FINDING_CREATE: "Hallazgo", RECORD_DESCRIPTION: "Descripción de registro" }[draft.type] || draft.type} · {new Date(draft.createdAt).toLocaleString("es-MX")} · {{ DRAFT: "Pendiente de usar", SYNCED: "Enviado al servidor", CONFLICT: "Conflicto de versión", NEEDS_REVIEW: "Confirmación pendiente" }[draft.state] || draft.state}</small>
+                {drafts.length > 0 && <section id="offline-work-queue" className="offline-work-queue" aria-labelledby="offline-work-queue-title">
+                  <h4 id="offline-work-queue-title">Trabajo local guardado</h4>
+                  <p>Filtra los borradores de este dispositivo. Enviar o revisar requiere conexión y permisos vigentes; las notas no se envían.</p>
+                  <div className="offline-queue-filters" role="group" aria-label="Filtrar trabajo local">
+                    {queueFilters.map((filter) => <button key={filter.id} type="button" aria-pressed={queueFilter === filter.id}
+                      onClick={() => setQueueFilter(filter.id)}>{filter.label} ({filter.count})</button>)}
+                  </div>
+                  <p role="status" aria-live="polite">{visibleDrafts.length} de {drafts.length} trabajos locales visibles.</p>
+                  {visibleDrafts.length === 0 && <p>No hay trabajos en esta vista. Elige otro filtro para ver los demás.</p>}
+                  {visibleDrafts.length > 0 && <ul className="offline-draft-list">{visibleDrafts.map((draft) => <li key={draft.id}>
+                  <div><strong>{draft.title}</strong><small>{{ GENERAL_NOTE: "Nota", ACTION_PROGRESS: "Avance", ACTION_COMMENT: "Comentario", EVIDENCE_UPLOAD: "Archivo de evidencia", FINDING_CREATE: "Hallazgo", RECORD_DESCRIPTION: "Descripción de registro" }[draft.type] || draft.type} · {new Date(draft.createdAt).toLocaleString("es-MX")} · {draft.type === "FINDING_CREATE" && !isFindingDraftComplete(draft) && draft.state === "DRAFT" ? "Requiere completar" : ({ DRAFT: "Pendiente de usar", SYNCED: "Enviado al servidor", CONFLICT: "Conflicto de versión", NEEDS_REVIEW: "Confirmación pendiente" }[draft.state] || draft.state)}</small>
                     {draft.note && <p>{draft.note}</p>}{draft.type === "ACTION_PROGRESS" && <small>Avance propuesto: {draft.progressPercent}%</small>}
-                    {draft.type === "FINDING_CREATE" && <><p>{draft.description}</p><small>{draft.controlTitle} · {draft.riskTitle}</small></>}
+                    {draft.type === "FINDING_CREATE" && <><p>{draft.description}</p>
+                      {isFindingDraftComplete(draft) && <><p>Causa raíz: {draft.rootCause}</p><small>Severidad: {draft.severity}</small></>}
+                      <small>{draft.controlTitle} · {draft.riskTitle}</small>
+                      {!isFindingDraftComplete(draft) && <p role="status">Este borrador anterior no tiene causa raíz y severidad. Conserva el texto; prepara un hallazgo nuevo con los campos actuales. Si hubo un envío incierto, revisa Hallazgos antes de crear otro.</p>}</>}
                     {draft.type === "RECORD_DESCRIPTION" && <><p>{draft.description}</p><small>{draft.recordType === "RISK" ? "Riesgo" : "Control"} {draft.recordId} · versión de origen {draft.expected.storageVersion} · Motivo: {draft.reason}</small></>}
                     {draft.type === "EVIDENCE_UPLOAD" && <small>{draft.fileName} · {Math.ceil(draft.fileBytes / 1024)} KiB · {draft.entityType} {draft.entityId}</small>}</div>
                   <div className="offline-draft-actions">
-                    {draft.type !== "GENERAL_NOTE" && draft.state === "DRAFT" && <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>{{ EVIDENCE_UPLOAD: "Cargar evidencia", FINDING_CREATE: "Registrar hallazgo", RECORD_DESCRIPTION: "Enviar descripción" }[draft.type] || "Enviar al servidor"}</button>}
+                    {draft.type !== "GENERAL_NOTE" && draft.state === "DRAFT" &&
+                      (draft.type !== "FINDING_CREATE" || isFindingDraftComplete(draft)) &&
+                      <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>{{ EVIDENCE_UPLOAD: "Cargar evidencia", FINDING_CREATE: "Registrar hallazgo", RECORD_DESCRIPTION: "Enviar descripción" }[draft.type] || "Enviar al servidor"}</button>}
                     {draft.type === "RECORD_DESCRIPTION" && draft.state === "NEEDS_REVIEW" && <p>La respuesta del envío se perdió. Revisa el registro actual; VERA no repetirá esta edición automáticamente.</p>}
-                    {draft.type === "FINDING_CREATE" && draft.state === "NEEDS_REVIEW" && <>
+                    {draft.type === "FINDING_CREATE" && draft.state === "NEEDS_REVIEW" && isFindingDraftComplete(draft) && <>
                       <p>La respuesta anterior se perdió. Al continuar, VERA comprobará la misma operación; si no se había guardado, intentará registrarla ahora.</p>
                       <button type="button" className="primary-action" disabled={busy || !online} onClick={() => sendDraft(draft.id)}>Comprobar o reintentar hallazgo</button>
+                    </>}
+                    {draft.type === "FINDING_CREATE" && draft.state === "CONFLICT" && <>
+                      <button type="button" className="secondary-action" disabled={busy || !online}
+                        onClick={() => compareConflict(draft.id)}>Comparar contexto actual</button>
+                      {conflictDetails[draft.id] && <div className="offline-conflict-compare">
+                        <strong>Contexto para decidir</strong>
+                        <div className="offline-conflict-grid">
+                          <section><h4>Tu borrador local</h4><p>{draft.title}</p>
+                            <small>Control: {draft.controlTitle} · riesgo: {draft.riskTitle}</small>
+                            <small>Evaluaciones observadas: {draft.controlVersion}</small></section>
+                          <section><h4>Información visible ahora</h4>
+                            <small>Control: {conflictDetails[draft.id].controlVisible ? "visible" : "no disponible con esta cuenta"}</small>
+                            <small>Riesgo: {conflictDetails[draft.id].riskVisible ? "visible" : "no disponible con esta cuenta"}</small>
+                            <small>Evaluaciones actuales: {conflictDetails[draft.id].evaluationVersion ?? "no disponibles"}</small>
+                            <small>Relación actual: {conflictDetails[draft.id].related ? "visible" : "no disponible"}</small>
+                            <small>Hallazgo para la evaluación original: {conflictDetails[draft.id].visibleFinding ? "coincidencia visible" : "sin coincidencia visible"}</small>
+                          </section>
+                        </div>
+                        <p>Esta comparación no modifica datos. Una coincidencia ausente puede deberse a permisos; consulta Hallazgos antes de preparar otro registro.</p>
+                      </div>}
                     </>}
                     {["ACTION_PROGRESS", "ACTION_COMMENT"].includes(draft.type) && draft.state === "NEEDS_REVIEW" && <>
                       <p>La respuesta anterior se perdió. VERA comprobará la misma operación antes de aplicar algún cambio.</p>
@@ -642,6 +708,7 @@ function OfflineWorkspace() {
                     <button type="button" className="secondary-action" disabled={busy} onClick={() => removeDraft(draft.id)}>{deleteDraftId === draft.id ? "Confirmar borrado" : "Borrar borrador"}</button>
                   </div>
                 </li>)}</ul>}
+                </section>}
               </div>
             </> : exists !== null && <>
               <h2>{exists ? "Desbloquear copia local" : "Habilitar copia local"}</h2>

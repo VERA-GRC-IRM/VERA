@@ -8,7 +8,7 @@ const dashboard = {
   statusCounts: [], riskMatrix: [], pendingItems: []
 };
 
-test("selected authorized data opens offline and an online denial is never replaced by a snapshot", async ({ page, context }) => {
+test("selected authorized data opens offline and an online denial is never replaced by a snapshot", async ({ page, context, browserName }) => {
   await page.addInitScript(() => {
     if (!localStorage.getItem("token")) localStorage.setItem("token", "browser-test-token");
     if (!localStorage.getItem("user")) localStorage.setItem("user", JSON.stringify({ id: 201, name: "Auditor", role: "AUDITOR" }));
@@ -50,8 +50,17 @@ test("selected authorized data opens offline and an online denial is never repla
   await expect(page.getByRole("checkbox", { name: "Panel de Portafolio", exact: true })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: /Panel de Portafolio Guardado/ })).toHaveCount(0);
   await page.unroute("**/api/dashboard");
-  await context.setOffline(true);
+  if (browserName === "firefox") {
+    // Firefox can reject a cached navigation under forced-offline emulation.
+    // Block ordinary requests while allowing the installed worker to serve the shell.
+    await page.route("**/*", (route) => route.abort("internetdisconnected"));
+  } else await context.setOffline(true);
   await page.goto("/dashboard");
+  if (browserName === "firefox") {
+    const apiStatus = await page.evaluate(() => fetch("/api/dashboard")
+      .then((response) => response.status).catch(() => 0));
+    expect(apiStatus).toBe(0);
+  }
   await expect(page.getByRole("heading", { name: "Panel guardado de prueba" })).not.toBeVisible();
   await expect(page.getByRole("status").filter({ hasText: "Mostrando copia local" })).toHaveCount(0);
 });
@@ -134,6 +143,8 @@ test("a module opens its own offline preparation with no implicit download", asy
   await page.route("**/api/actions", (route) => route.fulfill({ status: 200, json: { actions: [] } }));
   await page.goto("/dashboard");
   await expect(page.getByRole("heading", { name: "Panel guardado de prueba" })).toBeVisible();
+  const mobileMenu = page.getByRole("button", { name: "Abrir menú de navegación" });
+  if (await mobileMenu.isVisible()) await mobileMenu.click();
   await page.getByRole("button", { name: "Preparar esta vista sin conexión" }).click();
   await expect(page).toHaveURL(/\/sin-conexion\?seccion=dashboard$/);
   await page.getByLabel("Frase local", { exact: true }).fill("Frase para preparar el panel 2026");

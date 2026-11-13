@@ -3,10 +3,45 @@ const { PLANNING_APPROVE_ROLES } = require("../config/roles");
 const { logActivity } = require("./auditLogger");
 const { assertWritableRecordScope } = require("./recordScopeVisibility");
 const notificationEvents = require("./notificationEventService");
+const actionRepository = require("../repositories/actionRepository");
+const { buildAuditContext } = require("./auditContextService");
 
 const text = (value) => String(value ?? "").trim();
 const terminal = (status) => ["APPROVED", "ACTIVE", "CLOSED", "REJECTED"].includes(status);
 const errorFor = (message, status) => { const error = new Error(message); error.status = status; return error; };
+
+const dateIsValid = (value) => {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
+};
+
+const assertOpenFindingsHaveFollowUp = async (user, auditId) => {
+  const context = await buildAuditContext(user, auditId);
+  const openFindings = context.groups.findings.filter((finding) => finding.status === "OPEN");
+
+  if (openFindings.length === 0) return;
+
+  const actions = await actionRepository.getAll();
+  const findingsWithoutFollowUp = openFindings.filter((finding) =>
+    !actions.some((action) =>
+      action.sourceType === "FINDING" &&
+      action.sourceId === finding.id &&
+      action.status !== "CANCELLED" &&
+      Number.isSafeInteger(Number(action.assigneeId)) &&
+      Number(action.assigneeId) > 0 &&
+      dateIsValid(action.dueDate)
+    )
+  );
+
+  if (findingsWithoutFollowUp.length > 0) {
+    const ids = findingsWithoutFollowUp.map((finding) => finding.id).join(", ");
+    throw errorFor(
+      `No se puede cerrar la auditoría. Estos hallazgos abiertos necesitan un plan de seguimiento con responsable y fecha compromiso: ${ids}.`,
+      409
+    );
+  }
+};
 
 const applyTransition = async (user, id, operation, options = {}) => {
   if (!PLANNING_APPROVE_ROLES.includes(user.role)) throw errorFor("Tu rol no puede decidir propuestas ni cambiar el estado de auditorías.", 403);
@@ -51,8 +86,17 @@ const applyTransition = async (user, id, operation, options = {}) => {
     details = { auditId: id, title: record.title };
     kind = "audit";
   } else if (operation === "close") {
-    if (current.status !== "ACTIVE") throw errorFor("Solo se pueden cerrar auditorías en curso.", 409);
-    record = await planningRepository.close(id, { closedBy: actor }, current.storageVersion);
+    if (current.status !== "ACTIVE") {
+      throw errorFor("Solo se pueden cerrar auditorías en curso.", 409);
+    }
+
+    if (current.workflowStep !== "closure") {
+      throw errorFor("La auditoría debe avanzar en orden hasta la etapa Cierre antes de cerrarse.", 409);
+    }
+
+    await assertOpenFindingsHaveFollowUp(user, id);
+
+  record = await planningRepository.close(id, { closedBy: actor }, current.storageVersion);
     action = "AUDIT_CLOSED";
     details = { auditId: id, title: record.title };
     kind = "audit";

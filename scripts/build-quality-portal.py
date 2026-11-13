@@ -25,9 +25,13 @@ WORKFLOWS = (
     ("Análisis estático", "codeql.yml", "CodeQL para JavaScript y TypeScript"),
     ("Informe integral", "classroom-quality.yml", "Resumen ejecutivo, logs y artefactos"),
     ("Evaluación de IA", "ai-evaluation.yml", "Casos sintéticos; sin llamadas al modelo"),
+    ("Integraciones Microsoft", "microsoft-integration-proof.yml", "Excel, contrato BI y enlace Teams; datos sintéticos"),
     ("Roles en vista previa", "preview-role-acceptance.yml", "Ejecución manual contra datos demo; no prueba producción"),
     ("Smoke de producción", "production-smoke.yml", "Rutas públicas y rechazo anónimo; no prueba sesiones reales"),
     ("Supabase local", "local-supabase-rehearsal.yml", "Migraciones, RLS y restauración sintética en runner aislado; no prueba producción"),
+    ("Continuidad sin conexión", "offline-rehearsal.yml", "PWA, copia cifrada y borradores con API simulada en Chromium"),
+    ("Modo local en navegadores", "offline-browser-matrix.yml", "Seis perfiles automatizados; no sustituye dispositivos físicos"),
+    ("Actualización entre versiones", "offline-two-release-rehearsal.yml", "Dos builds distintos y continuidad del borrador cifrado; datos sintéticos"),
 )
 
 
@@ -215,10 +219,13 @@ def render(output_dir):
     records = []
     core_passed = 0
     integral_run = None
+    integration_run = None
     for title, filename, scope in WORKFLOWS:
         run = latest_run(filename)
         if filename == "classroom-quality.yml":
             integral_run = run
+        if filename == "microsoft-integration-proof.yml":
+            integration_run = run
         label, css_class = run_state(run, main_sha)
         if filename in ("quality.yml", "codeql.yml") and css_class == "success":
             core_passed += 1
@@ -261,6 +268,14 @@ def render(output_dir):
                           and str(asset.get("browser_download_url", "")).startswith(
                               f"https://github.com/{REPOSITORY}/releases/download/")), None) if release else None
     run_url = integral_run.get("html_url", classroom_url) if integral_run else classroom_url
+    integration_workflow_url = f"https://github.com/{REPOSITORY}/actions/workflows/microsoft-integration-proof.yml"
+    integration_id = integration_run.get("id") if integration_run else None
+    integration_url = (f"https://github.com/{REPOSITORY}/actions/runs/{integration_id}"
+                       if isinstance(integration_id, int) and integration_id > 0 else integration_workflow_url)
+    integration_label, integration_class = run_state(integration_run, main_sha)
+    integration_sha = integration_run.get("head_sha", "") if integration_run else ""
+    integration_date = date_label(integration_run.get("created_at")) if integration_run else "No disponible"
+    integration_duration = duration_label(integration_run) if integration_run else "—"
 
     if report:
         backend = report["backend"]
@@ -322,7 +337,9 @@ def render(output_dir):
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="VERA: resultados de calidad, trazabilidad e interoperabilidad con evidencia verificable en GitHub Actions.">
   <meta name="color-scheme" content="light">
+  <link rel="icon" type="image/svg+xml" href="vera-mark.svg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; script-src 'self'; connect-src https://api.github.com; base-uri 'none'; form-action 'none'">
   <title>VERA · Aseguramiento de calidad</title>
   <style>
@@ -353,6 +370,8 @@ def render(output_dir):
     .legend-related {{ background:#0b765f }} .legend-open {{ background:#d2dbe2 }} .scope-note {{ font-size:.88rem; color:var(--muted) }}
     .archive {{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; border-left:4px solid var(--green) }}
     .archive p {{ margin:.3rem 0 0; color:var(--muted) }} .archive-links {{ display:flex; flex-wrap:wrap; gap:1rem }}
+    .integration-panel {{ border-left:4px solid var(--green) }} .integration-panel p {{ margin:.3rem 0 1rem; color:var(--muted); max-width:820px }}
+    .integration-meta {{ display:flex; align-items:center; flex-wrap:wrap; gap:.75rem; font-size:.9rem; color:var(--muted); margin-bottom:1rem }}
     .table-wrap {{ overflow-x:auto }} table {{ width:100%; border-collapse:collapse; min-width:800px }} th,td {{ padding:.9rem .6rem; text-align:left; border-bottom:1px solid var(--line); vertical-align:top }} th {{ color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.08em }} td small {{ margin-top:.2rem }}
     .pill {{ display:inline-block; white-space:nowrap; border-radius:999px; padding:.2rem .6rem; font-size:.84rem; font-weight:700 }}
     .success {{ background:#e3f5ec; color:#086441 }} .failure {{ background:#fbe9e8; color:#a12e27 }} .pending {{ background:#e7f0fb; color:#254e82 }} .old,.unknown {{ background:#f3efe1; color:#70521b }}
@@ -375,6 +394,15 @@ def render(output_dir):
       <div class="metric"><span>Consulta en vivo</span><b id="live-checked">Pendiente</b><span id="publication-time">Publicación: {escape(generated)}</span></div>
     </section>
     <p class="live-alert pending" id="live-alert" role="status" aria-live="polite">Esta es la instantánea publicada. Al abrir la página se consulta GitHub para confirmar el estado actual.</p>
+    <section class="panel integration-panel" id="integraciones-microsoft" aria-labelledby="integration-title">
+      <div class="eyebrow dark">INTEROPERABILIDAD · EVIDENCIA</div><h2 id="integration-title">Excel, Power BI y Teams</h2>
+      <p>VERA comprueba automáticamente archivos Excel, el contrato de tablas para Power BI y los enlaces de Teams con datos sintéticos. El informe y los libros de ejemplo están en la corrida. Publicar en Power BI Service o entregar mensajes en Teams necesita un entorno Microsoft autorizado.</p>
+      <div class="integration-meta"><span class="pill {escape(integration_class)}" id="integration-status">{escape(integration_label)}</span>
+        <span>SHA: <code id="integration-sha">{escape(integration_sha[:8]) if integration_sha else '—'}</code></span>
+        <span id="integration-date">{escape(integration_date)}</span><span id="integration-duration">{escape(integration_duration)}</span></div>
+      <div class="links"><a id="integration-run-link" href="{escape(integration_url)}">Abrir última corrida y archivos ↗</a>
+        <a href="https://github.com/{escape(REPOSITORY)}/blob/main/docs/product/microsoft-integrations.md">Alcance y límites ↗</a>
+        <a href="{escape(integration_workflow_url)}">Ejecutar de nuevo ↗</a></div></section>
     <section class="panel" aria-labelledby="evidence-title"><div class="section-head">
       <div><div class="eyebrow dark">RESULTADOS DEL COMMIT</div><h2 id="evidence-title">Indicadores del informe integral</h2></div>
       <a id="integral-run-link" href="{escape(run_url)}">Examinar corrida ↗</a></div>
@@ -393,12 +421,13 @@ def render(output_dir):
       <a href="https://github.com/{escape(REPOSITORY)}/blob/main/docs/testing/test-plan.md">Plan de 78 casos ↗</a>
       <a href="https://github.com/{escape(REPOSITORY)}/blob/main/docs/hu-acceptance-audit.md">Estado por HU ↗</a>
       <a href="https://github.com/{escape(REPOSITORY)}/issues/113">Puertas de producción pendientes ↗</a>
+      <a href="#integraciones-microsoft">Integraciones Microsoft ↗</a>
       <a href="https://github.com/{escape(REPOSITORY)}/wiki">Wiki ↗</a>
       <a href="status.md">Bitácora Markdown ↗</a>
       <a href="status.json">Datos JSON ↗</a>
     </div></section>
     <section class="panel note"><h2>Cómo interpretar el resultado</h2>
-      <p>Una corrida aprobada verifica únicamente su alcance. Las pruebas de navegadores y sus comprobaciones automatizadas de accesibilidad están <a href="https://github.com/{escape(REPOSITORY)}/issues/300">diferidas</a> y no cuentan para el resultado vigente. La columna SHA identifica el código del workflow; en los controles contra Vercel no identifica por sí solo el deployment examinado. La aceptación de Preview usa cuentas demo aisladas y el smoke de Production solo rutas públicas y rechazo anónimo. La comprobación Supabase local usa una base desechable y una fila sintética; no acredita un respaldo de Production. Consulta el artefacto de cada corrida para ver destino y tiempos. Las pruebas de carga de 150/250 usuarios requieren staging autorizado.</p>
+      <p>Una corrida aprobada verifica únicamente su alcance. La matriz general de navegadores y sus comprobaciones automatizadas de accesibilidad están <a href="https://github.com/{escape(REPOSITORY)}/issues/300">diferidas</a> y no cuentan para el resultado vigente. La matriz específica del modo sin conexión es manual, automatizada y usa API simulada; tampoco sustituye dispositivos físicos. La columna SHA identifica el código del workflow; en los controles contra Vercel no identifica por sí solo el deployment examinado. La aceptación de Preview usa cuentas demo aisladas y el smoke de Production solo rutas públicas y rechazo anónimo. La comprobación Supabase local usa una base desechable y una fila sintética; no acredita un respaldo de Production. Consulta el artefacto de cada corrida para ver destino y tiempos. Las pruebas de carga de 150/250 usuarios requieren staging autorizado.</p>
       <p>Los resultados de seguridad requieren revisar también <a href="https://github.com/{escape(REPOSITORY)}/security">Security</a>: un check CodeQL verde no significa cero alertas. Un despliegue exitoso tampoco acredita por sí solo la aceptación de cada HU.</p>
     </section>
   </main><footer>VERA · Fuente: GitHub Actions y commit de main. La consulta al abrir usa la API pública de GitHub; sus respuestas pueden tener hasta 60 s de caché. La vista no usa datos personales, secretos ni servicios de IA.</footer>

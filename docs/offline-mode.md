@@ -1,5 +1,7 @@
 # VERA sin conexión
 
+Los contratos de lectura, escritura diferida y operaciones que siguen en línea están resumidos en [Contratos de operación sin conexión](offline-contracts.md).
+
 El objetivo es permitir trabajo útil después de una sesión inicial en línea, sin confundir un borrador local con un cambio confirmado por Supabase. La base de datos y los permisos del servidor siguen siendo la fuente de verdad.
 
 ## Etapa 1: aplicación disponible
@@ -74,6 +76,8 @@ El informe local indica la hora de la copia y es preliminar: no demuestra el est
 
 La tarjeta **Estado de este dispositivo** resume secciones vigentes y caducadas, trabajos pendientes de envío y cambios que requieren revisión. Una nota personal no cuenta como envío pendiente. El indicador de red proviene del dispositivo y no asegura que el servidor esté disponible; la fecha de cada sección sigue siendo la referencia para decidir si usarla.
 
+El enlace **Ver trabajo local guardado** lleva a una lista única con filtros **Todos**, **Para enviar**, **Revisar**, **Notas** y **Enviados**. Los conteos se derivan de la copia cifrada desbloqueada en este dispositivo; cambiar de filtro no envía, borra ni altera un borrador. Una lista vacía indica que el filtro elegido no tiene elementos. Las confirmaciones inciertas y conflictos permanecen en **Revisar** hasta una decisión explícita con conexión.
+
 La misma tarjeta muestra el uso aproximado de almacenamiento del sitio que informa el navegador, incluyendo archivos de la aplicación. La persona puede **solicitar conservación** mediante la API de almacenamiento; el navegador puede concederla o rechazarla. Ni la estimación ni la concesión garantizan espacio ilimitado, recuperación tras borrar datos del sitio o permanencia ante fallas del dispositivo. Las pruebas de resistencia simulan limpieza de IndexedDB y dos pestañas que intentan guardar sobre la misma revisión cifrada: la segunda recibe un conflicto en vez de sobrescribir la primera.
 
 La tarjeta informa también la cuota aproximada que reporta el navegador. **Limpiar datos finalizados** requiere una segunda confirmación y retira solo secciones caducadas, archivos de evidencia que ya no tienen una copia vigente y borradores que el servidor confirmó como enviados. Conserva notas, borradores pendientes, conflictos y confirmaciones inciertas. La operación es local y puede ejecutarse sin red; no borra registros de Supabase. Los datos limpiados no se recuperan desde el dispositivo salvo que exista una copia cifrada anterior.
@@ -97,6 +101,12 @@ El [piloto real inicial](testing/offline-production-pilot.md) registra los pasos
 
 El respaldo cifrado también se ensaya en un segundo contexto de navegador con tamaño móvil y almacenamiento independiente: se exporta desde el escritorio, se importa sin red y se comprueba que el borrador persiste tras recargar. Es una simulación reproducible; el traslado del archivo y la restauración entre dos dispositivos físicos con una cuenta de producción siguen pendientes de aceptación real.
 
+La prueba de compatibilidad conserva un respaldo cifrado **sintético** con esquema local v1 creado sobre el código de `main` del 11 de noviembre de 2026. Cada versión posterior debe poder importarlo y mostrar su nota después de una recarga sin red. Este contrato protege la lectura de datos anteriores, pero no sustituye una prueba con dos despliegues sucesivos del service worker ni demuestra que un navegador mantenga datos si el usuario borra el almacenamiento del sitio.
+
+Un ensayo adicional sirve dos revisiones sucesivas del service worker generado por el build, espera el aviso de actualización y pulsa **Actualizar ahora** con un borrador previamente guardado. Tras la recarga, el espacio vuelve a pedir la frase y conserva el borrador cifrado aun si se corta la red. Las dos revisiones usan los mismos archivos de aplicación y solo cambia el contenido del worker; este ensayo comprueba activación y continuidad del almacenamiento.
+
+El [ensayo manual entre dos releases](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/offline-two-release-rehearsal.yml) compila un commit anterior indicado por SHA y el commit actual como aplicaciones distintas. Instala la primera versión, guarda un borrador cifrado, publica la segunda en el mismo origen, confirma el aviso de actualización y verifica que el código nuevo abre el borrador sin red. El SHA anterior predeterminado es una revisión conocida del 11 de noviembre de 2026, pero se puede indicar otro commit anterior. Usa Chromium y datos sintéticos; no demuestra por sí mismo el despliegue de Vercel ni la conservación en dispositivos físicos.
+
 En el caso de reabrir un borrador, el modo `setOffline` de Playwright para Firefox rechazó incluso la navegación cacheada con `NS_ERROR_OFFLINE` en Windows. Ese escenario de Firefox corta las solicitudes de red ordinarias después de instalar el service worker y verifica que la API privada no responde; los demás escenarios mantienen la emulación de desconexión. Este ajuste de ensayo no acredita por sí solo una recarga con el Wi-Fi físico apagado.
 
 ## Preparación local de hallazgos
@@ -105,11 +115,13 @@ Los avances y comentarios de planes de acción preparados sin red también lleva
 
 Si un avance o comentario entra en **Conflicto de versión**, **Comparar con plan actual** consulta el plan vigente con la sesión y permisos actuales, y muestra el borrador local frente al estado y último cambio del servidor. Esta consulta no modifica el plan ni actualiza el borrador. La persona revisa la diferencia y decide si prepara uno nuevo o borra el anterior; no se fusionan datos automáticamente. Sin conexión, el botón queda deshabilitado.
 
-Los roles que pueden registrar hallazgos pueden preparar un borrador con título y descripción a partir de un control insuficiente y un riesgo asociado incluidos en copias locales vigentes de **Controles** y **Riesgos**. El borrador se cifra en el espacio de la cuenta y no crea todavía un registro. En el caso de Auditor, la lista local solo ofrece riesgos donde aparece como responsable; el backend sigue siendo quien decide los permisos definitivos.
+Los roles que pueden registrar hallazgos pueden preparar un borrador con título, descripción, causa raíz y severidad a partir de un control insuficiente y un riesgo asociado incluidos en copias locales vigentes de **Controles** y **Riesgos**. El borrador se cifra en el espacio de la cuenta y no crea todavía un registro. En el caso de Auditor, la lista local solo ofrece riesgos donde aparece como responsable; el backend sigue siendo quien decide los permisos definitivos. Los borradores anteriores que no tengan causa raíz o severidad permanecen visibles, pero no se envían: debe prepararse otro con los campos vigentes. Si el envío antiguo quedó sin confirmación, se revisan primero los Hallazgos del servidor para evitar duplicados.
 
 Tras recuperar conexión, **Registrar hallazgo** consulta controles, riesgos y hallazgos actuales. Si cambió el número de evaluaciones del control, la relación o ya hay un hallazgo para esa evaluación, detiene el envío y pide revisión. Si la respuesta de creación es incierta, etiqueta el borrador **Confirmación pendiente** y evita reintentos automáticos. El backend recibe además la versión de evaluación observada al guardar el borrador y la verifica de nuevo justo al crear. La consulta previa no sustituye esa comprobación del servidor. No se modifican aprobaciones ni estados de hallazgos sin red.
 
 Cada envío de un hallazgo local lleva como `Idempotency-Key` el ID aleatorio del borrador. El backend solo devuelve un hallazgo ya creado con esa clave a la misma cuenta y si coinciden control, riesgo, título, descripción y versión observada. Una clave reutilizada con otros datos se rechaza. Ante **Confirmación pendiente**, la persona puede pulsar **Comprobar o reintentar hallazgo**: se repite explícitamente la misma operación. Si ya se había guardado, se recupera su respuesta; si no, el servidor vuelve a comprobar permisos, relación y versión antes de crearla. Un conflicto permanece visible y no se sobrescribe.
+
+Para un hallazgo en **Conflicto de versión**, **Comparar contexto actual** consulta de nuevo los controles, riesgos y hallazgos visibles para la sesión vigente. Muestra la versión de evaluación, relación y coincidencias visibles frente al borrador original, sin escribir nada ni alterar el borrador. La ausencia de una coincidencia visible no prueba que no exista un registro fuera del ámbito de la cuenta. La persona debe revisar Hallazgos antes de decidir si prepara otro borrador.
 
 ### Límites conocidos
 

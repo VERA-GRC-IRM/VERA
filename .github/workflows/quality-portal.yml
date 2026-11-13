@@ -8,9 +8,13 @@ on:
       - CodeQL
       - VERA — Informe integral de calidad (navegadores diferidos)
       - AI continuous evaluation
+      - VERA · Demostración Excel, Power BI y Teams
       - Preview role acceptance
       - Production smoke
       - Local Supabase migration and restore rehearsal
+      - Offline mode rehearsal
+      - Offline browser matrix
+      - Offline upgrade across releases
     types: [completed]
     branches: [main]
   push:
@@ -47,6 +51,9 @@ jobs:
           ref: main
           persist-credentials: false
 
+      - name: Verify current and historical integration states
+        run: python3 -m unittest discover -s scripts/tests -p 'test_quality_portal_integrations.py'
+
       - name: Generate read-only quality portal
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -58,8 +65,25 @@ jobs:
       - name: Upload static portal
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
+          name: github-pages-${{ github.run_attempt }}
           path: ${{ runner.temp }}/vera-quality-portal
+
+      - name: Wait until Pages artifact is visible
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAGES_ARTIFACT_NAME: github-pages-${{ github.run_attempt }}
+        run: |
+          for attempt in {1..15}; do
+            if gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" --jq '.artifacts[].name' | grep -Fxq "$PAGES_ARTIFACT_NAME"; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Pages artifact was not visible in the Actions API after 30 seconds" >&2
+          exit 1
 
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}

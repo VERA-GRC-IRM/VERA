@@ -24,3 +24,19 @@
 .evidence-ai-citations a { display: inline-flex; align-items: center; gap: 4px; color: light-dark(#126879, var(--vera-accent)); font-size: 12px; }
 .evidence-ai-citations blockquote { margin: 5px 0 0; padding-left: 9px; border-left: 2px solid light-dark(#b9dfd5, var(--vera-accent)); color: light-dark(#52636d, var(--vera-text-muted)); font-size: 12px; overflow-wrap: anywhere; }
 .evidence-ai-note { margin: 15px 0 0; line-height: 1.4; }
+.evidence-drop-zone { border: 1px dashed light-dark(#a8c6ca, var(--vera-border)); border-radius: 10px; padding: 12px; background: light-dark(#f8fbfb, var(--vera-accent-soft)); }
+.evidence-drop-zone.dragging { border-color: var(--vera-accent); box-shadow: inset 0 0 0 1px var(--vera-accent); }
+.evidence-drop-zone small { display: block; margin-top: 7px; color: light-dark(#52636d, var(--vera-text-muted)); overflow-wrap: anywhere; }
+.evidence-upload-status { display: grid; gap: 5px; margin: 10px 0; color: light-dark(#315463, var(--vera-accent)); font-size: 12px; }
+.evidence-upload-status progress { width: 100%; height: 9px; accent-color: var(--vera-accent); }
+.evidence-batch-list { display: grid; gap: 6px; max-height: 150px; overflow: auto; margin: 12px 0; padding: 0; list-style: none; }
+.evidence-batch-list li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 9px; border: 1px solid var(--vera-border); border-radius: 7px; background: var(--vera-surface); font-size: 12px; overflow-wrap: anywhere; }
+.evidence-batch-list small { flex: 0 0 auto; color: var(--vera-text-muted); }
+.evidence-view-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin: -5px 0 16px; }
+.evidence-view-actions small { align-self: center; color: var(--vera-text-muted); }
+.evidence-revision-upload { display: inline-block; position: relative; margin: 8px 0; padding: 7px 10px; border: 1px solid var(--vera-border); border-radius: 8px; color: var(--vera-accent); font-size: 12px; font-weight: 650; cursor: pointer; }
+.evidence-revision-upload input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.evidence-revision-upload:focus-within { outline: 2px solid var(--vera-accent); outline-offset: 2px; }
+.evidence-version-history { margin: 6px 0 10px; font-size: 12px; color: var(--vera-text-muted); }
+.evidence-version-history summary { cursor: pointer; color: var(--vera-accent); }
+.evidence-version-history li { margin: 6px 0; }

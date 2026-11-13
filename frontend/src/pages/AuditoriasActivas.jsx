@@ -5,6 +5,7 @@ import { uploadEvidenceFile, getEvidenceDownloadUrl } from "../services/evidence
 import Sidebar from "../components/Sidebar";
 import AssistantDrawer from "../components/AssistantDrawer";
 import PlanningHistoryButton from "../components/PlanningHistoryButton";
+import ShareLinkButton from "../components/ShareLinkButton";
 import EditAuditModal from "../components/EditAuditModal";
 import AuditRisksPanel from "../components/AuditRisksPanel";
 import { CONTROL_MANAGE_ROLES, PLANNING_APPROVE_ROLES, RISK_CONTROL_MANAGE_ROLES, RISK_FACTORS } from "../constants/planning";
@@ -244,7 +245,8 @@ function AuditoriasActivas() {
       frequency: control.frequency,
       ownerId: control.ownerId == null ? "" : String(control.ownerId),
       riskIds: control.riskIds || [],
-      expectedStorageVersion: control.storageVersion
+      expectedStorageVersion: control.storageVersion,
+      expectedUpdatedAt: control.updatedAt
     });
     setError("");
     setMessage("");
@@ -321,7 +323,8 @@ function AuditoriasActivas() {
       const updated = await updateControl(control.id, {
         ...controlEditForm,
         ownerId: Number(controlEditForm.ownerId),
-        ...(control.storageVersion !== undefined ? { expectedStorageVersion: control.storageVersion } : {})
+        ...(control.storageVersion !== undefined ? { expectedStorageVersion: control.storageVersion } : {}),
+        ...(control.updatedAt !== undefined ? { expectedUpdatedAt: control.updatedAt } : {})
       });
       setControls((current) => current.map((item) => item.id === updated.id ? updated : item));
       replaceAuditContextRecord("controls", updated);
@@ -584,9 +587,17 @@ function AuditoriasActivas() {
                     </div>
                   </div>
                   <div className="planning-card-actions" onClick={(event) => event.stopPropagation()}>
-                    {canManage && <button type="button" onClick={() => runTransition(audit.id, closeAudit, "Auditoría cerrada.")} disabled={busyId === audit.id}>
-                      <CheckCircle2 size={16} aria-hidden="true" />{busyId === audit.id ? "Guardando..." : "Cerrar auditoría"}
-                    </button>}
+                    <ShareLinkButton path={"/auditorias-activas/" + encodeURIComponent(audit.id)} />
+                    {canManage && audit.status === "ACTIVE" && audit.workflowStep === "closure" && (
+                      <button
+                        type="button"
+                        onClick={() => runTransition(audit.id, closeAudit, "Auditoría cerrada.")}
+                        disabled={busyId === audit.id}
+                      >
+                        <CheckCircle2 size={16} aria-hidden="true" />
+                        {busyId === audit.id ? "Guardando..." : "Cerrar auditoría"}
+                      </button>
+                    )}
                     {editButton(audit)}
                     <PlanningHistoryButton proposal={audit} />
                   </div>
@@ -612,6 +623,7 @@ function AuditoriasActivas() {
                     <p>{audit.area} · Riesgo {riskFor(audit.likelihood ?? 2, audit.impact ?? 2)}</p>
                   </div>
                   <div className="planning-card-actions">
+                    <ShareLinkButton path={"/auditorias?auditId=" + encodeURIComponent(audit.id)} />
                     {canManage && <button type="button" onClick={() => runTransition(audit.id, startAudit, "Auditoría iniciada y visible en la matriz.")} disabled={busyId === audit.id}>
                       <Play size={16} aria-hidden="true" />{busyId === audit.id ? "Guardando..." : "Iniciar auditoría"}
                     </button>}

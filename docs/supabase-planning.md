@@ -20,6 +20,12 @@ Si las tablas `vera_audit_proposals` o `logins` ya se crearon manualmente, prime
 
 ## Acciones de seguimiento
 
+La migración `20261112010000_create_user_workspace.sql` prepara una tabla privada versionada para favoritos, vistas y recientes entre dispositivos. La activación sigue pendiente por decisión del equipo. Consulta [Tu espacio](product/personal-workspace.md) para el orden de banderas y la aceptación requerida. No actives el frontend antes de aplicar y comprobar la migración en el proyecto correcto.
+
+La migración `20261112020000_create_report_jobs.sql` añade la cola privada de reportes y una función de reclamo atómico. Su activación también permanece pendiente. Consulta [Centro de trabajos](product/durable-jobs.md) para el procesador, su secreto, programación y pruebas antes de ofrecer esta opción a usuarios.
+
+La migración `20261112030000_create_push_subscriptions.sql` prepara suscripciones push privadas y deduplicación de entregas. No está aplicada en Production. Consulta [Avisos opcionales](product/desktop-alerts.md) para la secuencia de activación, claves VAPID y aceptación real con la aplicación cerrada.
+
 El directorio organizativo opcional tiene una [guía y migración independientes](grc-domain/org-directory.md). Su tabla vacía no reasigna los registros históricos y no activa por sí sola una vista multiempresa.
 
 Las acciones de seguimiento usan la [migración y reglas propias](action-register.md). Cuando el almacén de evidencias y comentarios está en Supabase, también se consultan allí; aplica esa migración antes de publicar rutas o pantallas que dependan de acciones. La lectura, el responsable y los cambios de estado se autorizan en la API sobre cada registro de origen.

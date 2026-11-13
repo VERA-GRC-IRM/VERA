@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import {
   BrowserRouter,
   Navigate,
@@ -6,37 +6,47 @@ import {
   Route
 } from "react-router-dom";
 
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Usuarios from "./pages/Usuarios";
-import MiRol from "./pages/MiRol";
-import Registro from "./pages/Registro";
-import BuscarAuditorias from "./pages/BuscarAuditorias";
-import PublicOverview from "./pages/PublicOverview";
-import PublicSolutions from "./pages/PublicSolutions";
-import PublicTrust from "./pages/PublicTrust";
-import PublicTechnology from "./pages/PublicTechnology";
-import PrivacyNotice from "./pages/PrivacyNotice";
-import Planificacion from "./pages/Planificacion";
-import AuditoriasActivas from "./pages/AuditoriasActivas";
-import CommitteeDossier from "./pages/CommitteeDossier";
-import Riesgos from "./pages/Riesgos";
-import BibliotecaRiesgos from "./pages/BibliotecaRiesgos";
-import BusinessContext from "./pages/BusinessContext";
-import Controles from "./pages/Controles";
-import Notificaciones from "./pages/Notificaciones";
-import ActividadReciente from "./pages/ActividadReciente";
-import Asistente from "./pages/Asistente";
-import AiQuality from "./pages/AiQuality";
-import Evidencias from "./pages/Evidencias";
-import MetodosRiesgo from "./pages/MetodosRiesgo";
-import OfflineWorkspace from "./pages/OfflineWorkspace";
-import OfflineReport from "./pages/OfflineReport";
-import Trimestres, { TrimestreDetalle } from "./pages/Trimestres";
+import { routeLoaders } from "./routeLoaders";
+
+const Login = lazy(routeLoaders.login);
+const Dashboard = lazy(routeLoaders.dashboard);
+const Usuarios = lazy(routeLoaders.usuarios);
+const MiRol = lazy(routeLoaders.miRol);
+const Registro = lazy(routeLoaders.registro);
+const BuscarAuditorias = lazy(routeLoaders.buscarAuditorias);
+const Trabajos = lazy(routeLoaders.trabajos);
+const PublicOverview = lazy(routeLoaders.publicOverview);
+const PublicSolutions = lazy(routeLoaders.publicSolutions);
+const PublicTrust = lazy(routeLoaders.publicTrust);
+const PublicTechnology = lazy(routeLoaders.publicTechnology);
+const PrivacyNotice = lazy(routeLoaders.privacyNotice);
+const Planificacion = lazy(routeLoaders.planificacion);
+const AuditoriasActivas = lazy(routeLoaders.auditoriasActivas);
+const CommitteeDossier = lazy(routeLoaders.committeeDossier);
+const Riesgos = lazy(routeLoaders.riesgos);
+const BibliotecaRiesgos = lazy(routeLoaders.bibliotecaRiesgos);
+const BusinessContext = lazy(routeLoaders.businessContext);
+const Controles = lazy(routeLoaders.controles);
+const Notificaciones = lazy(routeLoaders.notificaciones);
+const ActividadReciente = lazy(routeLoaders.actividadReciente);
+const Asistente = lazy(routeLoaders.asistente);
+const AiQuality = lazy(routeLoaders.aiQuality);
+const Evidencias = lazy(routeLoaders.evidencias);
+const MetodosRiesgo = lazy(routeLoaders.metodosRiesgo);
+const loadOfflineRoutes = routeLoaders.offlineRoutes;
+const OfflineWorkspace = lazy(loadOfflineRoutes);
+const OfflineReport = lazy(() => loadOfflineRoutes().then(({ OfflineReport: report }) => ({ default: report })));
+const loadTrimestres = routeLoaders.trimestres;
+const Trimestres = lazy(loadTrimestres);
+const TrimestreDetalle = lazy(() => loadTrimestres().then(({ TrimestreDetalle: detail }) => ({ default: detail })));
 import ProtectedRoute from "./components/ProtectedRoute";
 import AssistantConversationProvider from "./contexts/AssistantConversationProvider";
 import ConnectivityStatus from "./components/ConnectivityStatus";
 import PwaUpdateNotice from "./components/PwaUpdateNotice";
+import DesktopAlerts from "./components/DesktopAlerts";
+import WorkspaceSync from "./components/WorkspaceSync";
+import RouteLoading from "./components/RouteLoading";
+import RouteTitle from "./components/RouteTitle";
 import { ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "./constants/roles";
 
 
@@ -50,9 +60,13 @@ function App() {
   }, []);
   return (
     <BrowserRouter>
+      <RouteTitle />
       <ConnectivityStatus />
       <PwaUpdateNotice />
+      <DesktopAlerts />
+      <WorkspaceSync />
       <AssistantConversationProvider>
+        <Suspense fallback={<RouteLoading />}>
         <Routes>
 
           <Route
@@ -70,6 +84,8 @@ function App() {
           />
 
           <Route path="/registro" element={<Registro />} />
+          {import.meta.env.VITE_VERA_JOBS_ENABLED === "true" &&
+            <Route path="/trabajos" element={<ProtectedRoute><Trabajos /></ProtectedRoute>} />}
           <Route path="/acerca" element={<PublicOverview />} />
           <Route path="/soluciones" element={<PublicSolutions />} />
           <Route path="/confianza" element={<PublicTrust />} />
@@ -161,6 +177,7 @@ function App() {
           />
 
         </Routes>
+        </Suspense>
       </AssistantConversationProvider>
     </BrowserRouter>
   );

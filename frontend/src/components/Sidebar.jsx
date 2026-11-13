@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
   BellRing,
@@ -21,14 +21,19 @@ import {
   SunMoon,
   UserCog,
   UserRoundPen,
+  ListTodo,
   X
 } from "lucide-react";
 import { ROLE_LABELS, ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "../constants/roles";
 import { managedAuth } from "../services/managedAuth";
 import { clearRoleTourSession, startRoleTour } from "../services/roleTour";
 import { lockOfflineVault } from "../services/offlineVault";
+import { disablePush } from "../services/pushService";
+import { recordVisit } from "../services/personalWorkspace";
 import ThemeControl from "./ThemeControl";
 import GlobalSearch from "./GlobalSearch";
+import { cancelViewChange, requestViewChange } from "../hooks/useUnsavedChanges";
+import { prefetchNavigation } from "../routeLoaders";
 import "../pages/Dashboard.css";
 import "./Sidebar.css";
 
@@ -36,6 +41,12 @@ const ICON_SIZE = 20;
 const ICON_STROKE = 1.75;
 const PREVIEW_ROLES = ["AUDITOR", "JEFATURA", "GERENTE", "DIRECTOR"];
 const NAV_STORAGE_KEY = "vera:navigation-collapsed";
+const RECENT_LABELS = {
+  "/dashboard": "Panel de Portafolio", "/mapa-negocio": "Mapa del negocio", "/planificacion": "Planificación",
+  "/auditorias": "Buscar auditorías", "/auditorias-activas": "Auditorías activas", "/riesgos": "Riesgos",
+  "/controles": "Controles", "/evidencias": "Evidencias", "/notificaciones": "Pendientes",
+  "/asistente": "Asistente de IA", "/sin-conexion": "Sin conexión", "/trabajos": "Centro de trabajos"
+};
 const OFFLINE_SECTIONS_BY_VIEW = {
   dashboard: "dashboard", planificacion: "planning", "auditorias-activas": "activeAudits",
   riesgos: "risks", controles: "controls", notificaciones: "notifications", evidencias: "evidence"
@@ -43,7 +54,12 @@ const OFFLINE_SECTIONS_BY_VIEW = {
 
 function Sidebar({ active }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = JSON.parse(localStorage.getItem("user") || "null");
+  useEffect(() => {
+    if (user?.id && !user.roleTour) recordVisit(user.id, location.pathname,
+      RECENT_LABELS[location.pathname] || (location.pathname.startsWith("/auditorias-activas/") ? "Auditoría" : "Sección de VERA"));
+  }, [user?.id, user?.roleTour, location.pathname]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 750px)").matches);
   const [collapsed, setCollapsed] = useState(() => {
@@ -87,10 +103,11 @@ function Sidebar({ active }) {
 
   const openPreviewRole = async (role) => {
     if (tourLoading) return;
+    if (!requestViewChange({ hardNavigation: true })) return;
     setTourLoading(true);
     setTourError("");
     try { await startRoleTour(role); }
-    catch (error) { setTourError(error.message); setTourLoading(false); }
+    catch (error) { cancelViewChange(); setTourError(error.message); setTourLoading(false); }
   };
 
   const revealAppearance = () => {
@@ -100,7 +117,11 @@ function Sidebar({ active }) {
   };
 
   const logout = async () => {
+    if (!requestViewChange()) return;
     lockOfflineVault();
+    if (import.meta.env.VITE_VERA_PUSH_ENABLED === "true") {
+      try { await disablePush(); } catch { /* Se cierra la sesión aun si no hay navegador push. */ }
+    }
     try { if (managedAuth) await managedAuth.auth.signOut(); }
     catch { /* Local VERA logout still proceeds if the identity provider is unavailable. */ }
     localStorage.removeItem("token");
@@ -123,6 +144,8 @@ function Sidebar({ active }) {
     { id: "controles", label: "Mapa de controles", Icon: ClipboardCheck, path: "/controles" },
     { id: "notificaciones", label: "Pendientes", Icon: BellRing, path: "/notificaciones" },
     { id: "actividad", label: "Actividad reciente", Icon: Activity, path: "/actividad" },
+    ...(import.meta.env.VITE_VERA_JOBS_ENABLED === "true" && !user?.roleTour
+      ? [{ id: "trabajos", label: "Centro de trabajos", Icon: ListTodo, path: "/trabajos" }] : []),
     { id: "asistente", label: "Asistente de IA", Icon: Bot, path: "/asistente" },
     ...(canSeeAuditLog ? [{ id: "calidad-ia", label: "Calidad de IA", Icon: ChartNoAxesCombined, path: "/calidad-ia" }] : []),
     { id: "evidencias", label: "Evidencias", Icon: Files, path: "/evidencias" },
@@ -132,12 +155,16 @@ function Sidebar({ active }) {
   ];
   const groups = [
     { label: "Portafolio y auditorías", ids: ["dashboard", "business-context", "planificacion", "trimestres", "auditorias-activas"] },
-    { label: "Seguimiento", ids: ["notificaciones", "actividad"] },
+    { label: "Seguimiento", ids: ["notificaciones", "actividad", "trabajos"] },
     { label: "Asistencia", ids: ["asistente", "calidad-ia"] },
     { label: "Cuenta y administración", ids: ["offline", "mi-rol", "usuarios"] }
   ].map((group) => ({ ...group, items: group.ids.map((id) => items.find((item) => item.id === id)).filter(Boolean) }));
   const previewRoles = user?.role === "SUPER_ADMIN" ? PREVIEW_ROLES.map((role) => ({ role, label: ROLE_LABELS[role] })) : [];
-  const goTo = (path) => { navigate(path); setMobileOpen(false); };
+  const goTo = (path) => {
+    if (!requestViewChange()) return false;
+    navigate(path); setMobileOpen(false);
+    return true;
+  };
 
   return (
     <>
@@ -193,6 +220,7 @@ function Sidebar({ active }) {
               <h3 className="nav-group-title">{group.label}</h3>
               {group.items.map(({ id, label, Icon, path }) => <button type="button" key={id}
                 className={`nav-item${active === id ? " active" : ""}`}
+                onPointerEnter={() => prefetchNavigation(path)} onFocus={() => prefetchNavigation(path)}
                 onClick={() => goTo(path)} aria-label={label} aria-current={active === id ? "page" : undefined}
                 title={collapsed && !isMobile ? label : undefined}>
                 <Icon size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />

@@ -171,3 +171,28 @@ test("an encrypted backup can be restored in a separate mobile browser context w
   }
   await expect(page.getByText("Nota portátil")).toBeVisible();
 });
+
+test("a version 1 encrypted backup remains readable after a later application build", async ({ page, context, browserName }) => {
+  const buffer = await readFile(new URL("./fixtures/offline-vault-v1.json", import.meta.url));
+  expect(buffer.toString("utf8")).not.toContain("Nota histórica sintética");
+  await prepare(page, 706);
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await context.setOffline(true);
+  await page.getByLabel("Archivo de copia").setInputFiles({
+    name: "offline-vault-v1.json", mimeType: "application/json", buffer
+  });
+  await page.getByLabel("Frase local original").fill("Frase sintética para compatibilidad VERA 2026");
+  await page.getByRole("button", { name: "Restaurar copia" }).click();
+  await expect(page.getByText("Nota histórica sintética")).toBeVisible();
+  if (browserName === "firefox") {
+    // Firefox rejects even cached navigations under Playwright's forced-offline mode.
+    await context.setOffline(false);
+    await page.route("**/*", (route) => route.abort("internetdisconnected"));
+  }
+  await page.reload();
+  await page.getByLabel("Frase local", { exact: true }).fill("Frase sintética para compatibilidad VERA 2026");
+  await page.getByRole("button", { name: "Desbloquear" }).click();
+  await expect(page.getByText("Nota histórica sintética")).toBeVisible();
+});

@@ -1,12 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import ShareLinkButton from "../components/ShareLinkButton";
+import { BookmarkButton, SaveViewButton } from "../components/WorkspaceActions";
+import { emptyAuditFilters, readAuditFilters, writeAuditFilters } from "../utils/auditSearchFilters";
 import { getAvailableOrgUnits } from "../services/orgUnitService";
 import { downloadPortfolioReport, getPortfolioReport, searchPlanningAudits } from "../services/planningService";
+import { enqueueReport } from "../services/jobService";
 import "./Planning.css";
 import "./BuscarAuditorias.css";
 
-const EMPTY = { q: "", status: "", risk: "", type: "", quarter: "", year: "", orgUnitId: "", responsibleId: "" };
+const EMPTY = emptyAuditFilters();
 const STATUS_LABELS = {
   OPEN: "Propuesta abierta", APPROVED: "Aprobada", ACTIVE: "En curso",
   CLOSED: "Cerrada", REJECTED: "Rechazada"
@@ -14,9 +18,12 @@ const STATUS_LABELS = {
 
 function BuscarAuditorias() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const workspaceUserId = user?.roleTour ? null : user?.id;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlQuery = searchParams.toString();
   const auditId = searchParams.get("auditId");
-  const [filters, setFilters] = useState(EMPTY);
+  const [filters, setFilters] = useState(() => readAuditFilters(searchParams));
   const [audits, setAudits] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,6 +31,10 @@ function BuscarAuditorias() {
   const [appliedFilters, setAppliedFilters] = useState(EMPTY);
   const [report, setReport] = useState(null);
   const [reportBusy, setReportBusy] = useState(false);
+  const [reportOperation, setReportOperation] = useState("");
+  const [reportStartedAt, setReportStartedAt] = useState(0);
+  const [reportElapsed, setReportElapsed] = useState(0);
+  const reportController = useRef(null);
   const [orgUnits, setOrgUnits] = useState([]);
 
   const load = async (next) => {
@@ -43,34 +54,62 @@ function BuscarAuditorias() {
   useEffect(() => {
     getAvailableOrgUnits().then(setOrgUnits).catch(() => setOrgUnits([]));
   }, []);
+  useEffect(() => {
+    if (!reportBusy) return undefined;
+    const timer = setInterval(() => setReportElapsed(Math.floor((Date.now() - reportStartedAt) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [reportBusy, reportStartedAt]);
+  useEffect(() => () => reportController.current?.abort(), []);
 
   useEffect(() => {
     let cancelled = false;
-    searchPlanningAudits({ ...EMPTY, q: auditId || "" })
+    const next = readAuditFilters(new URLSearchParams(urlQuery));
+    const applied = auditId ? { ...next, q: auditId } : next;
+    searchPlanningAudits(applied)
       .then((results) => {
         if (cancelled) return;
         setAudits(results);
-        setFilters({ ...EMPTY, q: auditId || "" });
-        setAppliedFilters({ ...EMPTY, q: auditId || "" });
+        setFilters(applied);
+        setAppliedFilters(applied);
         setSelected(auditId ? results.find((audit) => audit.id === auditId) || null : null);
       })
       .catch((cause) => { if (!cancelled) setError(cause.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [auditId]);
+  }, [auditId, urlQuery]);
 
   const update = (field) => (event) => setFilters((current) => ({ ...current, [field]: event.target.value }));
-  const submit = (event) => { event.preventDefault(); setSelected(null); load(filters); };
-  const clear = () => { setFilters(EMPTY); setSelected(null); load(EMPTY); };
+  const showFilters = (next) => {
+    setSelected(null);
+    const params = writeAuditFilters(next);
+    if (params.toString() === urlQuery) load(next);
+    else setSearchParams(params);
+  };
+  const submit = (event) => { event.preventDefault(); showFilters(filters); };
+  const clear = () => { setFilters(EMPTY); showFilters(EMPTY); };
+  const beginReport = (label) => {
+    reportController.current = new AbortController();
+    setReportStartedAt(Date.now()); setReportElapsed(0); setReportOperation(label); setReportBusy(true);
+    return reportController.current.signal;
+  };
+  const finishReport = () => { reportController.current = null; setReportBusy(false); setReportOperation(""); };
+  const reportError = (cause) => setError(cause.name === "AbortError" ? "Operación cancelada." : cause.message);
   const openReport = async () => {
-    setReportBusy(true);
-    try { setReport(await getPortfolioReport(appliedFilters)); setError(""); }
-    catch (cause) { setError(cause.message); }
-    finally { setReportBusy(false); }
+    const signal = beginReport("Preparando vista del reporte");
+    try { setReport(await getPortfolioReport(appliedFilters, { signal })); setError(""); }
+    catch (cause) { reportError(cause); }
+    finally { finishReport(); }
   };
   const exportReport = async (format) => {
+    const signal = beginReport(`Preparando ${format.toUpperCase()}`);
+    try { await downloadPortfolioReport(appliedFilters, format, { signal }); setError(""); }
+    catch (cause) { reportError(cause); }
+    finally { finishReport(); }
+  };
+  const queueReport = async (format) => {
+    setError("");
     setReportBusy(true);
-    try { await downloadPortfolioReport(appliedFilters, format); setError(""); }
+    try { await enqueueReport(appliedFilters, format); navigate("/trabajos"); }
     catch (cause) { setError(cause.message); }
     finally { setReportBusy(false); }
   };
@@ -83,6 +122,8 @@ function BuscarAuditorias() {
           <div className="dashboard-header">
             <div><span className="eyebrow">HU-26 · CONSULTA DEL PORTAFOLIO</span><h1>Buscar auditorías</h1>
               <p>Consulta propuestas y auditorías según los permisos de tu cuenta.</p></div>
+            <ShareLinkButton path={`/auditorias${urlQuery ? `?${urlQuery}` : ""}`} label="Copiar vista" />
+            <SaveViewButton userId={workspaceUserId} path={`/auditorias${urlQuery ? `?${urlQuery}` : ""}`} defaultName="Búsqueda de auditorías" />
           </div>
           <form className="audit-search-form" onSubmit={submit} aria-label="Filtros de auditorías">
             <label>Búsqueda por ID, nombre, área, objetivo o responsable
@@ -113,13 +154,22 @@ function BuscarAuditorias() {
           </form>
           {error && <p className="planning-message error" role="alert">{error}</p>}
           <p role="status" aria-live="polite">{loading ? "Buscando auditorías…" : `${audits.length} resultado(s)`}</p>
-          {!loading && audits.length === 0 && <div className="planning-empty">No hay auditorías visibles que coincidan con los filtros.</div>}
+          {!loading && audits.length === 0 && <div className="planning-empty"><p>{Object.values(appliedFilters).some(Boolean) ? "No hay auditorías visibles que coincidan con los filtros." : "Aún no hay auditorías visibles para esta cuenta."}</p>{Object.values(appliedFilters).some(Boolean) && <button type="button" className="secondary-action" onClick={clear}>Limpiar filtros</button>}</div>}
           <div className="audit-report-actions">
             <div><h2>Reporte del portafolio</h2><p>Incluye auditorías y sus riesgos, controles, hallazgos y evidencias vinculadas, según tu acceso. Usa los últimos filtros aplicados.</p></div>
             <button className="secondary-action" type="button" onClick={openReport} disabled={loading || reportBusy}>Ver reporte</button>
             <button className="secondary-action" type="button" onClick={() => exportReport("csv")} disabled={loading || reportBusy}>Descargar CSV</button>
+            <button className="secondary-action" type="button" onClick={() => exportReport("xlsx")} disabled={loading || reportBusy}>Descargar Excel</button>
             <button className="secondary-action" type="button" onClick={() => exportReport("pdf")} disabled={loading || reportBusy}>Descargar PDF</button>
+            {import.meta.env.VITE_VERA_JOBS_ENABLED === "true" && <>
+              <button className="secondary-action" type="button" onClick={() => queueReport("csv")}
+                disabled={loading || reportBusy}>Preparar CSV en segundo plano</button>
+              <button className="secondary-action" type="button" onClick={() => queueReport("pdf")}
+                disabled={loading || reportBusy}>Preparar PDF en segundo plano</button>
+            </>}
+            {reportBusy && <button className="secondary-action" type="button" onClick={() => reportController.current?.abort()}>Cancelar</button>}
           </div>
+          {reportBusy && <p className="audit-report-progress" role="status" aria-live="polite">{reportOperation} · {reportElapsed} s. Puedes cancelar mientras se prepara.</p>}
           {report && <section className="audit-report-panel" aria-label="Reporte del portafolio">
             <p role="status">{report.total} expediente(s) · {report.scope} · Actualizado: {new Date(report.asOf).toLocaleString("es-MX")}</p>
             <p>Indicadores: {report.indicators.audits} auditorías · {report.indicators.risks} riesgos · {report.indicators.controls} controles · {report.indicators.findings} hallazgos · {report.indicators.evidence} evidencias.</p>
@@ -142,6 +192,8 @@ function BuscarAuditorias() {
               <p>{audit.area} · {audit.year} · {audit.quarter || "Sin trimestre"} · Riesgo {audit.risk}</p>
               <p>Responsable: {audit.responsible || "Sin asignar"}</p>
               <button type="button" className="secondary-action" onClick={() => setSelected(audit)}>Ver detalles</button>
+              <ShareLinkButton path={`/auditorias?auditId=${encodeURIComponent(audit.id)}`} />
+              <BookmarkButton userId={workspaceUserId} path={`/auditorias?auditId=${encodeURIComponent(audit.id)}`} label={`Auditoría ${audit.id}`} />
               {audit.status === "ACTIVE" && <button type="button" className="secondary-action" onClick={() => navigate(`/auditorias-activas/${encodeURIComponent(audit.id)}`)}>Abrir auditoría</button>}
             </article>)}
           </div>

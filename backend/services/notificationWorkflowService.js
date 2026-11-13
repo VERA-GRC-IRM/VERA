@@ -1,8 +1,9 @@
 const planningRepository = require("../repositories/planningRepository");
 const evidenceRepository = require("../repositories/evidenceRepository");
+const actionRepository = require("../repositories/actionRepository");
 const readRepository = require("../repositories/notificationReadRepository");
 const userRepository = require("../repositories/userRepository");
-const { listActions } = require("./actionService");
+const { visibleActionsFromGroups } = require("./actionService");
 const { buildNotifications } = require("./notificationService");
 const { logActivity } = require("./auditLogger");
 const { RECORD_CREATE_ROLES } = require("../config/roles");
@@ -19,16 +20,22 @@ const activeUser = async (user) => {
 
 const visibleNotifications = async (user, offsetMinutes = 0) => {
   await activeUser(user);
-  const proposals = await filterByVisibleScope(user, await planningRepository.getAll());
-  const groups = await visibleCollectionsForUser(user);
+  const [proposals, groups, allEvidence, actionResult] = await Promise.all([
+    Promise.resolve().then(() => planningRepository.getAll()).then((items) => filterByVisibleScope(user, items)),
+    visibleCollectionsForUser(user),
+    evidenceRepository.getAll(),
+    Promise.resolve().then(() => actionRepository.getAll()).then((actions) => ({ actions }), () => ({ unavailable: true }))
+  ]);
   const visibleIds = Object.fromEntries(Object.entries(groups).map(([type, items]) =>
     [type, new Set(items.map((item) => item.id))]));
-  const evidence = (await evidenceRepository.getAll()).filter((item) =>
+  const evidence = allEvidence.filter((item) =>
     visibleIds[item.entityType]?.has(item.entityId));
   let actions = [];
-  let actionAlertsAvailable = true;
-  try { actions = await listActions(user); }
-  catch { actionAlertsAvailable = false; }
+  let actionAlertsAvailable = !actionResult.unavailable;
+  if (actionAlertsAvailable) {
+    try { actions = visibleActionsFromGroups(actionResult.actions, groups); }
+    catch { actionAlertsAvailable = false; }
+  }
   const current = buildNotifications({ proposals, actions, risks: groups.RISK,
     controls: groups.CONTROL, findings: groups.FINDING, evidence, user, offsetMinutes });
   const reads = new Map((await readRepository.syncForUser(user.id, current))

@@ -1,12 +1,23 @@
 const API_URL = "/api/auth";
 
+const parseAuthResponse = async (response) => {
+  if (!response.headers.get("content-type")?.includes("application/json")) {
+    throw new Error("El servicio de acceso no está disponible. Intenta de nuevo en unos minutos.");
+  }
+  try {
+    return await response.json();
+  } catch {
+    throw new Error("El servicio de acceso no está disponible. Intenta de nuevo en unos minutos.");
+  }
+};
+
 export const verify2FA = async (tempToken, code) => {
   const response = await fetch(`${API_URL}/verify-2fa`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ tempToken, code })
   });
-  const data = await response.json();
+  const data = await parseAuthResponse(response);
   if (!response.ok) throw new Error(data.message || "Código incorrecto");
   return data;
 };
@@ -23,7 +34,7 @@ export const loginUser = async (username, password) => {
     })
   });
 
-  const data = await response.json();
+  const data = await parseAuthResponse(response);
 
   if (!response.ok) {
     const error = new Error(data.message || "Error al iniciar sesión");
@@ -42,7 +53,7 @@ export const registerUser = async ({ name, email, password, privacyAccepted, pri
     body: JSON.stringify({ name, email, password, privacyAccepted, privacyNoticeVersion })
   });
 
-  const data = await response.json();
+  const data = await parseAuthResponse(response);
 
   if (!response.ok) {
     throw new Error(data.message || "No se pudo crear la cuenta.");
@@ -56,7 +67,7 @@ export const startPasswordMfaEnrollment = async (setupToken) => {
     method: "POST",
     headers: { Authorization: `Bearer ${setupToken}` }
   });
-  const data = await response.json();
+  const data = await parseAuthResponse(response);
   if (!response.ok) throw new Error(data.message || "No se pudo preparar el doble factor.");
   return data;
 };
@@ -67,7 +78,7 @@ export const finishPasswordMfaEnrollment = async (setupToken, code) => {
     headers: { Authorization: `Bearer ${setupToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({ code })
   });
-  const data = await response.json();
+  const data = await parseAuthResponse(response);
   if (!response.ok) throw new Error(data.message || "No se pudo activar el doble factor.");
   return data;
 };
@@ -78,7 +89,7 @@ export const exchangeManagedSession = async (accessToken, privacyAccepted = fals
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ accessToken, privacyAccepted, privacyNoticeVersion })
   });
-  const data = await response.json();
+  const data = await parseAuthResponse(response);
   if (!response.ok) {
     const error = new Error(data.message || "No se pudo verificar la identidad.");
     error.status = response.status;

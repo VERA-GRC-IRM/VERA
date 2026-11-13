@@ -1,0 +1,5 @@
+.share-link-control { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; max-width: 100%; }
+.share-link-button { display: inline-flex; align-items: center; gap: 6px; }
+.share-link-teams { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.share-link-control small { color: var(--vera-text-muted); }
+.share-link-control input { max-width: min(360px, 100%); color: var(--vera-text); background: var(--vera-surface); border: 1px solid var(--vera-border); border-radius: 6px; padding: 8px; }

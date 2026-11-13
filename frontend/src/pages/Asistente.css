@@ -116,8 +116,6 @@
 .assistant-drawer-header button { border: 0; background: transparent; color: light-dark(#243844, var(--vera-accent)); cursor: pointer; }
 .assistant-drawer .assistant-chat { flex: 1; min-height: 0; overflow-y: auto; }
 .assistant-drawer .assistant-suggestions { grid-template-columns: 1fr; }
-.assistant-quick-access { position: fixed; right: 22px; bottom: 22px; z-index: 5; display: inline-flex; align-items: center; gap: 9px; padding: 12px 16px; border: 0; border-radius: 999px; background: light-dark(#176c77, var(--vera-accent-strong)); color: light-dark(#fff, var(--vera-on-accent)); box-shadow: 0 7px 24px #14273145; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; }
-.assistant-quick-access:focus-visible { outline: 3px solid #0a9d91; outline-offset: 3px; }
 @media (max-width: 950px) { .assistant-layout { grid-template-columns: 1fr; }.assistant-about { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }.assistant-about h2:not(:first-child) { margin-top: 0; } }
 @media (max-width: 650px) { .assistant-page .dashboard-header { align-items: flex-start; flex-direction: column; }.assistant-chat { min-height: 500px; padding: 14px; }.assistant-suggestions,.assistant-dossier-sections { grid-template-columns: 1fr; }.assistant-dossier-header { align-items: flex-start; flex-direction: column; }.assistant-about { display: block; }.assistant-about h2:not(:first-child) { margin-top: 20px; }.assistant-message { max-width: 100%; } }
 
@@ -255,9 +253,8 @@
 .assistant-drawer-header { flex: 0 0 auto; margin: 0; padding: 15px 20px; border-bottom: 1px solid var(--vera-border); background: var(--vera-surface); }
 .assistant-drawer .assistant-chat { overflow: hidden; }
 .assistant-drawer .assistant-conversation { overflow: hidden; }
-.assistant-quick-access { background: var(--vera-accent-strong); color: var(--vera-on-accent); }
 .assistant-welcome-mark { display: block; width: 48px; height: 48px; margin: 0 auto; padding: 8px; border: 1px solid var(--vera-border); border-radius: 14px; background: #fff; }
-.assistant-quick-access img,.assistant-drawer-mark { display: inline-block; width: 23px; height: 23px; padding: 3px; border-radius: 7px; background: #fff; }
+.assistant-drawer-mark { display: inline-block; width: 23px; height: 23px; padding: 3px; border-radius: 7px; background: #fff; }
 @media (max-width: 1080px) {
   .assistant-chat--page.assistant-chat--history-open { position: relative; grid-template-columns: minmax(0, 1fr); }
   .assistant-chat--page.assistant-chat--history-open .assistant-history { position: absolute; z-index: 2; inset: 0 auto 0 0; width: min(306px, 86%); box-shadow: 12px 0 35px #07192335; }

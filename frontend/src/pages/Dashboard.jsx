@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Activity, ArrowRight, CheckCircle2, ClipboardList, RotateCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import PersonalWorkspace from "../components/PersonalWorkspace";
+import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
 import { getDashboardSummary } from "../services/dashboardService";
 import { getActions } from "../services/actionService";
 import { localDateAfter, localToday } from "../utils/localDate";
@@ -44,6 +46,7 @@ function Dashboard() {
     setActionsLoading(true);
     setRevision((current) => current + 1);
   };
+  useAutomaticRefresh(() => setRevision((current) => current + 1));
 
   useEffect(() => {
     let cancelled = false;
@@ -119,6 +122,7 @@ function Dashboard() {
                 <a href="#portfolio-analysis">Estado y riesgo</a>
                 <a href="#portfolio-priorities">Por atender</a>
               </nav>
+              <PersonalWorkspace userId={user?.roleTour ? null : user?.id} />
 
               <section id="portfolio-summary" className="dashboard-overview-section" aria-labelledby="dashboard-overview-title">
                 <div className="dashboard-section-heading">

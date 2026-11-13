@@ -42,6 +42,7 @@ test("Contexto compartido: el dossier y el expediente respetan el alcance del Au
   assert.equal(auditor.groups.controls[0].type, "DETECTIVE");
   assert.equal(auditor.groups.controls[0].ownerId, 5);
   assert.equal(auditor.groups.controls[0].storageVersion, ownControl.storageVersion);
+  assert.equal(auditor.groups.controls[0].updatedAt, ownControl.updatedAt);
   assert.equal(auditor.groups.findings[0].rootCause, "Falta una validación independiente en el proceso.");
   assert.equal(auditor.groups.findings[0].severity, "HIGH");
   assert.equal(auditor.groups.findings[0].responsibleId, 5);

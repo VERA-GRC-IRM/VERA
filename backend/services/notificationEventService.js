@@ -13,6 +13,11 @@ const deliver = async (recipients, sourceType, sourceId, notification) => {
       const recipient = await userRepository.findById(id);
       if (recipient?.status !== "ACTIVE" || !await visibleRecordForUser(recipient, sourceType, sourceId)) continue;
       await readRepository.syncForUser(id, [notification]);
+      if (process.env.VERA_PUSH_ENABLED === "true") {
+        try { await require("./pushService").deliver(id, `${notification.id}:${notification.createdAt || ""}`); }
+        catch (error) { console.error("[PUSH_DELIVERY_PENDING]", { recipientId: id, type: notification.type,
+          reason: error.name }); }
+      }
     } catch (error) {
       console.error("[NOTIFICATION_DELIVERY_PENDING]", { type: notification.type, entityId: notification.entityId,
         recipientId: id, reason: error.message });

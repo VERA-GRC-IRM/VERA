@@ -1,0 +1,6 @@
+.job-toolbar { display: flex; justify-content: flex-end; margin: 12px 0; }
+.job-list { display: grid; gap: 12px; max-width: 920px; }
+.job-card { padding: 18px; border: 1px solid var(--vera-border); border-radius: 14px; background: var(--vera-surface); }
+.job-card > div:first-child { display: flex; justify-content: space-between; gap: 16px; color: var(--vera-text-strong); }
+.job-card small { display: block; margin-top: 8px; color: var(--vera-text-muted); overflow-wrap: anywhere; }
+.job-actions { display: flex; gap: 8px; margin-top: 12px; }

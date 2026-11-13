@@ -8,6 +8,7 @@ import { exchangeManagedSession, finishPasswordMfaEnrollment, loginUser, startPa
 import { managedAuth, googleAuthEnabled, microsoftAuthEnabled, startSocialSignIn, takeSocialPrivacyAcknowledgement } from "../services/managedAuth";
 import { PRIVACY_NOTICE_VERSION } from "../constants/privacyNotice";
 import { clearRoleTourSession } from "../services/roleTour";
+import { prefetchNavigation } from "../routeLoaders";
 import "./Login.css";
 
 function Login() {
@@ -81,6 +82,7 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    prefetchNavigation("/dashboard");
     setError("");
     setBusy(true);
 
@@ -232,7 +234,7 @@ function Login() {
       </form>
 
       <div className="access-card__bottom">
-        <p>¿Primera vez en VERA? <Link to="/registro">Crear cuenta</Link></p>
+        <p>¿Primera vez en VERA? <Link to="/registro" onPointerEnter={() => prefetchNavigation("/registro")} onFocus={() => prefetchNavigation("/registro")}>Crear cuenta</Link></p>
         <p className="auth-hint">Si aún no tienes cuenta, el registro explica el rol inicial y el aviso de privacidad.</p>
       </div>
     </AccessShell>

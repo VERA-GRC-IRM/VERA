@@ -44,6 +44,12 @@ const saveAuditWorkflowStep = async (user, id, step) => {
 
   const progress = progressForStep(step);
   if (audit.workflowStep === step && audit.progress === progress) return audit;
+  const currentStepIndex = WORKFLOW_STEPS.indexOf(audit.workflowStep);
+  const requestedStepIndex = WORKFLOW_STEPS.indexOf(step);
+
+  if (requestedStepIndex !== currentStepIndex + 1) {
+    throw fail("Avanza el flujo paso a paso, sin omitir etapas.", 409);
+  }
   const updated = await planningRepository.update(id, {
     workflowStep: step,
     progress

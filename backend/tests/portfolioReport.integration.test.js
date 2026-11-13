@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const jwt = require("jsonwebtoken");
 const { PDFDocument } = require("pdf-lib");
+const ExcelJS = require("exceljs");
 
 process.env.JWT_SECRET ||= "portfolio-report-test-secret-over-32-characters";
 const app = require("../server");
@@ -91,6 +92,27 @@ test("RF-29: report includes linked facts and filtered CSV with UTF-8 headings",
   assert.deepEqual([...csvBytes.slice(0, 3)], [0xef, 0xbb, 0xbf]);
   const csv = new TextDecoder().decode(csvBytes);
   for (const value of [proposal.id, risk.id, control.id, "Excepción regional", '"40"', '"12.5"']) assert.ok(csv.includes(value));
+  const excelResponse = await fetch(`${base}/api/planning/report?${query}&format=xlsx`, auth(3));
+  assert.equal(excelResponse.status, 200);
+  assert.match(excelResponse.headers.get("content-type"), /spreadsheetml\.sheet/);
+  assert.equal(excelResponse.headers.get("cache-control"), "no-store");
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(Buffer.from(await excelResponse.arrayBuffer()));
+  assert.equal(workbook.getWorksheet("Resumen").getCell("B4").value, 1);
+  assert.equal(workbook.getWorksheet("Resumen").getCell("A11").value, "Versión del contrato BI");
+  assert.equal(workbook.getWorksheet("Resumen").getCell("B11").value, 1);
+  const excelRows = workbook.getWorksheet("Auditorías");
+  assert.equal(excelRows.rowCount, 2);
+  assert.equal(excelRows.getCell("A2").value, proposal.id);
+  assert.equal(excelRows.getCell("S2").value, 40);
+  assert.equal(excelRows.getCell("T2").value, 12.5);
+  assert.ok(excelRows.getCell("O2").value.includes(risk.id));
+  assert.equal(workbook.getWorksheet("BI_Audits").getCell("A2").value, proposal.id);
+  assert.equal(workbook.getWorksheet("BI_Risks").getCell("B2").value, risk.id);
+  assert.equal(workbook.getWorksheet("BI_Controls").getCell("B2").value, control.id);
+  assert.equal(workbook.getWorksheet("BI_Findings").getCell("B2").value,
+    report.rows[0].findings[0].id);
+  assert.equal(workbook.getWorksheet("BI_Audits").getCell("O2").value, 12.5);
   const pdfResponse = await fetch(`${base}/api/planning/report?${query}&format=pdf`, auth(3));
   assert.equal(pdfResponse.status, 200);
   assert.match(pdfResponse.headers.get("content-type"), /application\/pdf/);
@@ -122,6 +144,12 @@ test("RF-29: auditor sees only assigned records; empty and invalid filters are e
   assert.ok(!auditorReport.rows.some((row) => row.audit.id === "AUD-01"));
   const auditorCsv = await (await fetch(`${base}/api/planning/report?format=csv`, auth(5))).text();
   assert.ok(!auditorCsv.includes("AUD-01"));
+  const auditorXlsx = await fetch(`${base}/api/planning/report?format=xlsx`, auth(5));
+  assert.equal(auditorXlsx.status, 200);
+  const auditorWorkbook = new ExcelJS.Workbook();
+  await auditorWorkbook.xlsx.load(Buffer.from(await auditorXlsx.arrayBuffer()));
+  assert.ok(!auditorWorkbook.getWorksheet("Auditorías").getColumn(1).values.includes("AUD-01"));
+  assert.ok(!auditorWorkbook.getWorksheet("BI_Audits").getColumn(1).values.includes("AUD-01"));
   const auditorPdf = await fetch(`${base}/api/planning/report?format=pdf`, auth(5));
   assert.equal(auditorPdf.status, 200);
   assert.ok(!(await pdfText(Buffer.from(await auditorPdf.arrayBuffer()))).includes("AUD-01"));
@@ -130,6 +158,11 @@ test("RF-29: auditor sees only assigned records; empty and invalid filters are e
   assert.equal((await empty.json()).total, 0);
   const emptyCsv = await (await fetch(`${base}/api/planning/report?q=no-existe-ninguna-auditoria&format=csv`, auth(3))).text();
   assert.equal(emptyCsv.trim().split("\r\n").length, 1);
+  const emptyXlsx = await fetch(`${base}/api/planning/report?q=no-existe-ninguna-auditoria&format=xlsx`, auth(3));
+  const emptyWorkbook = new ExcelJS.Workbook();
+  await emptyWorkbook.xlsx.load(Buffer.from(await emptyXlsx.arrayBuffer()));
+  assert.equal(emptyWorkbook.getWorksheet("Auditorías").rowCount, 1);
+  assert.equal(emptyWorkbook.getWorksheet("BI_Audits").rowCount, 1);
   const emptyPdf = await fetch(`${base}/api/planning/report?q=no-existe-ninguna-auditoria&format=pdf`, auth(3));
   assert.equal(emptyPdf.status, 200);
   assert.match(await pdfText(Buffer.from(await emptyPdf.arrayBuffer())), /No hay expedientes visibles/);
@@ -181,6 +214,19 @@ test("RF-29: CSV quotes values and neutralizes spreadsheet formulas", () => {
   assert.ok(csv.includes('"Área, Norte"'));
   assert.ok(csv.includes('"Línea 1\nLínea 2"'));
   assert.ok(!csv.includes('"=HYPERLINK'));
+});
+
+test("RF-29: Excel keeps text as text and neutralizes spreadsheet formulas", async () => {
+  const { reportToXlsx } = require("../services/portfolioXlsxService");
+  const bytes = await reportToXlsx({ asOf: "2026-11-12T00:00:00.000Z", scope: "Prueba",
+    filters: {}, indicators: { audits: 1, risks: 0, controls: 0, findings: 0, evidence: 0,
+      plannedHours: 0, executedHours: 0 }, rows: [{
+      audit: { id: "AUD-X", title: '=HYPERLINK("https://invalid.example")', status: "OPEN" },
+      risks: [], controls: [], findings: []
+    }] });
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(Buffer.from(bytes));
+  assert.ok(workbook.getWorksheet("Auditorías").getCell("B2").value.startsWith("'="));
 });
 
 test("HU-27: the paginated PDF keeps Spanish accents and every linked record", async () => {

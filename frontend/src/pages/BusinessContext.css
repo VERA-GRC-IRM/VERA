@@ -51,3 +51,49 @@
 .business-context-empty { grid-column: 1 / -1; color: var(--vera-text-muted); }
 .business-context-page :is(button, input, select, textarea):focus-visible { outline: 3px solid var(--vera-focus); outline-offset: 2px; }
 @media (max-width: 760px) { .business-context-list, .business-context-fields { grid-template-columns: 1fr; } .business-context-fields .wide { grid-column: auto; } .business-context-toolbar > label, .business-context-toolbar input { width: 100%; } }
+.business-graph { padding: 1.4rem; margin-bottom: 1.6rem; border: 1px solid var(--vera-border); border-radius: 16px; background: var(--vera-surface); color: var(--vera-text); }
+.business-graph-heading { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+.business-graph-heading h2 { margin: .2rem 0; color: var(--vera-text-strong); font-size: 1.35rem; }
+.business-graph-heading p, .business-graph-footnote { color: var(--vera-text-muted); line-height: 1.5; }
+.business-graph-search { display: grid; gap: .4rem; max-width: 410px; margin: 1rem 0; color: var(--vera-text-strong); font-weight: 650; }
+.business-graph-search input { min-height: 44px; padding: .6rem .75rem; border: 1px solid var(--vera-border); border-radius: 9px; background: var(--vera-surface); color: var(--vera-text); font: inherit; }
+.business-graph-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.business-graph-column { min-width: 0; padding: .8rem; border: 1px solid var(--vera-border); border-radius: 12px; background: var(--vera-canvas); }
+.business-graph-column h3 { display: flex; justify-content: space-between; margin: 0 0 .7rem; color: var(--vera-text-strong); font-size: .9rem; }
+.business-graph-column h3 span { color: var(--vera-text-muted); font-weight: 500; }
+.business-graph-column > p, .business-graph-node-list > p { color: var(--vera-text-muted); font-size: .85rem; }
+.business-graph-node-list { display: grid; align-content: start; gap: .5rem; max-height: 320px; overflow: auto; }
+.business-graph-node { display: grid; gap: .12rem; width: 100%; min-height: 65px; padding: .6rem .7rem; border: 1px solid var(--vera-border); border-radius: 9px; background: var(--vera-surface); color: var(--vera-text); font: inherit; text-align: left; cursor: pointer; }
+.business-graph-node[aria-pressed="true"] { border-color: var(--vera-accent-strong); background: var(--vera-accent-soft); }
+.business-graph-node small, .business-graph-detail-head small { color: var(--vera-accent); font-weight: 700; text-transform: uppercase; font-size: .7rem; letter-spacing: .04em; }
+.business-graph-node strong { color: var(--vera-text-strong); overflow-wrap: anywhere; }
+.business-graph-node span { color: var(--vera-text-muted); font-size: .78rem; }
+.business-graph-detail { margin-top: 1rem; padding: 1rem; border: 1px solid var(--vera-border); border-radius: 12px; }
+.business-graph-detail-head { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: .7rem; }
+.business-graph-detail h3 { margin: .15rem 0; color: var(--vera-text-strong); }
+.business-graph-detail h4 { margin: 1rem 0 .5rem; color: var(--vera-text-strong); }
+.business-graph-detail p { color: var(--vera-text-muted); }
+.business-graph-detail a, .business-graph-detail li button { display: inline-flex; align-items: center; gap: .3rem; color: var(--vera-accent); font: inherit; font-weight: 700; }
+.business-graph-detail li button { padding: .3rem 0; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.business-graph-detail ul { display: grid; gap: .4rem; list-style: none; padding: 0; }
+.business-graph-detail li { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem .8rem; border-top: 1px solid var(--vera-border); padding-top: .4rem; }
+.business-graph-detail li > span { color: var(--vera-text-muted); font-size: .82rem; min-width: 130px; }
+.business-graph-footnote { margin-bottom: 0; font-size: .82rem; }
+@media (max-width: 900px) { .business-graph-columns { grid-template-columns: 1fr; } .business-graph-node-list { max-height: 190px; } }
+.business-import { margin-bottom: 1.5rem; padding: 1.4rem; border: 1px solid var(--vera-border); border-radius: 16px; background: var(--vera-surface); color: var(--vera-text); }
+.business-import-heading { display: flex; align-items: start; gap: .75rem; }
+.business-import-heading svg { color: var(--vera-accent); flex: 0 0 auto; }
+.business-import-heading h2, .business-import-preview h3 { margin: 0 0 .35rem; color: var(--vera-text-strong); }
+.business-import-heading p, .business-import-preview p, .business-import-note { color: var(--vera-text-muted); line-height: 1.5; }
+.business-import-form { display: flex; flex-wrap: wrap; align-items: end; gap: .8rem; margin: 1rem 0; }
+.business-import-form label { display: grid; gap: .35rem; flex: 1 1 230px; font-weight: 650; color: var(--vera-text-strong); }
+.business-import-form input { box-sizing: border-box; width: 100%; min-height: 44px; padding: .5rem .65rem; border: 1px solid var(--vera-border); border-radius: 9px; background: var(--vera-surface); color: var(--vera-text); font: inherit; }
+.business-import-form button, .business-import-preview button { min-height: 44px; padding: .6rem .9rem; border: 1px solid var(--vera-border); border-radius: 9px; background: var(--vera-accent-strong); color: var(--vera-on-accent); font: inherit; font-weight: 700; cursor: pointer; }
+.business-import-form button:disabled, .business-import-preview button:disabled { opacity: .55; cursor: not-allowed; }
+.business-import-form a { align-self: center; color: var(--vera-accent); font-weight: 700; }
+.business-import-table-wrap { max-height: 330px; overflow: auto; border: 1px solid var(--vera-border); border-radius: 9px; }
+.business-import-table-wrap table { width: 100%; border-collapse: collapse; text-align: left; font-size: .85rem; }
+.business-import-table-wrap :is(th, td) { padding: .55rem .65rem; border-bottom: 1px solid var(--vera-border); vertical-align: top; }
+.business-import-table-wrap th { color: var(--vera-text-strong); background: var(--vera-canvas); }
+.business-import-digest code { overflow-wrap: anywhere; }
+.business-import-note { margin: 1rem 0 0; font-size: .82rem; }

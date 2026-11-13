@@ -10,7 +10,8 @@ const stubGovernanceContext = async (page, { includeRecords = true, riskCount = 
   const control = {
     id: "CTL-451", title: "Revisión mensual", description: "Validación mensual del expediente.",
     type: "DETECTIVE", frequency: "Monthly", ownerId: 3, ownerName: "Gerente",
-    riskIds: ["RSK-451"], effectiveness: 2, storageVersion: 1
+    riskIds: ["RSK-451"], effectiveness: 2, storageVersion: 1,
+    updatedAt: "2026-10-01T00:00:00.000Z"
   };
   const finding = {
     id: "FDG-451", title: "Excepción de conciliación",
@@ -36,13 +37,15 @@ const stubGovernanceContext = async (page, { includeRecords = true, riskCount = 
     const method = route.request().method();
     if (method === "PUT") {
       const current = controls.find((item) => item.id === new URL(route.request().url()).pathname.split("/").pop());
-      const updated = { ...current, ...route.request().postDataJSON(), storageVersion: current.storageVersion + 1 };
+      const updated = { ...current, ...route.request().postDataJSON(),
+        storageVersion: current.storageVersion + 1, updatedAt: "2026-10-02T00:00:00.000Z" };
       controls[controls.indexOf(current)] = updated;
       return route.fulfill({ json: { control: updated } });
     }
     if (method === "POST") {
       const body = route.request().postDataJSON();
-      const created = { id: "CTL-452", ...body, ownerName: "Gerente", effectiveness: body.rating, storageVersion: 1 };
+      const created = { id: "CTL-452", ...body, ownerName: "Gerente",
+        effectiveness: body.rating, storageVersion: 1, updatedAt: "2026-10-01T00:00:00.000Z" };
       controls.push(created);
       return route.fulfill({ status: 201, json: { control: created } });
     }

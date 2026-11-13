@@ -72,9 +72,9 @@ const buildAuditContext = async (user, auditId) => {
     }),
     controls: related.controls.map(({
       id, title, description, type, frequency, ownerId, ownerName, effectiveness,
-      riskIds, storageVersion
+      riskIds, storageVersion, updatedAt
     }) => ({
-      id, title, description, type, frequency, ownerId, ownerName, effectiveness, storageVersion,
+      id, title, description, type, frequency, ownerId, ownerName, effectiveness, storageVersion, updatedAt,
       riskIds: (riskIds || []).filter((riskId) => related.risks.some((risk) => risk.id === riskId))
     })),
     findings: related.findings.map(({

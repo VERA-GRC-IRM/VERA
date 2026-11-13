@@ -42,5 +42,7 @@
 .risk-response-overview-card:hover,.risk-response-overview-card.is-selected { border-color: var(--vera-accent); background: var(--vera-accent-soft); }
 .risk-response-overview-card:focus-visible { outline: 3px solid var(--vera-accent); outline-offset: 2px; }
 .risk-response-result-count { margin: 0 0 12px; color: var(--vera-text-muted); font-size: 12px; }
+.risk-empty p { margin: 0 0 12px; }
+.risk-empty button { min-height: 44px; }
 @media (max-width: 900px) { .risk-response-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 480px) { .risk-response-overview-grid { grid-template-columns: 1fr; } }

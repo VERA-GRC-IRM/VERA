@@ -8,7 +8,8 @@ const validateStoreModes = (environment = process.env) => {
     "VERA_PLANNING_STORE", "VERA_USER_STORE", "VERA_RISK_CONTROL_STORE",
     "VERA_EVIDENCE_COMMENT_STORE", "VERA_AUDIT_STORE", "VERA_NOTIFICATION_STORE",
     "VERA_ORG_STORE", "VERA_RISK_LIBRARY_STORE", "VERA_BUSINESS_CONTEXT_STORE",
-    "VERA_RISK_METHOD_STORE"
+    "VERA_RISK_METHOD_STORE", "VERA_WORKSPACE_STORE", "VERA_JOB_STORE", "VERA_PUSH_STORE",
+    "VERA_RESUMABLE_STORE", "VERA_PRESENCE_STORE"
   ]) {
     if (environment[name] !== undefined && !["memory", "supabase"].includes(environment[name])) {
       throw new Error(`${name} debe ser memory o supabase.`);
@@ -46,6 +47,49 @@ const validateStoreModes = (environment = process.env) => {
   }
   if (environment.VERA_RISK_METHOD_STORE === "supabase" && environment.VERA_USER_STORE !== "supabase") {
     throw new Error("El catálogo de métodos persistente requiere cuentas persistentes.");
+  }
+  if (environment.VERA_WORKSPACE_STORE === "supabase" && environment.VERA_USER_STORE !== "supabase") {
+    throw new Error("El espacio personal persistente requiere cuentas persistentes.");
+  }
+  if (environment.VERCEL_ENV === "production" && environment.VERA_WORKSPACE_SYNC_ENABLED === "true" &&
+      environment.VERA_WORKSPACE_STORE !== "supabase") {
+    throw new Error("La sincronización en Production requiere almacenamiento persistente.");
+  }
+  if (environment.VERA_JOB_STORE === "supabase" && environment.VERA_USER_STORE !== "supabase") {
+    throw new Error("Los trabajos persistentes requieren cuentas persistentes.");
+  }
+  if (environment.VERCEL_ENV === "production" && environment.VERA_JOBS_ENABLED === "true" &&
+      (environment.VERA_JOB_STORE !== "supabase" || !environment.CRON_SECRET)) {
+    throw new Error("Los trabajos de Production requieren Supabase y secreto del procesador.");
+  }
+  if (environment.VERA_PUSH_STORE === "supabase" && environment.VERA_USER_STORE !== "supabase") {
+    throw new Error("Las suscripciones push persistentes requieren cuentas persistentes.");
+  }
+  if (environment.VERCEL_ENV === "production" && environment.VERA_RESUMABLE_UPLOADS_ENABLED === "true" &&
+      (environment.VERA_RESUMABLE_STORE !== "supabase" ||
+        environment.VERA_EVIDENCE_COMMENT_STORE !== "supabase")) {
+    throw new Error("La carga reanudable en Production requiere sesiones y evidencias persistentes.");
+  }
+  if (environment.VERCEL_ENV === "production" && environment.VERA_EVIDENCE_VERSIONS_ENABLED === "true" &&
+      environment.VERA_EVIDENCE_COMMENT_STORE !== "supabase") {
+    throw new Error("Las versiones de archivos en Production requieren evidencias persistentes.");
+  }
+  if (environment.VERCEL_ENV === "production" && environment.VERA_LIVE_UPDATES_ENABLED === "true" &&
+      environment.VERA_AUDIT_STORE !== "supabase") {
+    throw new Error("La actualización en vivo en Production requiere la bitácora persistente.");
+  }
+  if (environment.VERA_PRESENCE_STORE === "supabase" && environment.VERA_USER_STORE !== "supabase") {
+    throw new Error("La presencia persistente requiere cuentas persistentes.");
+  }
+  if (environment.VERCEL_ENV === "production" && environment.VERA_PRESENCE_ENABLED === "true" &&
+      environment.VERA_PRESENCE_STORE !== "supabase") {
+    throw new Error("La presencia en Production requiere almacenamiento persistente.");
+  }
+  if (environment.VERCEL_ENV === "production" && environment.VERA_PUSH_ENABLED === "true" &&
+      (environment.VERA_PUSH_STORE !== "supabase" || environment.VERA_NOTIFICATION_STORE !== "supabase" ||
+        !environment.VERA_VAPID_PUBLIC_KEY || !environment.VERA_VAPID_PRIVATE_KEY ||
+        !environment.VERA_VAPID_SUBJECT)) {
+    throw new Error("Push en Production requiere suscripciones, notificaciones y VAPID configurados.");
   }
 };
 

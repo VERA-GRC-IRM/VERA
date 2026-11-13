@@ -17,3 +17,5 @@
 .audit-report-row { padding: 14px 0; border-top: 1px solid var(--vera-border); overflow-wrap: anywhere; }
 .audit-report-row h3 { margin: 0 0 6px; font-size: 1rem; }
 .audit-report-row p { margin: 5px 0; }
+.audit-report-progress { margin: -8px 0 18px; color: var(--vera-text-muted); font-size: 12px; }
+.audit-search-page .planning-empty p { margin: 0 0 12px; }

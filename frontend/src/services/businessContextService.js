@@ -1,3 +1,5 @@
+import { downloadReportFile } from "./reportDownload";
+
 const API_URL = "/api/business-context";
 
 const request = async (options = {}, path = "") => {
@@ -11,6 +13,25 @@ const request = async (options = {}, path = "") => {
 };
 
 export const getBusinessContext = async () => (await request()).records;
+export const getBusinessGraph = async () => request({}, "/graph");
+export const previewBusinessImport = async (payload) =>
+  request({ method: "POST", body: JSON.stringify(payload) }, "/import/preview");
+export const downloadBusinessImportTemplate = () =>
+  downloadReportFile(`${API_URL}/import/template.xlsx`, localStorage.getItem("token"),
+    "vera-plantilla-mapa-negocio.xlsx");
+export const applyBusinessImport = async (payload) => {
+  const response = await fetch(`${API_URL}/import/apply`, {
+    method: "POST", headers: { "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}` }, body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.message || "No se pudo publicar el archivo.");
+    error.preview = data.preview;
+    throw error;
+  }
+  return data;
+};
 export const getBusinessContextOwners = async () => (await request({}, "/owners")).owners;
 export const createBusinessContext = async (record) =>
   (await request({ method: "POST", body: JSON.stringify(record) })).record;

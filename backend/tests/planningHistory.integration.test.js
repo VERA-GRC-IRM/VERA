@@ -12,6 +12,16 @@ const json = (token, method = "GET", body) => ({
   ...(body ? { body: JSON.stringify(body) } : {})
 });
 
+const advanceAuditToClosure = async (baseUrl, id, token) => {
+  for (const step of ["kickoff", "understanding", "execution", "supervision", "closure"]) {
+    const stepResponse = await fetch(
+      `${baseUrl}/api/planning/${id}/workflow-step`,
+      json(token, "PATCH", { step })
+    );
+    assert.equal(stepResponse.status, 200, `No se pudo avanzar la auditoría a ${step}`);
+  }
+};
+
 test("HU-18: contextual history shows proposal lifecycle events and comments with author and timestamp", async (context) => {
   const baseUrl = await startTestServer(context, app);
   const manager = tokenFor(3);
@@ -59,6 +69,7 @@ test("HU-18: contextual history shows proposal lifecycle events and comments wit
   assert.equal(approval.status, 200);
   const started = await fetch(`${baseUrl}/api/planning/${proposal.id}/start`, json(manager, "POST", {}));
   assert.equal(started.status, 200);
+  await advanceAuditToClosure(baseUrl, proposal.id, manager);
   const closed = await fetch(`${baseUrl}/api/planning/${proposal.id}/close`, json(manager, "POST", {}));
   assert.equal(closed.status, 200);
 

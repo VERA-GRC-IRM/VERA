@@ -2,6 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Activity, Bot, ClipboardCheck, Pencil, Plus, ShieldAlert, X } from "lucide-react";
 import Sidebar from "../components/Sidebar";
+import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
+import useRecordFreshness from "../hooks/useRecordFreshness";
+import useEditPresence from "../hooks/useEditPresence";
+import useUnsavedChanges from "../hooks/useUnsavedChanges";
+import ShareLinkButton from "../components/ShareLinkButton";
+import { BookmarkButton, SaveViewButton } from "../components/WorkspaceActions";
 import AssistantDrawer from "../components/AssistantDrawer";
 import { RISK_CONTROL_MANAGE_ROLES } from "../constants/planning";
 import { createRisk, evaluateRisk, getRiskOwners, getRisks, proposeRiskResponse, updateRisk } from "../services/riskService";
@@ -68,6 +74,7 @@ function Riesgos() {
     navigate({ pathname: location.pathname, search: query ? `?${query}` : "", hash: location.hash }, { replace: true });
   };
   const [form, setForm] = useState(EMPTY);
+  const [initialForm, setInitialForm] = useState(JSON.stringify(EMPTY));
   const [editing, setEditing] = useState(null);
   const [assessing, setAssessing] = useState(null);
   const [responding, setResponding] = useState(null);
@@ -78,8 +85,11 @@ function Riesgos() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [assistantFocus, setAssistantFocus] = useState(null);
+  const staleEdit = useRecordFreshness(editing, "/api/risks", "risks");
+  const otherEditors = useEditPresence("RISK", modal && editing ? editing.id : null);
 
   const refresh = async () => setRisks(await getRisks(serverRiskFilters(filters)));
+  useAutomaticRefresh(refresh, !modal && !saving);
   const loadOrgUnits = () => {
     setOrgUnitsLoading(true);
     setOrgUnitsError("");
@@ -94,6 +104,10 @@ function Riesgos() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [filters, canManage]);
+  useEffect(() => {
+    const target = location.hash.slice(1);
+    if (/^risk-[A-Za-z0-9-]+$/.test(target)) document.getElementById(target)?.scrollIntoView({ block: "center" });
+  }, [location.hash, risks]);
   useEffect(() => {
     if (!canManage) return;
     getAvailableOrgUnits()
@@ -155,7 +169,8 @@ function Riesgos() {
       : [...references.filter((reference) => reference.contextId !== record.contextId),
         { contextId: record.contextId, revision: record.revision }] };
   });
-  const startCreate = () => { setEditing(null); setForm(EMPTY); setError(""); setModal(true); };
+  const openForm = (next) => { setInitialForm(JSON.stringify(next)); setForm(next); setError(""); setModal(true); };
+  const startCreate = () => { setEditing(null); setAssessing(null); openForm(EMPTY); };
   const selectTemplate = (templateId) => {
     const template = riskTemplates.find((item) => item.templateId === templateId);
     setForm((current) => ({ ...current, templateId: template?.templateId || "",
@@ -165,9 +180,9 @@ function Riesgos() {
   };
   const startEdit = (risk) => {
     setEditing(risk);
-    setForm({ title: risk.title, description: risk.description, area: risk.area, orgUnitId: risk.orgUnitId || "", ownerId: String(risk.ownerId), responsePlan: risk.responsePlan || "", linkedAuditId: risk.linkedAuditId || "",
+    setAssessing(null);
+    openForm({ title: risk.title, description: risk.description, area: risk.area, orgUnitId: risk.orgUnitId || "", ownerId: String(risk.ownerId), responsePlan: risk.responsePlan || "", linkedAuditId: risk.linkedAuditId || "",
       businessContextReferences: (risk.businessContextReferences || []).map(({ contextId, revision, kind, code, name }) => ({ contextId, revision, kind, code, name })) });
-    setError(""); setModal(true);
   };
   const submit = async (event) => {
     event.preventDefault(); setSaving(true); setError("");
@@ -176,7 +191,8 @@ function Riesgos() {
       else if (editing) {
         const changes = { ...form };
         delete changes.orgUnitId;
-        await updateRisk(editing.id, changes);
+        await updateRisk(editing.id, { ...changes, expectedStorageVersion: editing.storageVersion,
+          expectedUpdatedAt: editing.updatedAt });
       } else {
         const changes = { ...form };
         if (form.linkedAuditId) delete changes.orgUnitId;
@@ -186,9 +202,11 @@ function Riesgos() {
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
   };
-  const startAssessment = (risk) => { setAssessing(risk); setEditing(null); setForm({ likelihood: risk.likelihood, impact: risk.impact, note: "" }); setError(""); setModal(true); };
+  const startAssessment = (risk) => { setAssessing(risk); setEditing(null); openForm({ likelihood: risk.likelihood, impact: risk.impact, note: "" }); };
   const startResponse = (risk) => {
-    setResponding(risk); setResponseForm({ ...EMPTY_RESPONSE, ownerId: String(risk.ownerId) }); setError("");
+    const next = { ...EMPTY_RESPONSE, ownerId: String(risk.ownerId) };
+    setInitialForm(JSON.stringify(next));
+    setResponding(risk); setResponseForm(next); setError("");
   };
   const submitResponse = async (event) => {
     event.preventDefault(); setSaving(true); setError("");
@@ -198,7 +216,10 @@ function Riesgos() {
     } catch (cause) { setError(cause.message); }
     finally { setSaving(false); }
   };
-  const closeModal = () => { setModal(false); setAssessing(null); setEditing(null); setError(""); };
+  const confirmDiscard = useUnsavedChanges(modal || Boolean(responding), modal ? form : responseForm, initialForm);
+  const closeModal = () => { if (!confirmDiscard()) return; setModal(false); setAssessing(null); setEditing(null); setError(""); };
+  const closeResponse = () => { if (confirmDiscard()) setResponding(null); };
+  const hasActiveFilters = Object.values(filters).some(Boolean);
 
   return <div className="dashboard-layout">
     <Sidebar active="riesgos" />
@@ -206,10 +227,12 @@ function Riesgos() {
       <section className="dashboard-content risk-register-page">
         <header className="dashboard-header">
           <div><span className="eyebrow">GESTIÓN Y PRIORIZACIÓN</span><h1>Registro de riesgos</h1><p>Identifica, evalúa y da seguimiento a los riesgos del portafolio.</p></div>
+          <ShareLinkButton path={`${location.pathname}${location.search}`} label="Copiar vista" />
+          <SaveViewButton userId={user?.roleTour ? null : user?.id} path={`${location.pathname}${location.search}`} defaultName="Búsqueda de riesgos" />
           {canManage && <button className="primary-action" onClick={startCreate}><Plus size={18} /> Registrar riesgo</button>}
         </header>
-        {message && <p className="risk-feedback success">{message}</p>}
-        {error && !modal && <p className="risk-feedback error">{error}</p>}
+        {message && <p className="risk-feedback success" role="status">{message}</p>}
+        {error && !modal && !responding && <p className="risk-feedback error" role="alert">{error}</p>}
         <div className="risk-summary">
           {summary.map(({ level, count }) => <article key={level} className={`risk-summary-card risk-summary-${level.toLowerCase()}`}><span>Riesgo {level.toLowerCase()}</span><strong>{count}</strong><small>registros visibles</small></article>)}
         </div>
@@ -231,7 +254,7 @@ function Riesgos() {
           <label>Seguimiento<select value={filters.response} onChange={(event) => setFilters({ ...filters, response: event.target.value })}><option value="">Todas las estrategias</option>{RESPONSE_STATES.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}</select></label>
         </section>
         {!loading && <p className="risk-response-result-count" role="status">Mostrando {visibleRisks.length} de {risks.length} riesgos visibles con los filtros de búsqueda, área y nivel.</p>}
-        {loading ? <div className="risk-empty">Cargando registro...</div> : visibleRisks.length === 0 ? <div className="risk-empty">No hay riesgos que coincidan con estos filtros.</div> :
+        {loading ? <div className="risk-empty" role="status">Cargando registro...</div> : visibleRisks.length === 0 ? <div className="risk-empty"><p>{hasActiveFilters ? "No hay riesgos que coincidan con estos filtros." : "Aún no hay riesgos visibles en este registro."}</p>{hasActiveFilters ? <button type="button" className="secondary-action" onClick={() => setFilters({ search: "", area: "", level: "", response: "" })}>Limpiar filtros</button> : canManage && <button type="button" className="secondary-action" onClick={startCreate}>Registrar riesgo</button>}</div> :
           <div className="risk-list">{visibleRisks.map((risk) => <article className="risk-record" id={`risk-${risk.id}`} key={risk.id}>
             <div className="risk-record-icon"><ShieldAlert size={22} /></div>
             <div className="risk-record-main">
@@ -251,14 +274,16 @@ function Riesgos() {
               </div>}
               <details className="risk-history"><summary><Activity size={15} /> Historial de evaluación ({risk.evaluations.length})</summary><ol>{[...risk.evaluations].reverse().map((evaluation) => <li key={evaluation.version}><div><b>Versión {evaluation.version}</b><span className={`risk-badge risk-${evaluation.level.toLowerCase()}`}>{evaluation.level} · {evaluation.score}/9</span></div><p>{evaluation.note}</p><small>{evaluation.assessedBy?.name || "Usuario"} · {dateLabel(evaluation.assessedAt)} · Probabilidad {evaluation.likelihood}, impacto {evaluation.impact}</small></li>)}</ol></details>
             </div>
-            <div className="risk-record-actions"><button type="button" onClick={() => setAssistantFocus({ type: "risk", id: risk.id, title: risk.title })}><Bot size={15} /> Analizar con IA</button>{canManage && <><button onClick={() => startEdit(risk)}><Pencil size={15} /> Editar</button><button onClick={() => startAssessment(risk)}><ClipboardCheck size={15} /> Reevaluar</button><button onClick={() => startResponse(risk)}>Definir estrategia</button></>}</div>
+            <div className="risk-record-actions"><ShareLinkButton path={`/riesgos#risk-${encodeURIComponent(risk.id)}`} /><BookmarkButton userId={user?.roleTour ? null : user?.id} path={`/riesgos#risk-${encodeURIComponent(risk.id)}`} label={`Riesgo ${risk.id}`} /><button type="button" onClick={() => setAssistantFocus({ type: "risk", id: risk.id, title: risk.title })}><Bot size={15} /> Analizar con IA</button>{canManage && <><button onClick={() => startEdit(risk)}><Pencil size={15} /> Editar</button><button onClick={() => startAssessment(risk)}><ClipboardCheck size={15} /> Reevaluar</button><button onClick={() => startResponse(risk)}>Definir estrategia</button></>}</div>
           </article>)}</div>}
       </section>
     </main>
     {assistantFocus && <AssistantDrawer key={assistantFocus.id} focus={assistantFocus} onClose={() => setAssistantFocus(null)} />}
     {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeModal(); }}><form className="proposal-modal risk-modal" onSubmit={submit}>
       <div className="modal-header"><div><span className="eyebrow">{assessing ? `EVALUACIÓN ${assessing.id}` : editing ? `EDITAR ${editing.id}` : "NUEVO REGISTRO"}</span><h2>{assessing ? "Reevaluar riesgo" : editing ? "Editar riesgo" : "Registrar riesgo"}</h2><p>{assessing ? "Cada evaluación conserva sus valores, motivo, autor y fecha." : "Documenta el riesgo, su responsable y la primera evaluación."}</p></div><button type="button" className="modal-close" onClick={closeModal} aria-label="Cerrar"><X size={20} /></button></div>
-      {error && <p className="risk-feedback error">{error}</p>}
+      {editing && staleEdit && <p className="risk-feedback error" role="alert">Este riesgo cambió o dejó de estar disponible mientras lo editabas. Copia tus cambios si los necesitas y vuelve a consultar la lista. <button type="button" onClick={() => refresh().then(closeModal).catch((cause) => setError(cause.message))}>Consultar lista actual</button></p>}
+      {editing && otherEditors.length > 0 && <p className="risk-feedback" role="status">También está editando este riesgo: {otherEditors.map((person) => person.name).join(", ")}. Antes de guardar, comprueba si hubo cambios.</p>}
+      {error && <p className="risk-feedback error" role="alert">{error}</p>}
       <div className="proposal-form-grid">
         {!assessing && <>
           {!editing && <label className="full-width">Escenario de biblioteca (opcional)
@@ -304,13 +329,13 @@ function Riesgos() {
           <label className="full-width">Justificación de la evaluación<textarea required minLength="10" maxLength="1000" value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Explica la evidencia que sustenta esta calificación." /></label>
         </>}
       </div>
-      <div className="modal-actions"><button type="button" className="secondary-action" onClick={closeModal}>Cancelar</button><button type="submit" className="primary-action" disabled={saving || (!editing && !assessing && (orgUnitsLoading || Boolean(orgUnitsError)))}>{saving ? "Guardando..." : assessing ? "Guardar evaluación" : editing ? "Guardar cambios" : "Crear riesgo"}</button></div>
+      <div className="modal-actions"><button type="button" className="secondary-action" onClick={closeModal}>Cancelar</button><button type="submit" className="primary-action" disabled={saving || staleEdit || (!editing && !assessing && (orgUnitsLoading || Boolean(orgUnitsError)))}>{saving ? "Guardando..." : assessing ? "Guardar evaluación" : editing ? "Guardar cambios" : "Crear riesgo"}</button></div>
     </form></div>}
-    {responding && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setResponding(null); }}>
+    {responding && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeResponse(); }}>
       <form className="proposal-modal risk-modal" onSubmit={submitResponse}>
         <div className="modal-header"><div><span className="eyebrow">RESPUESTA AL RIESGO · {responding.id}</span><h2>Proponer estrategia</h2>
           <p>Documenta una propuesta; la aprobación formal y el cálculo residual se gestionan por separado.</p></div>
-          <button type="button" className="modal-close" onClick={() => setResponding(null)} aria-label="Cerrar"><X size={20} /></button></div>
+          <button type="button" className="modal-close" onClick={closeResponse} aria-label="Cerrar"><X size={20} /></button></div>
         {error && <p className="risk-feedback error" role="alert">{error}</p>}
         <div className="proposal-form-grid">
           <label>Estrategia<select value={responseForm.strategy} onChange={(event) => setResponseForm({ ...responseForm, strategy: event.target.value })}>
@@ -324,7 +349,7 @@ function Riesgos() {
           <label className="full-width">Acciones o condiciones<textarea required minLength="10" maxLength="2000" value={responseForm.actions}
             onChange={(event) => setResponseForm({ ...responseForm, actions: event.target.value })} /></label>
         </div>
-        <div className="modal-actions"><button type="button" className="secondary-action" onClick={() => setResponding(null)}>Cancelar</button>
+        <div className="modal-actions"><button type="button" className="secondary-action" onClick={closeResponse}>Cancelar</button>
           <button type="submit" className="primary-action" disabled={saving}>{saving ? "Guardando…" : "Guardar propuesta"}</button></div>
       </form>
     </div>}

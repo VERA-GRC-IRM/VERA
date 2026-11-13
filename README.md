@@ -73,6 +73,9 @@ Puedes escribir una pregunta completa en la búsqueda superior y elegir «Pregun
 
 El asistente combina indicadores calculados por VERA con respuestas de Azure OpenAI. Las respuestas generadas pueden equivocarse: las citas identifican registros consultados, pero no certifican cada interpretación. Las operaciones disponibles desde el chat usan instrucciones explícitas, permisos del servidor, vista previa y confirmación humana; el texto generado por el modelo no ejecuta cambios. El [alcance y las salvaguardas](docs/ai-copilot-evolution.md) están documentados.
 
+Las herramientas para buscar registros, compartir vistas, guardar accesos rápidos, actualizar pantallas, cargar evidencias y recibir avisos tienen una [guía de capacidades y límites](docs/product/README.md).
+El intercambio con Excel, el modelo de análisis para Power BI y el uso de enlaces en Teams se explican en la [guía de integraciones Microsoft](docs/product/microsoft-integrations.md). La [vitrina de interoperabilidad](https://vera-grc-irm.github.io/VERA/#integraciones-microsoft) lleva a la última demostración automática y sus archivos, distinguiendo las conexiones corporativas pendientes.
+
 ## Aseguramiento de calidad en tres pasos
 
 1. **Entender la solución:** recorre el [centro de conocimiento](https://github.com/VERA-GRC-IRM/VERA/wiki), que separa producto, arquitectura, permisos y estado de aceptación.
@@ -125,7 +128,7 @@ Vite indica la URL local de la interfaz. Los almacenes predeterminados son `memo
 | --- | --- | --- |
 | Calidad de código | `npm run quality` y [workflow](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/quality.yml) | Pruebas de backend con cobertura, sintaxis/lint, build y auditoría de dependencias del commit. |
 | Interfaz | [Workflow E2E manual](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/e2e.yml) y [deuda #300](https://github.com/VERA-GRC-IRM/VERA/issues/300) | Matriz conservada, temporalmente fuera de la integración obligatoria; un PASS de calidad no acredita compatibilidad. |
-| Sin conexión | [Ensayo manual Chromium](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/offline-rehearsal.yml) y [alcance del modo local](docs/offline-mode.md) | Apertura PWA, copia cifrada autorizada, borradores, reconexión, evidencias e informe local con respuestas simuladas. No acredita inicio de sesión nuevo ni IA sin red. |
+| Sin conexión | [Ensayo integral](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/offline-rehearsal.yml), [matriz de navegadores](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/offline-browser-matrix.yml), [actualización entre releases](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/offline-two-release-rehearsal.yml) y [contratos del modo local](docs/offline-contracts.md) | PWA, copia cifrada, borradores, reconexión, evidencias e informe local con respuestas simuladas; la última prueba compila dos revisiones distintas. No acredita inicio de sesión nuevo, IA sin red ni aceptación integral en producción. |
 | Seguridad estática | [CodeQL](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/codeql.yml) | Análisis de JavaScript/TypeScript; no equivale a una auditoría de seguridad completa. |
 | IA | [Evaluación continua manual](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/ai-evaluation.yml) | Regresiones sintéticas del contrato y fuentes permitidas, sin llamada ni costo de Azure. |
 | Vista previa con roles | [Aceptación manual](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/preview-role-acceptance.yml) y [alcance](docs/testing/preview-acceptance.md) | Backend desplegado con datos demo: inicio de sesión, lecturas y denegaciones por cinco roles. No prueba Supabase ni Azure de producción. |

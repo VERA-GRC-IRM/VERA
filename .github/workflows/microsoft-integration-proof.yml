@@ -1,0 +1,54 @@
+name: VERA · Demostración Excel, Power BI y Teams
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: microsoft-integration-proof-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prove:
+    name: API, Excel y contrato Teams con datos sintéticos
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Preparar Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias del backend
+        run: npm ci --prefix backend
+
+      - name: Crear y comprobar libros Excel con la API
+        run: node scripts/prove-microsoft-integrations.mjs
+
+      - name: Leer Excel con un segundo parser independiente
+        run: python3 scripts/verify-microsoft-workbooks.py
+
+      - name: Publicar resumen de la corrida
+        if: always()
+        run: |
+          if [[ -f microsoft-proof/proof.md ]]; then cat microsoft-proof/proof.md >> "$GITHUB_STEP_SUMMARY"; fi
+          if [[ -f microsoft-proof/workbook-check.md ]]; then cat microsoft-proof/workbook-check.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Adjuntar libros y resultados sintéticos
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vera-microsoft-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: microsoft-proof/
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,9 @@
+# Espacio personal
+
+El panel «Tu espacio» reúne hasta 20 registros guardados, 10 vistas filtradas y 12 secciones recientes. Cada entrada conserva una ruta interna y una etiqueta breve en el almacenamiento local, separada por ID de cuenta. Las pantallas de auditorías y riesgos permiten nombrar una vista; auditorías, riesgos, controles, evidencias y fichas del mapa admiten guardado rápido. Se pueden quitar entradas desde el panel.
+
+En la configuración actual funciona **solo en el navegador y dispositivo actuales**. La sincronización entre dispositivos ya tiene implementación opcional, pero permanece desactivada hasta aplicar y comprobar la migración privada `20261112010000_create_user_workspace.sql` en Supabase VERA. No equivale a una copia de respaldo.
+
+Cuando se active, cada cuenta tendrá su propio espacio. El servidor valida la sesión y vuelve a comprobar el acceso a los registros guardados. Los cambios entre dispositivos se concilian con versión; una escritura sobre una versión antigua se rechaza y la aplicación combina las adiciones y eliminaciones locales. La primera vez, la persona elige si combina los guardados de este navegador o usa el espacio remoto. La sincronización pendiente se indica en el panel y se reintenta al recuperar internet. Solo se guardan rutas internas y etiquetas breves; un enlace no concede permisos.
+
+Para activar: comprobar el destino de Supabase y su historial, aplicar la migración, establecer `VERA_WORKSPACE_STORE=supabase` y `VERA_WORKSPACE_SYNC_ENABLED=true` en el backend, `VITE_VERA_WORKSPACE_SYNC_ENABLED=true` en el frontend y desplegar ambos con el mismo commit. No activar la bandera de frontend antes de que la API y la tabla estén operativas. Verificar con dos cuentas y dos navegadores: aislamiento, primera importación, conflicto de versión, eliminación, cambio de rol y recuperación sin conexión. Hasta entonces, no anunciar sincronización en producción.

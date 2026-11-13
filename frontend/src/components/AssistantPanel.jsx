@@ -29,7 +29,7 @@ const saveReportCsv = (csv) => {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
-function AssistantPanel({ focus = null, compact = false, initialQuestion = "" }) {
+function AssistantPanel({ focus = null, compact = false, initialQuestion = "", initialConversationId = null }) {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const canDraftProposal = ["SUPER_ADMIN", "GERENTE", "JEFATURA"].includes(user?.role);
@@ -175,7 +175,8 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
       const scoped = items.filter((item) => focusType
         ? item.focus?.type === focusType && item.focus?.id === focusId : !item.focus);
       setThreadList(scoped);
-      const first = scoped.find((item) => !projectMode || !item.projectId);
+      const first = scoped.find((item) => item.id === initialConversationId) ||
+        scoped.find((item) => !projectMode || !item.projectId);
       if (!first) { setThread(null); updateConversation(conversationKey, []); return; }
       const opened = await getAssistantConversation(first.id);
       if (!active) return;
@@ -184,7 +185,7 @@ function AssistantPanel({ focus = null, compact = false, initialQuestion = "" })
     }).catch((cause) => { if (active) setHistoryError(cause.message); })
       .finally(() => { if (active) setHistoryBusy(false); });
     return () => { active = false; };
-  }, [persistent, projectMode, conversationKey, updateConversation, focusType, focusId]);
+  }, [persistent, projectMode, conversationKey, updateConversation, focusType, focusId, initialConversationId]);
 
   useEffect(() => {
     if (attachmentBusy) return undefined;
