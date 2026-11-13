@@ -70,12 +70,20 @@ const buildAuditContext = async (user, auditId) => {
         status: relation?.status ?? risk.status, linkedAuditId: auditId
       };
     }),
-    controls: related.controls.map(({ id, title, description, effectiveness, riskIds }) => ({
-      id, title, description, effectiveness, riskIds: (riskIds || []).filter((riskId) =>
-        related.risks.some((risk) => risk.id === riskId))
+    controls: related.controls.map(({
+      id, title, description, type, frequency, ownerId, ownerName, effectiveness,
+      riskIds, storageVersion, updatedAt
+    }) => ({
+      id, title, description, type, frequency, ownerId, ownerName, effectiveness, storageVersion, updatedAt,
+      riskIds: (riskIds || []).filter((riskId) => related.risks.some((risk) => risk.id === riskId))
     })),
-    findings: related.findings.map(({ id, title, description, status, riskId, controlId }) =>
-      ({ id, title, description, status, riskId, controlId })),
+    findings: related.findings.map(({
+      id, title, description, rootCause, severity, responsibleId, responsibleName,
+      status, auditId, riskId, controlId, evidenceIds, storageVersion
+    }) => ({
+      id, title, description, rootCause, severity, responsibleId, responsibleName,
+      status, auditId, riskId, controlId, evidenceIds, storageVersion
+    })),
     evidence: related.evidence.map((item) => ({
       id: item.id,
       title: item.title,

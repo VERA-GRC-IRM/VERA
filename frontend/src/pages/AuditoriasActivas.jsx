@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Activity, ArrowLeft, ArrowRight, Bot, CheckCircle2, ClipboardCheck, Download, FileImage, FileSpreadsheet, FileText, Flag, GitBranch, LockKeyhole, Pencil, Play, RefreshCw, ShieldAlert, Target, Upload } from "lucide-react";
+import { Activity, ArrowLeft, ArrowRight, Bot, CheckCircle2, ClipboardCheck, Download, FileImage, FileSpreadsheet, FileText, Flag, GitBranch, LockKeyhole, Pencil, Play, Plus, RefreshCw, Save, ShieldAlert, Target, Upload, X } from "lucide-react";
 import { uploadEvidenceFile, getEvidenceDownloadUrl } from "../services/evidenceService";
 import Sidebar from "../components/Sidebar";
 import AssistantDrawer from "../components/AssistantDrawer";
@@ -8,10 +8,11 @@ import PlanningHistoryButton from "../components/PlanningHistoryButton";
 import ShareLinkButton from "../components/ShareLinkButton";
 import EditAuditModal from "../components/EditAuditModal";
 import AuditRisksPanel from "../components/AuditRisksPanel";
-import { PLANNING_APPROVE_ROLES, RISK_FACTORS } from "../constants/planning";
+import { CONTROL_MANAGE_ROLES, PLANNING_APPROVE_ROLES, RISK_CONTROL_MANAGE_ROLES, RISK_FACTORS } from "../constants/planning";
 import { closeAudit, getActiveAudits, getAuditContext, getPlanningAudits, startAudit, updateAuditWorkflowStep } from "../services/planningService";
-import { getRisks } from "../services/riskService";
-import { getControls } from "../services/controlService";
+import { getRiskOwners, getRisks } from "../services/riskService";
+import { createControl, getControls, updateControl } from "../services/controlService";
+import { createFinding, updateFinding } from "../services/findingService";
 import { displayAuditId } from "../utils/auditId";
 import "./Planning.css";
 
@@ -23,6 +24,17 @@ const riskFor = (likelihood, impact) => {
 const GOVERNANCE_STEPS = [
   "annual", "quarterly", "start", "kickoff", "understanding",
   "execution", "supervision", "closure", "report"
+];
+const CONTROL_TYPES = [
+  ["PREVENTIVE", "Preventivo"], ["DETECTIVE", "Detectivo"], ["CORRECTIVE", "Correctivo"]
+];
+const CONTROL_FREQUENCIES = ["Daily", "Weekly", "Monthly", "Quarterly", "Annually"];
+const FREQUENCY_LABELS = {
+  Daily: "Diaria", Weekly: "Semanal", Monthly: "Mensual",
+  Quarterly: "Trimestral", Annually: "Anual"
+};
+const FINDING_SEVERITIES = [
+  ["LOW", "Baja"], ["MEDIUM", "Media"], ["HIGH", "Alta"], ["CRITICAL", "Crítica"]
 ];
 
 const initialWorkflowStep = (audit) => {
@@ -43,7 +55,8 @@ function AuditoriasActivas() {
   const { auditId } = useParams();
   const isGovernanceRoute = Boolean(auditId);
   const user = JSON.parse(localStorage.getItem("user") || "null");
-  const canManage = PLANNING_APPROVE_ROLES.includes(user?.role);
+  const canManage = RISK_CONTROL_MANAGE_ROLES.includes(user?.role);
+  const canCreateRecords = CONTROL_MANAGE_ROLES.includes(user?.role);
   const canAttachEvidence = PLANNING_APPROVE_ROLES.includes(user?.role);
   const [activeAudits, setActiveAudits] = useState([]);
   const [approvedAudits, setApprovedAudits] = useState([]);
@@ -65,6 +78,18 @@ function AuditoriasActivas() {
   const [evidenceDescription, setEvidenceDescription] = useState("");
   const [evidenceFile, setEvidenceFile] = useState(null);
   const [evidenceSaving, setEvidenceSaving] = useState(false);
+  const [riskOwners, setRiskOwners] = useState(() => user?.role === "AUDITOR"
+    ? [{ id: user.id, name: user.name || user.username || "Mi usuario" }]
+    : []);
+  const [editingControlId, setEditingControlId] = useState(null);
+  const [controlEditForm, setControlEditForm] = useState({});
+  const [editingFindingId, setEditingFindingId] = useState(null);
+  const [findingEditForm, setFindingEditForm] = useState({});
+  const [creatingControl, setCreatingControl] = useState(false);
+  const [controlCreateForm, setControlCreateForm] = useState({});
+  const [creatingFinding, setCreatingFinding] = useState(false);
+  const [findingCreateForm, setFindingCreateForm] = useState({});
+  const [savingRecordId, setSavingRecordId] = useState(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -116,6 +141,11 @@ function AuditoriasActivas() {
       });
     return () => { cancelled = true; };
   }, [auditId]);
+
+  useEffect(() => {
+    if (!canCreateRecords || user?.role === "AUDITOR") return;
+    getRiskOwners().then(setRiskOwners).catch((loadError) => setError(loadError.message));
+  }, [canCreateRecords, user?.id, user?.name, user?.role, user?.username]);
 
   useEffect(() => {
     if (!auditId) return;
@@ -203,6 +233,173 @@ function AuditoriasActivas() {
     setMessage(successMessage);
   };
 
+  const editControl = (control) => {
+    setCreatingControl(false);
+    setCreatingFinding(false);
+    setEditingFindingId(null);
+    setEditingControlId(control.id);
+    setControlEditForm({
+      title: control.title,
+      description: control.description || "",
+      type: control.type,
+      frequency: control.frequency,
+      ownerId: control.ownerId == null ? "" : String(control.ownerId),
+      riskIds: control.riskIds || [],
+      expectedStorageVersion: control.storageVersion,
+      expectedUpdatedAt: control.updatedAt
+    });
+    setError("");
+    setMessage("");
+  };
+
+  const editFinding = (finding) => {
+    setCreatingControl(false);
+    setCreatingFinding(false);
+    setEditingControlId(null);
+    setEditingFindingId(finding.id);
+    setFindingEditForm({
+      title: finding.title,
+      description: finding.description || "",
+      rootCause: finding.rootCause || "",
+      severity: finding.severity || "MEDIUM",
+      responsibleId: finding.responsibleId == null ? "" : String(finding.responsibleId)
+    });
+    setError("");
+    setMessage("");
+  };
+
+  const startControlCreation = () => {
+    setCreatingFinding(false);
+    setEditingControlId(null);
+    setEditingFindingId(null);
+    setControlCreateForm({
+      title: "",
+      description: "",
+      type: "PREVENTIVE",
+      frequency: "Monthly",
+      riskId: linkedRisks[0]?.id || "",
+      ownerId: user?.role === "AUDITOR" ? String(user.id) : "",
+      rating: "3",
+      note: ""
+    });
+    setError("");
+    setMessage("");
+    setCreatingControl(true);
+  };
+
+  const startFindingCreation = () => {
+    setCreatingControl(false);
+    setEditingControlId(null);
+    setEditingFindingId(null);
+    setFindingCreateForm({
+      title: "",
+      description: "",
+      rootCause: "",
+      severity: "MEDIUM",
+      riskId: linkedRisks[0]?.id || "",
+      controlId: "",
+      responsibleId: user?.role === "AUDITOR" ? String(user.id) : ""
+    });
+    setError("");
+    setMessage("");
+    setCreatingFinding(true);
+  };
+
+  const replaceAuditContextRecord = (group, record) => {
+    setAuditContext((current) => current && current.audit.id === selectedAudit?.id ? {
+      ...current,
+      groups: {
+        ...current.groups,
+        [group]: current.groups[group].map((item) => item.id === record.id ? record : item)
+      }
+    } : current);
+  };
+
+  const saveControlEdit = async (event, control) => {
+    event.preventDefault();
+    setSavingRecordId(control.id);
+    setError("");
+    try {
+      const updated = await updateControl(control.id, {
+        ...controlEditForm,
+        ownerId: Number(controlEditForm.ownerId),
+        ...(control.storageVersion !== undefined ? { expectedStorageVersion: control.storageVersion } : {}),
+        ...(control.updatedAt !== undefined ? { expectedUpdatedAt: control.updatedAt } : {})
+      });
+      setControls((current) => current.map((item) => item.id === updated.id ? updated : item));
+      replaceAuditContextRecord("controls", updated);
+      setEditingControlId(null);
+      setMessage(`Control ${updated.id} actualizado.`);
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setSavingRecordId(null);
+    }
+  };
+
+  const saveNewControl = async (event) => {
+    event.preventDefault();
+    setSavingRecordId("new-control");
+    setError("");
+    try {
+      const created = await createControl({
+        ...controlCreateForm,
+        ownerId: Number(controlCreateForm.ownerId),
+        riskIds: [controlCreateForm.riskId],
+        rating: Number(controlCreateForm.rating)
+      });
+      setCreatingControl(false);
+      await refresh();
+      setMessage(`Control ${created.id} registrado en el expediente.`);
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setSavingRecordId(null);
+    }
+  };
+
+  const saveFindingEdit = async (event, finding) => {
+    event.preventDefault();
+    setSavingRecordId(finding.id);
+    setError("");
+    try {
+      const updated = await updateFinding(finding.id, {
+        ...findingEditForm,
+        responsibleId: Number(findingEditForm.responsibleId),
+        version: finding.storageVersion
+      });
+      replaceAuditContextRecord("findings", updated);
+      setEditingFindingId(null);
+      setMessage(`Hallazgo ${updated.id} actualizado.`);
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setSavingRecordId(null);
+    }
+  };
+
+  const saveNewFinding = async (event) => {
+    event.preventDefault();
+    setSavingRecordId("new-finding");
+    setError("");
+    try {
+      const created = await createFinding({
+        ...findingCreateForm,
+        auditId: selectedAudit.id,
+        riskId: findingCreateForm.riskId || "",
+        controlId: findingCreateForm.controlId || "",
+        responsibleId: Number(findingCreateForm.responsibleId)
+      });
+      setCreatingFinding(false);
+      await refresh();
+      setMessage(`Hallazgo ${created.id} registrado en el expediente.`);
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setSavingRecordId(null);
+    }
+  };
+
   const editButton = (audit) => canManage && (
     <button type="button" onClick={() => { setMessage(""); setEditingAudit(audit); }} disabled={busyId === audit.id}>
       <Pencil size={16} aria-hidden="true" />Editar
@@ -284,8 +481,8 @@ function AuditoriasActivas() {
             </button>
           </div>
 
-          {message && <p className="planning-message success" role="status">{message}</p>}
-          {error && <p className="planning-message error" role="alert">{error}</p>}
+          {!isGovernanceRoute && message && <p className="planning-message success" role="status">{message}</p>}
+          {!isGovernanceRoute && error && <p className="planning-message error" role="alert">{error}</p>}
 
           <div className="planning-summary">
             <div><strong>{activeAudits.length}</strong><span>Auditorías en curso</span></div>
@@ -478,6 +675,8 @@ function AuditoriasActivas() {
                   </aside>
 
                   <div className="governance-content">
+                    {message && <p className="planning-message success" role="status">{message}</p>}
+                    {error && <p className="planning-message error" role="alert">{error}</p>}
                     <div className="governance-stage">
                       <span className="eyebrow">PASO {governanceSteps.findIndex((step) => step.id === activeStep) + 1} · {governanceSteps.find((step) => step.id === activeStep)?.label.toUpperCase()}</span>
                       <h3>{activeStep === "closure" ? "Cierre y comunicación" : activeStep === "execution" ? "Ejecución y progreso" : governanceSteps.find((step) => step.id === activeStep)?.label}</h3>
@@ -581,11 +780,173 @@ function AuditoriasActivas() {
                       )}
                       {activeTab === "controls" && currentContext && (
                         <>
-                          <h3>Controles</h3>
-                          {linkedControls.length ? linkedControls.map((control) => <article className="governance-record" key={control.id}><strong>{control.id} · {control.title}</strong><p>{control.description || "Control registrado en el expediente."}</p><span>Resultado: {control.effectiveness ?? "Sin evaluar"}</span></article>) : <p>No hay controles vinculados a los riesgos de esta auditoría.</p>}
+                          <div className="governance-panel-heading">
+                            <div><h3>Controles</h3><p>Asocia controles a los riesgos vinculados con esta auditoría.</p></div>
+                            {canCreateRecords && <button type="button" className="primary-action" onClick={startControlCreation} disabled={linkedRisks.length === 0}>
+                              <Plus size={16} aria-hidden="true" />Agregar control
+                            </button>}
+                          </div>
+                          {linkedRisks.length === 0 && <p>No hay riesgos vinculados. Agrega primero un riesgo en la pestaña Riesgos.</p>}
+                          {creatingControl && <form className="governance-inline-editor" onSubmit={saveNewControl}>
+                            <h4>Nuevo control</h4>
+                            <label>Nombre del control<input required minLength={3} maxLength={120} value={controlCreateForm.title}
+                              onChange={(event) => setControlCreateForm((current) => ({ ...current, title: event.target.value }))} /></label>
+                            <label>Descripción<textarea required minLength={10} maxLength={1000} rows={3} value={controlCreateForm.description}
+                              onChange={(event) => setControlCreateForm((current) => ({ ...current, description: event.target.value }))} /></label>
+                            <label>Riesgo asociado<select required value={controlCreateForm.riskId}
+                              onChange={(event) => setControlCreateForm((current) => ({ ...current, riskId: event.target.value }))}>
+                              <option value="">Selecciona un riesgo</option>
+                              {linkedRisks.map((risk) => <option key={risk.id} value={risk.id}>{risk.id} · {risk.title}</option>)}
+                            </select></label>
+                            <label>Tipo<select value={controlCreateForm.type} onChange={(event) => setControlCreateForm((current) => ({ ...current, type: event.target.value }))}>
+                              {CONTROL_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                            </select></label>
+                            <label>Frecuencia<select value={controlCreateForm.frequency} onChange={(event) => setControlCreateForm((current) => ({ ...current, frequency: event.target.value }))}>
+                              {CONTROL_FREQUENCIES.map((value) => <option key={value} value={value}>{FREQUENCY_LABELS[value]}</option>)}
+                            </select></label>
+                            <label>Responsable<select required value={controlCreateForm.ownerId}
+                              onChange={(event) => setControlCreateForm((current) => ({ ...current, ownerId: event.target.value }))}>
+                              <option value="">Selecciona una persona</option>
+                              {riskOwners.map((owner) => <option key={owner.id} value={owner.id}>{owner.name}</option>)}
+                            </select></label>
+                            <label>Efectividad inicial<select required value={controlCreateForm.rating}
+                              onChange={(event) => setControlCreateForm((current) => ({ ...current, rating: event.target.value }))}>
+                              {[1, 2, 3, 4, 5].map((rating) => <option key={rating} value={rating}>{rating} / 5{rating >= 4 ? " · Efectivo" : " · Inefectivo"}</option>)}
+                            </select></label>
+                            <label>Justificación de la evaluación<textarea required minLength={10} maxLength={500} rows={2} value={controlCreateForm.note}
+                              onChange={(event) => setControlCreateForm((current) => ({ ...current, note: event.target.value }))} /></label>
+                            <div className="governance-editor-actions">
+                              <button type="submit" className="primary-action" disabled={savingRecordId === "new-control" || linkedRisks.length === 0 || !riskOwners.length}>
+                                <Save size={15} aria-hidden="true" />{savingRecordId === "new-control" ? "Guardando..." : "Guardar control"}
+                              </button>
+                              <button type="button" className="secondary-action" disabled={savingRecordId === "new-control"} onClick={() => setCreatingControl(false)}>
+                                <X size={15} aria-hidden="true" />Cancelar
+                              </button>
+                            </div>
+                          </form>}
+                          {linkedControls.length ? linkedControls.map((control) => <article className="governance-record" key={control.id}>
+                            <div className="governance-record-heading">
+                              <strong>{control.id} · {control.title}</strong>
+                              {canManage && <button type="button" className="secondary-action" onClick={() => editControl(control)}>
+                                <Pencil size={15} aria-hidden="true" />Editar
+                              </button>}
+                            </div>
+                            <p>{control.description || "Control registrado en el expediente."}</p>
+                            <span>Resultado: {control.effectiveness ?? "Sin evaluar"} · Tipo: {CONTROL_TYPES.find(([value]) => value === control.type)?.[1] || control.type || "—"} · Frecuencia: {FREQUENCY_LABELS[control.frequency] || control.frequency || "—"} · Responsable: {control.ownerName || "Sin asignar"}</span>
+                            {editingControlId === control.id && <form className="governance-inline-editor" onSubmit={(event) => saveControlEdit(event, control)}>
+                              <label>Nombre del control<input required minLength={3} maxLength={120} value={controlEditForm.title}
+                                onChange={(event) => setControlEditForm((current) => ({ ...current, title: event.target.value }))} /></label>
+                              <label>Descripción<textarea required minLength={10} maxLength={1000} rows={3} value={controlEditForm.description}
+                                onChange={(event) => setControlEditForm((current) => ({ ...current, description: event.target.value }))} /></label>
+                              <label>Tipo<select value={controlEditForm.type} onChange={(event) => setControlEditForm((current) => ({ ...current, type: event.target.value }))}>
+                                {CONTROL_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                              </select></label>
+                              <label>Frecuencia<select value={controlEditForm.frequency} onChange={(event) => setControlEditForm((current) => ({ ...current, frequency: event.target.value }))}>
+                                {CONTROL_FREQUENCIES.map((value) => <option key={value} value={value}>{FREQUENCY_LABELS[value]}</option>)}
+                              </select></label>
+                              <label>Responsable<select required value={controlEditForm.ownerId} onChange={(event) => setControlEditForm((current) => ({ ...current, ownerId: event.target.value }))}>
+                                <option value="">Selecciona una persona</option>
+                                {control.ownerId && !riskOwners.some((owner) => String(owner.id) === String(control.ownerId)) &&
+                                  <option value={control.ownerId} disabled>{control.ownerName || "Responsable actual"} · no activo</option>}
+                                {riskOwners.map((owner) => <option key={owner.id} value={owner.id}>{owner.name}</option>)}
+                              </select></label>
+                              <div className="governance-editor-actions">
+                                <button type="submit" className="primary-action" disabled={savingRecordId === control.id}>
+                                  <Save size={15} aria-hidden="true" />{savingRecordId === control.id ? "Guardando..." : "Guardar control"}
+                                </button>
+                                <button type="button" className="secondary-action" disabled={savingRecordId === control.id} onClick={() => setEditingControlId(null)}>
+                                  <X size={15} aria-hidden="true" />Cancelar
+                                </button>
+                              </div>
+                            </form>}
+                          </article>) : <p>No hay controles vinculados a los riesgos de esta auditoría. {canCreateRecords ? "Usa Agregar control para registrar uno." : "Tu rol puede consultar, pero no registrar controles."}</p>}
                         </>
                       )}
-                      {activeTab === "findings" && currentContext && <><h3>Hallazgos</h3>{linkedFindings.length ? linkedFindings.map((finding) => <article className="governance-record" key={finding.id}><strong>{finding.id} · {finding.title}</strong><p>{finding.description}</p><span>{finding.status} · Riesgo {finding.riskId} · Control {finding.controlId}</span></article>) : <p>No hay hallazgos registrados para esta auditoría.</p>}</>}
+                      {activeTab === "findings" && currentContext && <>
+                        <div className="governance-panel-heading">
+                          <div><h3>Hallazgos</h3><p>Registra una desviación asociada a esta auditoría, un riesgo o un control inefectivo.</p></div>
+                          {canCreateRecords && <button type="button" className="primary-action" onClick={startFindingCreation}>
+                            <Plus size={16} aria-hidden="true" />Agregar hallazgo
+                          </button>}
+                        </div>
+                        {creatingFinding && <form className="governance-inline-editor" onSubmit={saveNewFinding}>
+                          <h4>Nuevo hallazgo</h4>
+                          <label>Título<input required minLength={3} maxLength={120} value={findingCreateForm.title}
+                            onChange={(event) => setFindingCreateForm((current) => ({ ...current, title: event.target.value }))} /></label>
+                          <label>Descripción<textarea required minLength={10} maxLength={2000} rows={3} value={findingCreateForm.description}
+                            onChange={(event) => setFindingCreateForm((current) => ({ ...current, description: event.target.value }))} /></label>
+                          <label>Causa raíz<textarea required minLength={10} maxLength={2000} rows={3} value={findingCreateForm.rootCause}
+                            onChange={(event) => setFindingCreateForm((current) => ({ ...current, rootCause: event.target.value }))} /></label>
+                          <label>Riesgo asociado<select value={findingCreateForm.riskId}
+                            onChange={(event) => setFindingCreateForm((current) => ({ ...current, riskId: event.target.value, controlId: "" }))}>
+                            <option value="">Sin riesgo específico</option>
+                            {linkedRisks.map((risk) => <option key={risk.id} value={risk.id}>{risk.id} · {risk.title}</option>)}
+                          </select></label>
+                          <label>Control relacionado (opcional)<select value={findingCreateForm.controlId}
+                            onChange={(event) => setFindingCreateForm((current) => ({ ...current, controlId: event.target.value }))}>
+                            <option value="">Sin control</option>
+                            {linkedControls.filter((control) => control.riskIds?.includes(findingCreateForm.riskId) && Number(control.effectiveness) < 4)
+                              .map((control) => <option key={control.id} value={control.id}>{control.id} · {control.title}</option>)}
+                          </select></label>
+                          <small>Solo se pueden asociar controles inefectivos; la auditoría queda vinculada automáticamente.</small>
+                          <label>Severidad<select required value={findingCreateForm.severity}
+                            onChange={(event) => setFindingCreateForm((current) => ({ ...current, severity: event.target.value }))}>
+                            {FINDING_SEVERITIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                          </select></label>
+                          <label>Responsable<select required value={findingCreateForm.responsibleId}
+                            onChange={(event) => setFindingCreateForm((current) => ({ ...current, responsibleId: event.target.value }))}>
+                            <option value="">Selecciona una persona activa</option>
+                            {riskOwners.map((owner) => <option key={owner.id} value={owner.id}>{owner.name}</option>)}
+                          </select></label>
+                          <div className="governance-editor-actions">
+                            <button type="submit" className="primary-action" disabled={savingRecordId === "new-finding" || !riskOwners.length}>
+                              <Save size={15} aria-hidden="true" />{savingRecordId === "new-finding" ? "Guardando..." : "Guardar hallazgo"}
+                            </button>
+                            <button type="button" className="secondary-action" disabled={savingRecordId === "new-finding"} onClick={() => setCreatingFinding(false)}>
+                              <X size={15} aria-hidden="true" />Cancelar
+                            </button>
+                          </div>
+                        </form>}
+                        {linkedFindings.length ? linkedFindings.map((finding) => <article className="governance-record" key={finding.id}>
+                          <div className="governance-record-heading">
+                            <strong>{finding.id} · {finding.title}</strong>
+                            {canManage && finding.status === "OPEN" && <button type="button" className="secondary-action" onClick={() => editFinding(finding)}>
+                              <Pencil size={15} aria-hidden="true" />Editar
+                            </button>}
+                          </div>
+                          <p>{finding.description}</p>
+                          <span>{finding.status} · Severidad: {FINDING_SEVERITIES.find(([value]) => value === finding.severity)?.[1] || "Sin clasificar"} · Responsable: {finding.responsibleName || "Sin asignar"} · Riesgo {finding.riskId || "—"} · Control {finding.controlId || "—"}</span>
+                          {finding.rootCause && <p>Causa raíz: {finding.rootCause}</p>}
+                          {editingFindingId === finding.id && <form className="governance-inline-editor" onSubmit={(event) => saveFindingEdit(event, finding)}>
+                            <p>Las relaciones con auditoría, riesgo y control, así como la evidencia asociada, se conservan.</p>
+                            <label>Título<input required minLength={3} maxLength={120} value={findingEditForm.title}
+                              onChange={(event) => setFindingEditForm((current) => ({ ...current, title: event.target.value }))} /></label>
+                            <label>Descripción<textarea required minLength={10} maxLength={2000} rows={3} value={findingEditForm.description}
+                              onChange={(event) => setFindingEditForm((current) => ({ ...current, description: event.target.value }))} /></label>
+                            <label>Causa raíz<textarea required minLength={10} maxLength={2000} rows={3} value={findingEditForm.rootCause}
+                              onChange={(event) => setFindingEditForm((current) => ({ ...current, rootCause: event.target.value }))} /></label>
+                            <label>Severidad<select required value={findingEditForm.severity} onChange={(event) => setFindingEditForm((current) => ({ ...current, severity: event.target.value }))}>
+                              {FINDING_SEVERITIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                            </select></label>
+                            <label>Responsable<select required value={findingEditForm.responsibleId} onChange={(event) => setFindingEditForm((current) => ({ ...current, responsibleId: event.target.value }))}>
+                              <option value="">Selecciona una persona activa</option>
+                              {finding.responsibleId && !riskOwners.some((owner) => String(owner.id) === String(finding.responsibleId)) &&
+                                <option value={finding.responsibleId} disabled>{finding.responsibleName || "Responsable actual"} · no activo</option>}
+                              {riskOwners.map((owner) => <option key={owner.id} value={owner.id}>{owner.name}</option>)}
+                            </select></label>
+                            <div className="governance-editor-actions">
+                              <button type="submit" className="primary-action" disabled={savingRecordId === finding.id}>
+                                <Save size={15} aria-hidden="true" />{savingRecordId === finding.id ? "Guardando..." : "Guardar hallazgo"}
+                              </button>
+                              <button type="button" className="secondary-action" disabled={savingRecordId === finding.id} onClick={() => setEditingFindingId(null)}>
+                                <X size={15} aria-hidden="true" />Cancelar
+                              </button>
+                            </div>
+                          </form>}
+                        </article>) : <p>No hay hallazgos registrados para esta auditoría. {canCreateRecords ? "Usa Agregar hallazgo para registrar uno." : "Tu rol puede consultar, pero no registrar hallazgos."}</p>}
+                        {canManage && linkedFindings.some((finding) => finding.status !== "OPEN") &&
+                          <p>Solo los hallazgos abiertos pueden editarse; los pendientes de revisión y cerrados conservan su historial.</p>}
+                      </>}
                       {activeTab === "evidence" && currentContext && (
                         <>
                           <div className="evidence-section-header">
@@ -785,4 +1146,3 @@ function AuditoriasActivas() {
 }
 
 export default AuditoriasActivas;
-
