@@ -16,11 +16,14 @@ test("Contexto compartido: el dossier y el expediente respetan el alcance del Au
   const foreignRisk = riskRepository.create({ title: "Riesgo de otra cuenta", linkedAuditId: audit.id,
     ownerId: 4, level: "Medio", score: 4, likelihood: 2, impact: 2, createdBy: { id: 2 } });
   const ownControl = controlRepository.create({ title: "Control visible", riskIds: [ownRisk.id, foreignRisk.id],
-    effectiveness: 3, createdBy: { id: 2 } });
+    description: "Descripción sintética del control visible.", type: "DETECTIVE",
+    frequency: "Monthly", ownerId: 5, ownerName: "Auditor", effectiveness: 3, createdBy: { id: 2 } });
   const foreignControl = controlRepository.create({ title: "Control ajeno", riskIds: [foreignRisk.id],
     effectiveness: 2, createdBy: { id: 2 } });
-  findingRepository.create({ title: "Hallazgo propio", riskId: ownRisk.id,
-    controlId: ownControl.id, createdBy: { id: 2 } });
+  findingRepository.create({ title: "Hallazgo propio", description: "Hallazgo sintético para edición.",
+    rootCause: "Falta una validación independiente en el proceso.",
+    severity: "HIGH", responsibleId: 5, responsibleName: "Auditor", riskId: ownRisk.id,
+    controlId: ownControl.id, evidenceIds: [], createdBy: { id: 2 } });
   findingRepository.create({ title: "Hallazgo ajeno", riskId: foreignRisk.id,
     controlId: foreignControl.id, createdBy: { id: 2 } });
   for (const [entityType, entityId, title] of [
@@ -36,6 +39,13 @@ test("Contexto compartido: el dossier y el expediente respetan el alcance del Au
   assert.equal(auditor.mode, "read-only");
   assert.deepEqual(auditor.counts, { risks: 1, controls: 1, findings: 1, evidence: 3 });
   assert.deepEqual(auditor.groups.controls[0].riskIds, [ownRisk.id]);
+  assert.equal(auditor.groups.controls[0].type, "DETECTIVE");
+  assert.equal(auditor.groups.controls[0].ownerId, 5);
+  assert.equal(auditor.groups.controls[0].storageVersion, ownControl.storageVersion);
+  assert.equal(auditor.groups.findings[0].rootCause, "Falta una validación independiente en el proceso.");
+  assert.equal(auditor.groups.findings[0].severity, "HIGH");
+  assert.equal(auditor.groups.findings[0].responsibleId, 5);
+  assert.equal(auditor.groups.findings[0].storageVersion, 1);
   assert.ok(!JSON.stringify(auditor).includes("Riesgo de otra cuenta"));
   assert.ok(!JSON.stringify(auditor).includes("Evidencia de riesgo ajeno"));
   assert.ok(Number.isFinite(Date.parse(auditor.asOf)));

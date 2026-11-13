@@ -21,6 +21,7 @@ const ACTION_LABELS = {
   AUDIT_CLOSED: "Auditoría cerrada",
   AUDIT_UPDATED: "Auditoría actualizada",
   FINDING_REGISTERED: "Hallazgo registrado",
+  FINDING_UPDATED: "Hallazgo actualizado",
   EVIDENCE_REGISTERED: "Evidencia registrada",
   EVIDENCE_FILE_UPLOADED: "Archivo de evidencia cargado"
 };
@@ -51,6 +52,8 @@ const ADMIN_ACTION_LABELS = {
   CONTROL_REGISTERED: "Control registrado",
   CONTROL_UPDATED: "Control actualizado",
   CONTROL_EVALUATED: "Control evaluado",
+  FINDING_REGISTERED: "Hallazgo registrado",
+  FINDING_UPDATED: "Hallazgo actualizado",
   EVIDENCE_REGISTERED: "Evidencia registrada"
 };
 

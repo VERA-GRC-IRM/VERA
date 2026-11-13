@@ -1034,6 +1034,58 @@
   border-bottom: 1px solid light-dark(#edf1f2, var(--vera-border));
 }
 
+.governance-record-heading,
+.governance-editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.governance-record-heading .secondary-action {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+}
+
+.governance-inline-editor {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid light-dark(#dce5e8, var(--vera-border));
+  border-radius: 10px;
+  background: light-dark(#f8fafb, var(--vera-surface-raised));
+}
+
+.governance-inline-editor label {
+  display: grid;
+  gap: 6px;
+  color: light-dark(#344451, var(--vera-text-strong));
+  font-weight: 600;
+}
+
+.governance-inline-editor input,
+.governance-inline-editor textarea,
+.governance-inline-editor select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid light-dark(#cbd7dc, var(--vera-border-strong));
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: light-dark(#fff, var(--vera-surface));
+  color: light-dark(#202b35, var(--vera-text-strong));
+  font: inherit;
+}
+
+.governance-inline-editor textarea {
+  resize: vertical;
+}
+
+.governance-editor-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
 .governance-record:last-child {
   border-bottom: 0;
 }

@@ -19,7 +19,7 @@ const validId = (value) => !value || (typeof value === "string" && value.trim().
 const canCreateFinding = (user) => RISK_CONTROL_MANAGE_ROLES.includes(user.role) ||
   user.role === ROLES.AUDITOR;
 
-const prepareFinding = async (user, input = {}, expectedControlVersion) => {
+const prepareFinding = async (user, input = {}, expectedControlVersion, options = {}) => {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw errorFor("Los datos del hallazgo no son válidos.", 400);
   }
@@ -55,7 +55,7 @@ const prepareFinding = async (user, input = {}, expectedControlVersion) => {
   if ((rawIds.auditId && !audit) || (rawIds.riskId && !risk) || (rawIds.controlId && !control)) {
     throw errorFor("Una auditoría, riesgo o control relacionado no existe o no está disponible.", 404);
   }
-  if (control && control.effectiveness >= 4) {
+  if (!options.allowEffectiveControl && control && control.effectiveness >= 4) {
     throw errorFor("Un control evaluado como efectivo no permite registrar un hallazgo desde este flujo.", 409);
   }
   if (risk && control && !(control.riskIds || []).includes(risk.id)) {
@@ -114,12 +114,14 @@ const prepareFinding = async (user, input = {}, expectedControlVersion) => {
     throw errorFor("Selecciona hasta 20 evidencias válidas.", 400);
   }
   const evidenceIds = [...new Set(rawEvidenceIds.map((id) => id.trim()))];
-  const linkedEntityIds = new Set(allRelations.map(([type, id]) => `${type}:${id}`));
-  const evidence = await evidenceRepository.getAll();
-  for (const evidenceId of evidenceIds) {
-    const item = evidence.find((candidate) => candidate.id === evidenceId);
-    if (!item || !linkedEntityIds.has(`${item.entityType}:${item.entityId}`)) {
-      throw errorFor("La evidencia no existe o no está vinculada a un registro del hallazgo.", 404);
+  if (options.validateEvidence !== false) {
+    const linkedEntityIds = new Set(allRelations.map(([type, id]) => `${type}:${id}`));
+    const evidence = await evidenceRepository.getAll();
+    for (const evidenceId of evidenceIds) {
+      const item = evidence.find((candidate) => candidate.id === evidenceId);
+      if (!item || !linkedEntityIds.has(`${item.entityType}:${item.entityId}`)) {
+        throw errorFor("La evidencia no existe o no está vinculada a un registro del hallazgo.", 404);
+      }
     }
   }
 
