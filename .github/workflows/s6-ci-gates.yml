@@ -46,7 +46,7 @@ jobs:
         run: |
           set -o pipefail
           npm test --prefix backend 2>&1 | tee tests.log
-          grep -E "^ℹ (tests|pass|fail)" tests.log
+          grep -E "^(ℹ|#) (tests|pass|fail)" tests.log || true
 
       - name: Gate 3 - Backend coverage thresholds (lines 90, branches 75, functions 90)
         id: coverage
