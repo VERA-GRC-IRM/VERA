@@ -90,7 +90,7 @@ function Dashboard() {
       <Sidebar active="dashboard" />
       <main className="dashboard-main">
         <section className="dashboard-content role-dashboard">
-          <header className="dashboard-header dashboard-hero">
+          <header className="dashboard-header dashboard-hero" data-tour="dashboard-header">
             <div className="dashboard-hero-copy">
               <span className="eyebrow">PANEL PRINCIPAL · {summary?.scopeLabel || "CARGANDO"}</span>
               <h1>{summary?.title || "Panel de auditorías"}</h1>
@@ -124,7 +124,7 @@ function Dashboard() {
               </nav>
               <PersonalWorkspace userId={user?.roleTour ? null : user?.id} />
 
-              <section id="portfolio-summary" className="dashboard-overview-section" aria-labelledby="dashboard-overview-title">
+              <section id="portfolio-summary" className="dashboard-overview-section" aria-labelledby="dashboard-overview-title" data-tour="dashboard-overview">
                 <div className="dashboard-section-heading">
                   <div><span className="dashboard-section-kicker">VISTA GENERAL</span><h2 id="dashboard-overview-title">Indicadores del portafolio</h2></div>
                   <div className="dashboard-period-controls" role="group" aria-label="Periodo de indicadores">
@@ -174,7 +174,7 @@ function Dashboard() {
                 </div>
               </section>
 
-              <section className="dashboard-action-section" aria-labelledby="dashboard-actions-title">
+              <section className="dashboard-action-section" aria-labelledby="dashboard-actions-title" data-tour="dashboard-actions">
                 <div>
                   <span className="dashboard-section-kicker">IR DIRECTO A</span>
                   <h2 id="dashboard-actions-title">Acciones y consultas</h2>
@@ -187,7 +187,7 @@ function Dashboard() {
                 </nav>
               </section>
 
-              <section id="portfolio-commitments" className="dashboard-panel dashboard-commitments" aria-labelledby="dashboard-commitments-title">
+              <section id="portfolio-commitments" className="dashboard-panel dashboard-commitments" aria-labelledby="dashboard-commitments-title" data-tour="dashboard-commitments">
                 <div className="dashboard-panel-heading">
                   <div><span className="eyebrow">SEGUIMIENTO HUMANO</span><h2 id="dashboard-commitments-title">Compromisos del portafolio</h2></div>
                   <Link to="/notificaciones">Abrir Pendientes <ArrowRight size={15} aria-hidden="true" /></Link>

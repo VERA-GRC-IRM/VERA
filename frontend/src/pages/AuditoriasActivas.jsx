@@ -470,7 +470,7 @@ function AuditoriasActivas() {
       <Sidebar active="auditorias-activas" />
       <main className="dashboard-main">
         <section className={`dashboard-content planning-page clean-header-page active-audits-page ${isGovernanceRoute ? "governance-route" : ""}`}>
-          <div className="dashboard-header">
+          <div className="dashboard-header" data-tour="audits-header">
             <div>
               <span className="eyebrow">EJECUCIÓN Y RIESGO</span>
               <h1>Auditorías activas y matriz de riesgos</h1>
@@ -490,7 +490,7 @@ function AuditoriasActivas() {
             <div><strong>{activeAudits.filter((audit) => riskFor(audit.likelihood ?? 2, audit.impact ?? 2) === "Alto").length}</strong><span>Riesgo alto en curso</span></div>
           </div>
 
-          <section className="risk-matrix-panel" aria-labelledby="risk-matrix-title">
+          <section className="risk-matrix-panel" aria-labelledby="risk-matrix-title" data-tour="audits-matrix">
             <div className="planning-section-heading">
               <div>
                 <span className="eyebrow">MATRIZ 3 × 3</span>

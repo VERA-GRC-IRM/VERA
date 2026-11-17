@@ -47,6 +47,7 @@ import DesktopAlerts from "./components/DesktopAlerts";
 import WorkspaceSync from "./components/WorkspaceSync";
 import RouteLoading from "./components/RouteLoading";
 import RouteTitle from "./components/RouteTitle";
+import GuidedTour from "./components/GuidedTour";
 import { ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "./constants/roles";
 
 
@@ -178,6 +179,7 @@ function App() {
 
         </Routes>
         </Suspense>
+        <GuidedTour/>
       </AssistantConversationProvider>
     </BrowserRouter>
   );
