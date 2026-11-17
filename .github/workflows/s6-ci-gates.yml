@@ -1,0 +1,95 @@
+name: S6 CI quality gates
+
+# Actividad S6: CODE -> BUILD -> AUTOMATED TESTS -> QUALITY GATE -> DEPLOYMENT DECISION.
+# No despliega. Solo decide si la version es candidata a deployment.
+on:
+  push:
+    branches: ['s6/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  s6-gates:
+    name: S6 gates (Node.js 22)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix frontend
+
+      - name: Gate 1 - Build frontend
+        id: build
+        continue-on-error: true
+        run: npm run build --prefix frontend
+
+      - name: Gate 2 - Backend automated tests (node --test)
+        id: tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm test --prefix backend 2>&1 | tee tests.log
+          grep -E "^ℹ (tests|pass|fail)" tests.log
+
+      - name: Gate 3 - Backend coverage thresholds (lines 90, branches 75, functions 90)
+        id: coverage
+        continue-on-error: true
+        run: |
+          npm run test:coverage --prefix backend > coverage.log 2>&1 || true
+          line=$(grep -E "all files" coverage.log | tail -1)
+          echo "$line"
+          [ -n "$line" ] || { echo "Sin medicion de cobertura"; exit 1; }
+          echo "$line" | awk -F'|' '{
+            l=$2+0; b=$3+0; f=$4+0;
+            printf "lines=%s branches=%s functions=%s\n", l, b, f;
+            if (l < 90 || b < 75 || f < 90) { print "Cobertura bajo el umbral"; exit 1 }
+          }'
+
+      - name: Gate 4 - No high or critical vulnerabilities
+        id: audit
+        continue-on-error: true
+        run: |
+          npm audit --audit-level=high --prefix backend
+          npm audit --audit-level=high --prefix frontend
+
+      - name: Quality Gate Evaluation
+        run: |
+          {
+            echo "## S6 Quality Gates"
+            echo "| Gate | Resultado |"
+            echo "|---|---|"
+            echo "| 1 Build frontend | ${{ steps.build.outcome }} |"
+            echo "| 2 Pruebas backend | ${{ steps.tests.outcome }} |"
+            echo "| 3 Cobertura backend | ${{ steps.coverage.outcome }} |"
+            echo "| 4 Auditoria npm (high) | ${{ steps.audit.outcome }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for r in "${{ steps.build.outcome }}" "${{ steps.tests.outcome }}" "${{ steps.coverage.outcome }}" "${{ steps.audit.outcome }}"; do
+            if [ "$r" != "success" ]; then
+              echo "QUALITY GATE NOT MET - DEPLOYMENT BLOCKED"
+              echo "**QUALITY GATE NOT MET - DEPLOYMENT BLOCKED**" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+          done
+          echo "All gates met"
+
+      - name: Deployment readiness
+        run: |
+          echo "READY FOR DEPLOYMENT CANDIDATE"
+          echo "**READY FOR DEPLOYMENT CANDIDATE**" >> "$GITHUB_STEP_SUMMARY"
