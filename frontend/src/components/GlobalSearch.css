@@ -31,15 +31,6 @@
   text-align: left;
   cursor: pointer;
 }
-.global-shell-share { flex: 0 0 auto; }
-.global-shell-share .share-link-control { position: relative; }
-.global-shell-share .share-link-control small,
-.global-shell-share .share-link-control input {
-  position: absolute; top: calc(100% + 5px); right: 0; min-width: max-content;
-  padding: 6px 8px; border-radius: 6px; background: var(--vera-surface);
-  box-shadow: var(--vera-shadow); z-index: 2;
-}
-.global-shell-share .share-link-control input { top: calc(100% + 30px); min-width: 260px; }
 .global-search-trigger:hover { border-color: var(--vera-accent); color: var(--vera-text-strong); }
 .global-search-trigger span { flex: 1; }
 .global-search-trigger kbd {
@@ -79,8 +70,7 @@
 @media (max-width: 750px) {
   .global-shell-header, :root[data-nav-collapsed="true"] .global-shell-header { left: 0; padding-left: 66px; padding-right: 12px; }
   .global-search-trigger { width: 100%; }
-  .global-shell-share .share-link-button { width: 44px; height: 44px; justify-content: center; padding: 0; }
-  .global-shell-share .share-link-button span { display: none; }
+  .global-shell-header .theme-control--compact select { max-width: 108px; padding-right: 22px; }
   .global-search-trigger kbd { display: none; }
   .global-search-result { align-items: flex-start; flex-direction: column; gap: 2px; }
 }
