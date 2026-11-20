@@ -4,7 +4,7 @@
 
 Este plan convierte los 78 casos de prueba recibidos en un programa verificable. Distingue pruebas unitarias, de integración HTTP, de interfaz, de compatibilidad, de carga y verificaciones operativas. Un caso no se considera aprobado por existir en este catálogo: debe ejecutarse en el nivel indicado y conservar evidencia.
 
-**Excepción vigente desde el 10 de noviembre de 2026:** la matriz automatizada de navegadores y accesibilidad está [diferida](browser-e2e-debt.md). Los casos permanecen planeados y el workflow Playwright se puede ejecutar manualmente; ningún PASS de CI actual los acredita.
+**Excepción vigente desde el 10 de noviembre de 2026:** la matriz automatizada amplia de navegadores y accesibilidad está [diferida](browser-e2e-debt.md). Un smoke independiente de Chromium cubre navegación por teclado y axe WCAG 2.1 A/AA en el Panel de Portafolio usando datos sintéticos; no acredita las otras vistas, navegadores ni la aceptación manual. El workflow amplio Playwright sigue disponible manualmente; ningún PASS integral de CI acredita esa matriz.
 
 La línea base del repositorio es un prototipo React/Vite y Express. La suite `node:test` incluye pruebas unitarias e integración HTTP para reglas de cuenta, autenticación, usuarios/roles, riesgos, controles, propuestas, notificaciones, historial, referencias de evidencias, carga pequeña de archivos y panel. Varias pruebas cubren solo APIs. Los datos de dominio usan memoria por defecto; los modos persistentes y el bucket privado requieren activación y verificación remota. Por eso la operación de producción no se puede declarar cubierta por pruebas simuladas.
 
