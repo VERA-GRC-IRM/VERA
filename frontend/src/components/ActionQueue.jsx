@@ -4,6 +4,7 @@ import { CalendarClock, ClipboardCheck, Plus, RefreshCw } from "lucide-react";
 import { addPlanComment, changeActionStatus, createAction, getActionAssignees, getActionSources,
   getActions, getPlanEvidence, reassignAction, requestPlanValidation, updatePlanProgress } from "../services/actionService";
 import { localDateAfter, localToday } from "../utils/localDate";
+import { matchesSearchText } from "../utils/searchText";
 import "./ActionQueue.css";
 
 const SOURCE = { AUDIT: "Auditoría", RISK: "Riesgo", CONTROL: "Control", FINDING: "Hallazgo" };
@@ -40,6 +41,7 @@ function ActionQueue({ revision = 0, onActionChanged }) {
     ? `${query.get("sourceType")}:${query.get("sourceId")}` : "" }));
   const [createOpen, setCreateOpen] = useState(() => Boolean(query.get("sourceType") && query.get("sourceId")));
   const [viewSelection, setViewSelection] = useState(null);
+  const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(null);
   const [editMode, setEditMode] = useState("STATUS");
   const [nextStatus, setNextStatus] = useState("");
@@ -113,6 +115,10 @@ function ActionQueue({ revision = 0, onActionChanged }) {
   const activeView = (viewSelection?.actionId === focusedActionId ? viewSelection.value : null) ?? focusedView ?? "MINE";
   const visible = activeView === "MINE" ? mine : activeView === "DUE" ? dueActions
     : activeView === "OPEN" ? active : actions.filter((item) => ["DONE", "CANCELLED"].includes(item.status));
+  const filteredVisible = search.trim() ? visible.filter((action) => matchesSearchText([
+    action.title, action.rationale, action.sourceTitle, SOURCE[action.sourceType], action.assigneeName,
+    action.id, action.sourceId, action.dueDate, STATUS[action.status]
+  ], search)) : visible;
 
   const submitCreate = async (event) => {
     event.preventDefault();
@@ -195,7 +201,8 @@ function ActionQueue({ revision = 0, onActionChanged }) {
       <div className="action-form-actions"><button type="button" className="secondary-action" onClick={() => setCreateOpen(false)}>Cancelar</button><button type="submit" className="primary-action" disabled={saving || !assignees.length}>{saving ? "Guardando…" : "Registrar acción"}</button></div>
     </form>}
     <div className="action-queue-tabs" role="group" aria-label="Filtrar acciones"><button type="button" aria-pressed={activeView === "MINE"} onClick={() => setView("MINE")}>Mis acciones</button><button type="button" aria-pressed={activeView === "DUE"} onClick={() => setView("DUE")}>Vencimientos</button><button type="button" aria-pressed={activeView === "OPEN"} onClick={() => setView("OPEN")}>Abiertas visibles</button><button type="button" aria-pressed={activeView === "CLOSED"} onClick={() => setView("CLOSED")}>Finalizadas</button></div>
-    {loading ? <p className="action-queue-empty" role="status">Consultando acciones…</p> : loadError ? null : visible.length === 0 ? <p className="action-queue-empty">{activeView === "DUE" ? "No hay compromisos vencidos ni próximos a vencer asignados a tu cuenta." : "No hay acciones en esta vista."}</p> : <div className="action-queue-list">{visible.map((action) => <article className="action-card" id={`action-${action.id}`} tabIndex={-1} key={action.id}>
+    <div className="action-queue-search"><label htmlFor="action-queue-search">Buscar acciones</label><input id="action-queue-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Título, registro, responsable o folio" />{search && <button type="button" onClick={() => setSearch("")}>Limpiar búsqueda</button>}<span role="status" aria-live="polite">{filteredVisible.length} {filteredVisible.length === 1 ? "acción" : "acciones"}</span></div>
+    {loading ? <p className="action-queue-empty" role="status">Consultando acciones…</p> : loadError ? null : filteredVisible.length === 0 ? <p className="action-queue-empty">{search.trim() ? "No hay acciones que coincidan con la búsqueda." : activeView === "DUE" ? "No hay compromisos vencidos ni próximos a vencer asignados a tu cuenta." : "No hay acciones en esta vista."}</p> : <div className="action-queue-list">{filteredVisible.map((action) => <article className="action-card" id={`action-${action.id}`} tabIndex={-1} key={action.id}>
       <div className="action-card-top"><span><ClipboardCheck size={17} aria-hidden="true" /> {SOURCE[action.sourceType]} · {action.sourceTitle}</span><strong className={`action-status action-status-${action.status.toLowerCase()}`}>{STATUS[action.status]}</strong></div>
       <h3>{action.title}</h3><p>{action.rationale}</p>
       <div className="action-card-meta"><span>Responsable: <b>{action.assigneeName}</b></span><span><CalendarClock size={14} aria-hidden="true" /> Fecha objetivo: <b>{formatDate(action.dueDate)}</b></span>{!["DONE", "CANCELLED"].includes(action.status) && action.dueDate < today && <span className="action-due-label is-overdue">Vencida</span>}{!["DONE", "CANCELLED"].includes(action.status) && action.dueDate === today && <span className="action-due-label">Vence hoy</span>}{!["DONE", "CANCELLED"].includes(action.status) && action.dueDate > today && action.dueDate <= cutoff && <span className="action-due-label">Próxima</span>}<span>{action.history.length} evento{action.history.length === 1 ? "" : "s"}</span></div>

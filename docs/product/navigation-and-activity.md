@@ -14,6 +14,10 @@ La pantalla Bitácora y su endpoint de actividad reciente muestran únicamente e
 
 La lista reciente permite filtrar por persona y tipo de evento. Los filtros no cambian el historial almacenado ni el alcance de datos que autoriza el servidor.
 
+La cola de pendientes permite combinar el tipo de actividad con una búsqueda local por título, descripción, folio o fecha objetivo y un filtro de prioridad. La lista de acciones ofrece búsqueda local dentro de la vista activa. Ambos controles operan sobre los datos ya autorizados que recibió la pantalla; no amplían consultas ni permisos.
+
+En el inicio del Asistente, las señales y prioridades del portafolio quedan bajo una sección desplegable para mantener la conversación como foco inicial. El contenido y sus enlaces permanecen disponibles; solo cambia su presentación.
+
 ## Interpretación de riesgo
 
 La matriz del Panel de Portafolio resume los niveles de probabilidad e impacto registrados para auditorías activas. No se etiqueta como riesgo residual ni recalcula los valores. VERA todavía requiere una metodología aprobada antes de presentar un cálculo residual.
