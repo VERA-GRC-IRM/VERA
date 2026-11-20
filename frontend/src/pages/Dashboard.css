@@ -679,7 +679,7 @@
   padding: 32px clamp(22px, 3.2vw, 50px) 56px;
 }
 
-.role-dashboard :is(#portfolio-summary, #portfolio-commitments, #portfolio-analysis, #portfolio-priorities) { scroll-margin-top: 86px; }
+.role-dashboard :is(#dashboard-panel-overview, #dashboard-panel-commitments, #dashboard-panel-analysis, #dashboard-panel-priorities) { scroll-margin-top: 86px; }
 
 .role-dashboard .dashboard-hero {
   position: relative;
@@ -732,17 +732,22 @@
   margin-top: 19px;
   border-bottom: 1px solid var(--vera-border);
 }
-.dashboard-page-nav a {
+.dashboard-page-nav button {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  padding: 0 4px;
+  border: 0;
   border-bottom: 2px solid transparent;
+  background: transparent;
   color: var(--vera-text-muted);
   font-size: 13px;
   font-weight: 650;
-  text-decoration: none;
+  cursor: pointer;
 }
-.dashboard-page-nav a:hover, .dashboard-page-nav a:focus-visible { color: var(--vera-accent); border-bottom-color: var(--vera-accent); }
+.dashboard-page-nav button[aria-selected="true"] { color: var(--vera-text-strong); border-bottom-color: var(--vera-accent); }
+.dashboard-page-nav button:hover, .dashboard-page-nav button:focus-visible { color: var(--vera-accent); border-bottom-color: var(--vera-accent); }
+.role-dashboard [role="tabpanel"][hidden] { display: none !important; }
 
 .dashboard-action-section {
   display: grid;

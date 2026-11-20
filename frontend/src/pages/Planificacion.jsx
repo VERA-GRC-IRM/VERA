@@ -299,7 +299,7 @@ function Planificacion() {
       <Sidebar active="planificacion" />
       <main className="dashboard-main">
         <section className="dashboard-content planning-page clean-header-page">
-          <div className="dashboard-header">
+          <div className="dashboard-header" data-tour="planning-header">
             <div>
               <span className="eyebrow">GESTIÓN DEL PORTAFOLIO</span>
               <h1>Planificación</h1>
@@ -322,7 +322,7 @@ function Planificacion() {
             <div><strong>{rejectedProposals.length}</strong><span>Propuestas rechazadas</span></div>
           </div>
 
-          <div className="planning-section-heading">
+          <div className="planning-section-heading" data-tour="planning-list">
             <div>
               <span className="eyebrow">TABLERO DE PROPUESTAS</span>
               <h2>Propuestas abiertas</h2>

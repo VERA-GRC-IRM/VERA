@@ -1,0 +1,185 @@
+
+.guided-tour-launcher {
+  position: fixed;
+  right: 22px;
+  bottom: 88px;
+  top: auto;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 10px 16px;
+  border: 1px solid var(--vera-border);
+  border-radius: 10px;
+  background: var(--vera-surface);
+  color: var(--vera-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .12);
+}
+
+.guided-tour-launcher:hover {
+  background: var(--vera-surface-raised, var(--vera-surface));
+}
+
+.guided-tour-launcher:focus-visible,
+.guided-tour-card button:focus-visible {
+  outline: 3px solid var(--vera-accent);
+  outline-offset: 3px;
+}
+
+.guided-tour-card {
+  position: fixed;
+  right: 22px;
+  bottom: 88px;
+  z-index: 1200;
+  width: min(420px, calc(100vw - 32px));
+  padding: 20px;
+  border: 1px solid var(--vera-border);
+  border-radius: 15px;
+  background: var(--vera-surface);
+  color: var(--vera-text);
+  box-shadow: 0 12px 42px rgba(0, 0, 0, .24);
+}
+
+.guided-tour-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.guided-tour-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.guided-tour-header span {
+  color: var(--vera-accent-strong);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .07em;
+}
+
+.guided-tour-header small {
+  color: var(--vera-muted);
+  font-size: 12px;
+}
+
+.guided-tour-header button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.guided-tour-header button:hover {
+  background: var(--vera-surface-raised, var(--vera-border));
+}
+
+.guided-tour-progress {
+  height: 5px;
+  margin: 17px 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--vera-border);
+}
+
+.guided-tour-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--vera-accent-strong);
+  transition: width .2s ease;
+}
+
+.guided-tour-content h2 {
+  margin: 0 0 10px;
+  font-size: 19px;
+  line-height: 1.3;
+}
+
+.guided-tour-content p {
+  margin: 0;
+  color: var(--vera-muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.guided-tour-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.guided-tour-footer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 9px 13px;
+  border: 1px solid var(--vera-border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.guided-tour-footer button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.guided-tour-footer .tour-secondary {
+  background: transparent;
+  color: var(--vera-text);
+}
+
+.guided-tour-footer .tour-primary {
+  border-color: var(--vera-accent-strong);
+  background: var(--vera-accent-strong);
+  color: var(--vera-on-accent);
+}
+
+.vera-tour-highlight {
+  position: relative;
+  z-index: 1050;
+  outline: 3px solid var(--vera-accent-strong) !important;
+  outline-offset: 5px;
+  border-radius: 8px;
+  box-shadow: 0 0 0 7px var(--vera-surface);
+  scroll-margin: 100px;
+}
+
+@media (max-width: 600px) {
+  .guided-tour-launcher {
+    top: auto;
+    right: 12px;
+    bottom: 82px;
+  }
+
+  .guided-tour-card {
+    right: 12px;
+    bottom: 82px;
+    width: calc(100vw - 24px);
+    padding: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guided-tour-progress span {
+    transition: none;
+  }
+}

@@ -153,6 +153,9 @@ button, input, select, textarea { font: inherit; }
   cursor: pointer;
 }
 .theme-control--compact { font-size: 12px; }
+.global-shell-header .theme-control--compact { flex: 0 0 auto; gap: 6px; }
+.global-shell-header .theme-control--compact > label { display: none; }
+.global-shell-header .theme-control--compact select { min-height: 44px; max-width: 150px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

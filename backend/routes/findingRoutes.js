@@ -5,6 +5,7 @@ const { CONTROL_MANAGE_ROLES, RISK_CONTROL_MANAGE_ROLES } = require("../config/r
 const {
   listFindings,
   createFinding,
+  updateFinding,
   closeFinding,
   reviewFindingClosure
 } = require("../controllers/findingController");
@@ -20,6 +21,7 @@ router.post(
   createFinding
 );
 
+router.patch("/:id", verifyToken, allowRoles(...RISK_CONTROL_MANAGE_ROLES), updateFinding);
 router.patch("/:id/close", verifyToken, allowRoles(...CONTROL_MANAGE_ROLES), closeFinding);
 router.post("/:id/closure-decision", verifyToken, allowRoles(...RISK_CONTROL_MANAGE_ROLES), reviewFindingClosure);
 

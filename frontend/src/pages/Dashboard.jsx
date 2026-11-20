@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { Activity, ArrowRight, CheckCircle2, ClipboardList, RotateCw } from "lucide-react";
+import { ArrowRight, CheckCircle2, RotateCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import PersonalWorkspace from "../components/PersonalWorkspace";
 import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
 import { getDashboardSummary } from "../services/dashboardService";
 import { getActions } from "../services/actionService";
@@ -34,6 +33,7 @@ function Dashboard() {
   const [actionsLoading, setActionsLoading] = useState(true);
   const [actionsError, setActionsError] = useState("");
   const [revision, setRevision] = useState(0);
+  const [activeDashboardTab, setActiveDashboardTab] = useState("overview");
   const [statusView, setStatusView] = useState("bars");
   const [riskView, setRiskView] = useState("matrix");
   const [period, setPeriod] = useState("all");
@@ -90,11 +90,11 @@ function Dashboard() {
       <Sidebar active="dashboard" />
       <main className="dashboard-main">
         <section className="dashboard-content role-dashboard">
-          <header className="dashboard-header dashboard-hero">
+          <header className="dashboard-header dashboard-hero" data-tour="dashboard-header">
             <div className="dashboard-hero-copy">
-              <span className="eyebrow">PANEL PRINCIPAL · {summary?.scopeLabel || "CARGANDO"}</span>
-              <h1>{summary?.title || "Panel de auditorías"}</h1>
-              <p>{summary?.description || "Resumen actualizado del portafolio y sus prioridades."}</p>
+              <span className="eyebrow">PORTAFOLIO · {summary?.scopeLabel || "CARGANDO"}</span>
+              <h1>Panel de Portafolio</h1>
+              <p>Indicadores, compromisos y prioridades de tu alcance.</p>
             </div>
             <div className="dashboard-hero-tools">
               <span className="dashboard-scope-note">Información visible para tu rol</span>
@@ -116,15 +116,26 @@ function Dashboard() {
             <div className="dashboard-loading" role="status">Cargando indicadores del portafolio...</div>
           ) : summary && (
             <>
-              <nav className="dashboard-page-nav" aria-label="Secciones del panel">
-                <a href="#portfolio-summary">Panorama</a>
-                <a href="#portfolio-commitments">Compromisos</a>
-                <a href="#portfolio-analysis">Estado y riesgo</a>
-                <a href="#portfolio-priorities">Por atender</a>
-              </nav>
-              <PersonalWorkspace userId={user?.roleTour ? null : user?.id} />
+              <div className="dashboard-page-nav" role="tablist" aria-label="Secciones del panel">
+                {[
+                  ["overview", "Panorama"], ["commitments", "Mis compromisos"],
+                  ["analysis", "Estado y riesgo"], ["priorities", "Por atender"]
+                ].map(([id, label]) => <button key={id} id={`dashboard-tab-${id}`} type="button" role="tab"
+                  aria-selected={activeDashboardTab === id} aria-controls={`dashboard-panel-${id}`} tabIndex={activeDashboardTab === id ? 0 : -1}
+                  onClick={() => setActiveDashboardTab(id)}
+                  onKeyDown={(event) => {
+                    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                    event.preventDefault();
+                    const tabs = ["overview", "commitments", "analysis", "priorities"];
+                    const current = tabs.indexOf(activeDashboardTab);
+                    const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1
+                      : (current + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length;
+                    setActiveDashboardTab(tabs[next]);
+                    requestAnimationFrame(() => document.getElementById(`dashboard-tab-${tabs[next]}`)?.focus());
+                  }}>{label}</button>)}
+              </div>
 
-              <section id="portfolio-summary" className="dashboard-overview-section" aria-labelledby="dashboard-overview-title">
+              <section id="dashboard-panel-overview" role="tabpanel" aria-labelledby="dashboard-tab-overview" hidden={activeDashboardTab !== "overview"} className="dashboard-overview-section" data-tour="dashboard-overview">
                 <div className="dashboard-section-heading">
                   <div><span className="dashboard-section-kicker">VISTA GENERAL</span><h2 id="dashboard-overview-title">Indicadores del portafolio</h2></div>
                   <div className="dashboard-period-controls" role="group" aria-label="Periodo de indicadores">
@@ -149,12 +160,8 @@ function Dashboard() {
                     </label>}
                   </div>
                 </div>
-                <p className="dashboard-period-caption">Indicadores, estados, matriz y prioridades del periodo seleccionado. Los compromisos personales conservan su propio calendario.</p>
+                <p className="dashboard-period-caption">Indicadores del periodo seleccionado.</p>
                 <div className="kpi-grid">
-                  <article className="kpi-card">
-                    <span className="kpi-label">REGISTROS VISIBLES</span>
-                    <div className="kpi-row"><div><strong>{metrics.total}</strong><p>{summary.scopeLabel}</p></div></div>
-                  </article>
                   <article className="kpi-card">
                     <span className="kpi-label">{summary.permissions.canApprove ? "PENDIENTES DE DECISIÓN" : "PROPUESTAS ABIERTAS"}</span>
                     <div className="kpi-row"><div><strong>{metrics.pending}</strong><p>Propuestas abiertas</p></div></div>
@@ -174,22 +181,9 @@ function Dashboard() {
                 </div>
               </section>
 
-              <section className="dashboard-action-section" aria-labelledby="dashboard-actions-title">
-                <div>
-                  <span className="dashboard-section-kicker">IR DIRECTO A</span>
-                  <h2 id="dashboard-actions-title">Acciones y consultas</h2>
-                </div>
-                <nav className="dashboard-quick-actions" aria-label="Acciones rápidas">
-                  {summary.permissions.canCreate && <Link to="/planificacion"><ClipboardList size={17} aria-hidden="true" />Nueva propuesta</Link>}
-                  {summary.permissions.canApprove && <Link to="/planificacion"><CheckCircle2 size={17} aria-hidden="true" />Revisar propuestas</Link>}
-                  <Link to="/auditorias-activas"><Activity size={17} aria-hidden="true" />Auditorías activas y riesgos</Link>
-                  <Link to="/trimestres"><ArrowRight size={17} aria-hidden="true" />Plan trimestral</Link>
-                </nav>
-              </section>
-
-              <section id="portfolio-commitments" className="dashboard-panel dashboard-commitments" aria-labelledby="dashboard-commitments-title">
+              <section id="dashboard-panel-commitments" role="tabpanel" aria-labelledby="dashboard-tab-commitments" hidden={activeDashboardTab !== "commitments"} className="dashboard-panel dashboard-commitments" data-tour="dashboard-commitments">
                 <div className="dashboard-panel-heading">
-                  <div><span className="eyebrow">SEGUIMIENTO HUMANO</span><h2 id="dashboard-commitments-title">Compromisos del portafolio</h2></div>
+                  <div><span className="eyebrow">SEGUIMIENTO</span><h2 id="dashboard-commitments-title">Mis compromisos</h2></div>
                   <Link to="/notificaciones">Abrir Pendientes <ArrowRight size={15} aria-hidden="true" /></Link>
                 </div>
                 {actionsLoading ? <p className="dashboard-commitment-state" role="status">Consultando compromisos registrados…</p>
@@ -213,7 +207,7 @@ function Dashboard() {
                     </>}
               </section>
 
-              <div id="portfolio-analysis" className="dashboard-insight-row">
+              <div id="dashboard-panel-analysis" role="tabpanel" aria-labelledby="dashboard-tab-analysis" hidden={activeDashboardTab !== "analysis"} className="dashboard-insight-row">
                 <section className="dashboard-panel status-chart-panel" aria-labelledby="status-chart-title">
                   <div className="dashboard-panel-heading">
                     <div><span className="eyebrow">ESTADO DEL PORTAFOLIO</span><h2 id="status-chart-title">Registros por estado</h2></div>
@@ -258,7 +252,7 @@ function Dashboard() {
 
                 <section className="dashboard-panel dashboard-risk-panel" aria-labelledby="dashboard-risk-title">
                   <div className="dashboard-panel-heading">
-                    <div><span className="eyebrow">RIESGO EN EJECUCIÓN</span><h2 id="dashboard-risk-title">Matriz probabilidad × impacto</h2></div>
+                    <div><span className="eyebrow">RIESGO REGISTRADO</span><h2 id="dashboard-risk-title">Matriz de riesgo (P × I)</h2></div>
                     <Link to="/auditorias-activas">Abrir matriz <ArrowRight size={15} /></Link>
                   </div>
                   <div className="dashboard-view-switch" role="group" aria-label="Vista de riesgos">
@@ -292,11 +286,11 @@ function Dashboard() {
                     </div>
                     <p>Distribución de las {metrics.active} auditorías en curso.</p>
                   </div>}
-                  <p className="dashboard-chart-note">Conteo de auditorías activas. Clasificación calculada con la regla de riesgo documentada.</p>
+                  <p className="dashboard-chart-note">Muestra probabilidad e impacto capturados para auditorías activas; no representa riesgo residual.</p>
                 </section>
               </div>
 
-              <section id="portfolio-priorities" className="dashboard-panel pending-panel" aria-labelledby="pending-title">
+              <section id="dashboard-panel-priorities" role="tabpanel" aria-labelledby="dashboard-tab-priorities" hidden={activeDashboardTab !== "priorities"} className="dashboard-panel pending-panel">
                 <div className="dashboard-panel-heading">
                   <div><span className="eyebrow">SIGUIENTE ACCIÓN</span><h2 id="pending-title">{summary.permissions.canApprove ? "Propuestas pendientes de decisión" : summary.role === "AUDITOR" ? "Mis auditorías por atender" : "Actividades en seguimiento"}</h2></div>
                   <Link to={summary.role === "AUDITOR" ? "/auditorias-activas" : "/planificacion"}>Ver tablero <ArrowRight size={15} /></Link>
