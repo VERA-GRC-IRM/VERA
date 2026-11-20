@@ -14,6 +14,7 @@ test("sidebar renders each permitted destination once without duplicate React ke
   await page.goto("/dashboard");
   const navigation = page.locator(".sidebar nav");
   await expect(navigation.getByRole("button", { name: "Panel de Portafolio", includeHidden: true })).toHaveCount(1);
+  await expect(navigation.getByRole("button", { name: "Mapa de controles", includeHidden: true })).toHaveCount(0);
   await expect(navigation.getByRole("button", { name: "Asistente de IA", includeHidden: true })).toHaveCount(1);
   await expect(navigation.getByRole("button", { name: "Usuarios", includeHidden: true })).toHaveCount(1);
   expect(duplicateKeyWarnings).toEqual([]);

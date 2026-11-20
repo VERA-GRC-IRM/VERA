@@ -101,6 +101,49 @@ test("HU-15: no abre hallazgo con evaluación efectiva", async (context) => {
   assert.equal(response.status, 409);
 });
 
+test("RF-24: actualizar hallazgo requiere permiso, versión vigente y estado abierto", async (context) => {
+  const base = await startTestServer(context, app);
+  const createdResponse = await fetch(`${base}/api/findings`, json(3, "POST", {
+    auditId: "AUD-01",
+    title: "Desviación pendiente de corrección",
+    description: "La muestra detectó una excepción en el proceso de autorización.",
+    rootCause: "El flujo no asigna una segunda persona para validar las operaciones.",
+    severity: "MEDIUM",
+    responsibleId: 3
+  }));
+  assert.equal(createdResponse.status, 201);
+  const finding = (await createdResponse.json()).finding;
+  const path = `${base}/api/findings/${finding.id}`;
+  const changes = {
+    title: "Excepción de autorización",
+    description: "La muestra detectó dos excepciones en el proceso de autorización.",
+    rootCause: "El flujo no asigna una persona suplente para validar las operaciones.",
+    severity: "HIGH",
+    responsibleId: 3,
+    version: finding.storageVersion
+  };
+
+  assert.equal((await fetch(path, json(5, "PATCH", changes))).status, 403);
+  assert.equal((await fetch(path, json(4, "PATCH", changes))).status, 403);
+
+  const updateResponse = await fetch(path, json(3, "PATCH", changes));
+  assert.equal(updateResponse.status, 200);
+  const updated = (await updateResponse.json()).finding;
+  assert.equal(updated.title, changes.title);
+  assert.equal(updated.description, changes.description);
+  assert.equal(updated.rootCause, changes.rootCause);
+  assert.equal(updated.severity, "HIGH");
+  assert.equal(updated.responsibleId, 3);
+  assert.equal(updated.auditId, "AUD-01");
+  assert.equal(updated.storageVersion, finding.storageVersion + 1);
+  assert.equal(updated.status, "OPEN");
+
+  assert.equal((await fetch(path, json(3, "PATCH", changes))).status, 409);
+  assert.equal((await fetch(path, json(3, "PATCH", {
+    ...changes, version: updated.storageVersion, severity: "URGENT"
+  }))).status, 400);
+});
+
 test("RF-23: el hallazgo cierra solo tras completar su plan y registra actor y fecha", async (context) => {
   const base = await startTestServer(context, app);
   const riskResponse = await fetch(`${base}/api/risks`, json(3, "POST", {
@@ -150,6 +193,10 @@ test("RF-23: el hallazgo cierra solo tras completar su plan y registra actor y f
   const requested = (await requestedResponse.json()).finding;
   assert.equal(requested.status, "PENDING_CLOSURE");
   assert.equal(requested.closureHistory.at(-1).requestedBy.id, 3);
+  assert.equal((await fetch(`${base}/api/findings/${finding.id}`, json(3, "PATCH", {
+    title: "Cambio durante revisión", description: finding.description, rootCause: finding.rootCause,
+    severity: finding.severity, responsibleId: finding.responsibleId, version: requested.storageVersion
+  }))).status, 409);
   assert.equal((await fetch(`${base}/api/actions`, json(3, "POST", {
     sourceType: "FINDING", sourceId: finding.id, title: "Acción mientras se revisa",
     rationale: "No debe permitirse cambiar el plan durante la revisión.",
@@ -178,6 +225,10 @@ test("RF-23: el hallazgo cierra solo tras completar su plan y registra actor y f
   assert.equal(closed.closureHistory.at(-1).status, "APPROVED");
   assert.ok(closed.closureHistory.at(-1).decidedAt);
   assert.equal((await fetch(path, json(5, "PATCH", body))).status, 409);
+  assert.equal((await fetch(`${base}/api/findings/${finding.id}`, json(3, "PATCH", {
+    title: "Cambio después del cierre", description: finding.description, rootCause: finding.rootCause,
+    severity: finding.severity, responsibleId: finding.responsibleId, version: closed.storageVersion
+  }))).status, 409);
   assert.equal((await fetch(`${base}/api/actions`, json(3, "POST", {
     sourceType: "FINDING", sourceId: finding.id, title: "Acción tardía",
     rationale: "No debe agregarse a un hallazgo cerrado.", dueDate: "2026-12-31", assigneeId: 5

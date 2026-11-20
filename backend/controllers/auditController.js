@@ -16,7 +16,10 @@ const listRecentAuditActivity = async (req, res) => {
       .filter((audit) => req.user.role !== ROLES.AUDITOR || audit.responsibleId === req.user.id)
       .map((audit) => [audit.id, audit])
   );
-  const entries = await query({ limit: 1000 });
+  // The activity screen is a recent-work view. This only limits what it reads
+  // for presentation; formal audit history remains untouched and queryable.
+  const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const entries = await query({ from, limit: 1000 });
   const recent = entries
     .map((entry) => {
       const details = entry.details || {};

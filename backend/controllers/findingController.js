@@ -5,6 +5,7 @@ const planningRepository = require("../repositories/planningRepository");
 const { projectVisibleRiskRelations } = require("../services/recordScopeVisibility");
 const { createFindingForUser } = require("../services/findingCreationService");
 const { closeFindingForUser, reviewFindingClosureForUser } = require("../services/findingClosureService");
+const { updateFindingForUser } = require("../services/findingUpdateService");
 
 const listFindings = async (req, res) => {
   const filters = ["auditId", "riskId", "controlId"]
@@ -45,4 +46,12 @@ const reviewFindingClosure = async (req, res) => {
   }
 };
 
-module.exports = { listFindings, createFinding, closeFinding, reviewFindingClosure };
+const updateFinding = async (req, res) => {
+  try { return res.json({ finding: await updateFindingForUser(req.user, req.params.id, req.body) }); }
+  catch (error) {
+    if ([400, 403, 404, 409].includes(error.status)) return res.status(error.status).json({ message: error.message });
+    throw error;
+  }
+};
+
+module.exports = { listFindings, createFinding, updateFinding, closeFinding, reviewFindingClosure };
