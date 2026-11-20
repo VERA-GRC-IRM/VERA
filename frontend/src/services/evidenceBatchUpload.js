@@ -20,7 +20,9 @@ export async function uploadEvidenceBatch(files, details, upload, { signal, prev
       results.set(key, result);
       onResult?.(result);
     } catch (error) {
-      const result = { key, name: file.name, status: !error.resumable && (error.name === "AbortError" || error.uncertain) ? "uncertain" : "error",
+      const status = error.resumable ? error.name === "AbortError" ? "paused" : "resumable"
+        : error.name === "AbortError" || error.uncertain ? "uncertain" : "error";
+      const result = { key, name: file.name, status,
         message: error.message };
       results.set(key, result);
       onResult?.(result);

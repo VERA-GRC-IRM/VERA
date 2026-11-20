@@ -13,7 +13,7 @@ La [guía de integraciones Microsoft](microsoft-integrations.md) reúne Excel, P
 | [Enlaces de trabajo](shareable-links.md) | Acciones de enlace en registros y vistas compatibles | El enlace no concede permisos; los filtros escritos quedan visibles en la URL. |
 | [Tu espacio](personal-workspace.md) | Favoritos, vistas guardadas y secciones recientes; sincronización entre dispositivos preparada | La sincronización requiere migración y banderas aún no activadas en producción. |
 | [Actualización de vistas](automatic-refresh.md) | Consulta periódica de seis vistas y aviso de cambios al editar riesgos o controles | Hasta 40 segundos en vistas y 15 segundos en formularios; señal en vivo y presencia preparadas, pendientes de activación. |
-| [Carga de evidencias](evidence-upload.md) | Hasta 10 archivos de 3 MB, progreso y resultado individual; reintento solo tras rechazo confirmado | Reanudación y versiones preparadas, pendientes de migración y aceptación. |
+| [Carga de evidencias](evidence-upload.md) | Hasta 10 archivos de 3 MiB con el flujo actual | Vía TUS opcional de hasta 200 MiB preparada en código, apagada y pendiente de límites/CORS/aceptación en Storage; IA y offline permanecen en 3 MiB. |
 | [Avisos de escritorio](desktop-alerts.md) | Activación individual y mensaje genérico | Necesita VERA abierta; no es push con la aplicación cerrada. |
 | [Push con VERA cerrada](desktop-alerts.md) | Suscripción por cuenta y dispositivo, mensaje genérico y entrega deduplicada | Preparado en código; requiere migración, VAPID y aceptación real antes de activarse. |
 | [Estado de reportes](report-export-feedback.md) | Operación, tiempo transcurrido y cancelación de la petición | La ruta inmediata no detiene necesariamente el procesamiento del servidor. |

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Activity, ArrowLeft, ArrowRight, Bot, CheckCircle2, ClipboardCheck, Download, FileImage, FileSpreadsheet, FileText, Flag, LockKeyhole, Pencil, Play, Plus, RefreshCw, Save, ShieldAlert, Target, Upload, X } from "lucide-react";
-import { uploadEvidenceFile, getEvidenceDownloadUrl } from "../services/evidenceService";
+import { evidenceUploadMaxBytes, evidenceUploadMaxLabel, STANDARD_EVIDENCE_MAX_BYTES,
+  uploadEvidenceFile, getEvidenceDownloadUrl } from "../services/evidenceService";
 import Sidebar from "../components/Sidebar";
 import AssistantDrawer from "../components/AssistantDrawer";
 import PlanningHistoryButton from "../components/PlanningHistoryButton";
@@ -78,6 +79,8 @@ function AuditoriasActivas() {
   const [evidenceDescription, setEvidenceDescription] = useState("");
   const [evidenceFile, setEvidenceFile] = useState(null);
   const [evidenceSaving, setEvidenceSaving] = useState(false);
+  const [evidenceProgress, setEvidenceProgress] = useState(null);
+  const evidenceUploadController = useRef(null);
   const [riskOwners, setRiskOwners] = useState(() => user?.role === "AUDITOR"
     ? [{ id: user.id, name: user.name || user.username || "Mi usuario" }]
     : []);
@@ -421,16 +424,19 @@ function AuditoriasActivas() {
       return;
     }
 
-    if (evidenceFile.size > 3 * 1024 * 1024) {
-      setError("El archivo supera el límite de 3 MB.");
+    if (evidenceFile.size > evidenceUploadMaxBytes) {
+      setError(`El archivo supera el límite de ${evidenceUploadMaxLabel}.`);
       return;
     }
 
     setEvidenceSaving(true);
+    setEvidenceProgress(0);
     setError("");
     setMessage("");
 
     try {
+      const largeEvidence = evidenceFile.size > STANDARD_EVIDENCE_MAX_BYTES;
+      evidenceUploadController.current = new AbortController();
       await uploadEvidenceFile(
         {
           title: evidenceTitle.trim(),
@@ -439,7 +445,8 @@ function AuditoriasActivas() {
           entityType: "AUDIT",
           entityId: selectedAudit.id
         },
-        evidenceFile
+        evidenceFile,
+        { signal: evidenceUploadController.current.signal, onProgress: setEvidenceProgress }
       );
 
       setEvidenceTitle("");
@@ -448,11 +455,15 @@ function AuditoriasActivas() {
 
       await refresh();
 
-      setMessage("Archivo adjuntado correctamente a la auditoría.");
+      setMessage(largeEvidence
+        ? "Archivo adjuntado. Los archivos mayores a 3 MiB no se procesan con IA ni se incluyen en el espacio sin conexión."
+        : "Archivo adjuntado correctamente a la auditoría.");
     } catch (cause) {
       setError(cause.message);
     } finally {
+      evidenceUploadController.current = null;
       setEvidenceSaving(false);
+      setEvidenceProgress(null);
     }
   };
 
@@ -1013,8 +1024,8 @@ function AuditoriasActivas() {
                                     const selected =
                                       event.target.files?.[0] || null;
 
-                                    if (selected && selected.size > 3 * 1024 * 1024) {
-                                      setError("El archivo supera el límite de 3 MB.");
+                                    if (selected && selected.size > evidenceUploadMaxBytes) {
+                                      setError(`El archivo supera el límite de ${evidenceUploadMaxLabel}.`);
                                       setEvidenceFile(null);
                                       event.target.value = "";
                                       return;
@@ -1026,21 +1037,18 @@ function AuditoriasActivas() {
                                 />
 
                                 <small>
-                                  PDF, Excel, Word, CSV e imágenes. Máximo 3 MB.
+                                  PDF, Excel, Word, CSV e imágenes. Máximo {evidenceUploadMaxLabel}.
+                                  {evidenceFile?.size > STANDARD_EVIDENCE_MAX_BYTES && <span> Los archivos mayores a 3 MiB no se procesan con IA ni se incluyen en el espacio sin conexión.</span>}
                                 </small>
                               </label>
 
-                              <button
-                                type="submit"
-                                className="primary-action"
-                                disabled={evidenceSaving || !evidenceFile}
-                              >
-                                <Upload size={16} />
-
-                                {evidenceSaving
-                                  ? "Cargando archivo..."
-                                  : "Adjuntar archivo"}
-                              </button>
+                              {evidenceSaving && evidenceFile?.size > STANDARD_EVIDENCE_MAX_BYTES && <div className="evidence-upload-status" role="status"><span>{evidenceProgress === 100 ? "Archivo enviado; confirmando registro…" : `Carga reanudable · ${evidenceProgress ?? 0}%`}</span><progress value={evidenceProgress ?? 0} max="100" aria-label="Progreso de carga de evidencia" /></div>}
+                              <div className="modal-actions">
+                                {evidenceSaving && evidenceFile?.size > STANDARD_EVIDENCE_MAX_BYTES && <button type="button" className="secondary-action" onClick={() => evidenceUploadController.current?.abort()}>Pausar carga</button>}
+                                <button type="submit" className="primary-action" disabled={evidenceSaving || !evidenceFile}>
+                                  <Upload size={16} />{evidenceSaving ? "Cargando archivo..." : "Adjuntar archivo"}
+                                </button>
+                              </div>
                             </form>
                           )}
 

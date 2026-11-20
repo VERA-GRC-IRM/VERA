@@ -16,4 +16,4 @@ Las copias sin conexión continúan caducando a las 24 horas. Ningún cambio vis
 
 ## Límites que no cambian en este bloque
 
-Este ajuste no modifica el límite de tamaño de archivos. La solicitud de permitir hasta 200 MB requiere revisar el transporte y los límites de almacenamiento en servidor antes de cambiar la interfaz; aumentar solo el número mostrado podría permitir seleccionar archivos que luego no se pueden guardar.
+El despliegue conserva el límite de 3 MiB por defecto. La implementación opcional de carga grande incorpora una vía directa TUS con selección dinámica de hasta 200 MiB, pero permanece apagada hasta confirmar límites del proyecto y del bucket, CORS, persistencia de sesiones y aceptación real. No se debe habilitar únicamente el indicador del frontend. Los archivos grandes tampoco se procesan con IA ni se almacenan en el espacio sin conexión.

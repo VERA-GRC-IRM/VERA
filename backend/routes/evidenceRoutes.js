@@ -23,6 +23,12 @@ const uploadResult = (action, status = 200) => async (req, res, next) => {
     next(error);
   }
 };
+const largeUploadLimit = rateLimit({ windowMs: 60 * 60 * 1000, limit: 10,
+  keyGenerator: (req) => String(req.user.id), standardHeaders: "draft-8", legacyHeaders: false });
+const largeUploadAuthorizeLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30,
+  keyGenerator: (req) => String(req.user.id), standardHeaders: "draft-8", legacyHeaders: false });
+const largeUploadFinishLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30,
+  keyGenerator: (req) => String(req.user.id), standardHeaders: "draft-8", legacyHeaders: false });
 
 router.get("/uploads/cleanup", uploadResult((req) => {
   if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -33,8 +39,14 @@ router.get("/uploads/cleanup", uploadResult((req) => {
 
 router.post("/uploads", verifyToken, allowRoles(...RECORD_CREATE_ROLES),
   uploadResult((req) => resumable.start(req.user, req.body), 201));
+router.post("/uploads/direct", verifyToken, allowRoles(...RECORD_CREATE_ROLES), largeUploadLimit,
+  uploadResult((req) => resumable.startDirect(req.user, req.body), 201));
 router.get("/uploads/:id", verifyToken,
   uploadResult((req) => resumable.status(req.user, req.params.id)));
+router.post("/uploads/:id/direct-authorize", verifyToken, allowRoles(...RECORD_CREATE_ROLES), largeUploadAuthorizeLimit,
+  uploadResult((req) => resumable.authorizeDirect(req.user, req.params.id)));
+router.post("/uploads/:id/direct-finish", verifyToken, allowRoles(...RECORD_CREATE_ROLES), largeUploadFinishLimit,
+  uploadResult((req) => resumable.complete(req.user, req.params.id)));
 router.put("/uploads/:id/parts/:index", verifyToken, allowRoles(...RECORD_CREATE_ROLES),
   express.raw({ type: () => true, limit: "256kb" }),
   uploadResult((req) => resumable.putPart(req.user, req.params.id, req.params.index, req.body)));
