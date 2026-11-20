@@ -2,7 +2,10 @@ const { randomUUID } = require("node:crypto");
 
 const BUCKET = "vera-evidence";
 const MAX_BYTES = 3 * 1024 * 1024;
+const MAX_LARGE_UPLOAD_BYTES = 200 * 1024 * 1024;
 const CHUNK_BYTES = 256 * 1024;
+const TUS_CHUNK_BYTES = 6 * 1024 * 1024;
+const PREFIX_BYTES = 64 * 1024;
 const MIME_EXTENSIONS = {
   "application/pdf": "pdf",
   "application/vnd.ms-excel": "xls",
@@ -40,10 +43,100 @@ const headersFor = (key) => ({
   ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` })
 });
 
-const pathFor = (entityType, entityId, mime) => {
+const pathFor = (entityType, entityId, mime, objectId = randomUUID()) => {
   const extension = MIME_EXTENSIONS[mime];
-  if (!extension) throw new EvidenceStorageError("Tipo de archivo no permitido.", 415);
-  return `${entityType.toLowerCase()}/${encodeURIComponent(entityId)}/${randomUUID()}.${extension}`;
+  if (!extension || !/^(risk|control|audit|ai)$/i.test(String(entityType)) || !String(entityId).trim() ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(objectId)) {
+    throw new EvidenceStorageError("Ruta de evidencia no válida.", 400);
+  }
+  return `${entityType.toLowerCase()}/${encodeURIComponent(entityId)}/${objectId}.${extension}`;
+};
+
+const safeObjectPath = (path) => typeof path === "string" &&
+  /^(risk|control|audit|ai)\/[^/]+\/[0-9a-f-]{36}\.(pdf|xls|xlsx|doc|docx|png|jpg|webp|csv|txt)$/i.test(path);
+
+const createTusUploadToken = async (path) => {
+  if (!safeObjectPath(path)) throw new EvidenceStorageError("Ruta de carga no válida.", 400);
+  const { root, key } = config();
+  const url = new URL(`/storage/v1/object/upload/sign/${BUCKET}/${path}`, root);
+  let response;
+  try {
+    response = await fetch(url, { method: "POST", headers: {
+      ...headersFor(key), "Content-Type": "application/json", "x-upsert": "false"
+    }, body: "{}", signal: AbortSignal.timeout(10_000) });
+  } catch { throw new EvidenceStorageError("No se pudo preparar la carga reanudable."); }
+  if (!response.ok) {
+    throw new EvidenceStorageError("El almacén rechazó la preparación de la carga.", response.status === 409 ? 409 : 503);
+  }
+  let payload;
+  try { payload = await response.json(); }
+  catch { throw new EvidenceStorageError("El almacén respondió con un formato no válido."); }
+  const signed = payload.url || payload.signedURL;
+  if (typeof signed !== "string" || signed.length > 4096) {
+    throw new EvidenceStorageError("El almacén no devolvió una autorización de carga válida.");
+  }
+  let token;
+  try { token = new URL(signed, root).searchParams.get("token"); }
+  catch { throw new EvidenceStorageError("El almacén no devolvió una autorización de carga válida."); }
+  if (typeof token !== "string" || token.length < 16 || token.length > 2048) {
+    throw new EvidenceStorageError("El almacén no devolvió una autorización de carga válida.");
+  }
+  const hostname = root.hostname.endsWith(".supabase.co")
+    ? `${root.hostname.slice(0, -".supabase.co".length)}.storage.supabase.co` : root.hostname;
+  const port = root.port ? `:${root.port}` : "";
+  return { endpoint: `https://${hostname}${port}/storage/v1/upload/resumable`, token };
+};
+
+const readTusObjectInfo = async (path) => {
+  if (!safeObjectPath(path)) throw new EvidenceStorageError("Ruta de carga no válida.", 400);
+  const { root, key } = config();
+  const url = new URL(`/storage/v1/object/authenticated/${BUCKET}/${path}`, root);
+  let response;
+  try { response = await fetch(url, { method: "HEAD", headers: headersFor(key), signal: AbortSignal.timeout(10_000) }); }
+  catch { throw new EvidenceStorageError("No se pudo verificar el archivo en Storage."); }
+  if (!response.ok) throw new EvidenceStorageError("El archivo final no está disponible en Storage.", response.status === 404 ? 409 : 503);
+  const size = Number(response.headers.get("content-length"));
+  const mime = String(response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (!Number.isSafeInteger(size) || size < 1 || size > MAX_LARGE_UPLOAD_BYTES || !mime) {
+    throw new EvidenceStorageError("El archivo final no cumple los límites permitidos.", 413);
+  }
+  return { size, mime };
+};
+
+const readTusObjectPrefix = async (path) => {
+  if (!safeObjectPath(path)) throw new EvidenceStorageError("Ruta de carga no válida.", 400);
+  const { root, key } = config();
+  const url = new URL(`/storage/v1/object/authenticated/${BUCKET}/${path}`, root);
+  let response;
+  try {
+    response = await fetch(url, { headers: { ...headersFor(key), Range: `bytes=0-${PREFIX_BYTES - 1}` },
+      signal: AbortSignal.timeout(10_000) });
+  } catch { throw new EvidenceStorageError("No se pudo verificar el contenido del archivo."); }
+  if (!response.ok) throw new EvidenceStorageError("No se pudo verificar el contenido del archivo.", response.status === 404 ? 409 : 503);
+  if (!response.body) throw new EvidenceStorageError("El almacén no devolvió el contenido del archivo.");
+  const reader = response.body.getReader();
+  const pieces = [];
+  let length = 0;
+  try {
+    while (length < PREFIX_BYTES) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const part = Buffer.from(value).subarray(0, PREFIX_BYTES - length);
+      pieces.push(part);
+      length += part.length;
+    }
+  } finally { await reader.cancel().catch(() => {}); }
+  return Buffer.concat(pieces, length);
+};
+
+const removeObjectPath = async (path) => {
+  if (!safeObjectPath(path)) throw new EvidenceStorageError("Ruta de archivo no válida.", 400);
+  const { root, key } = config();
+  const url = new URL(`/storage/v1/object/${BUCKET}`, root);
+  const response = await fetch(url, { method: "DELETE", headers: {
+    ...headersFor(key), "Content-Type": "application/json"
+  }, body: JSON.stringify({ prefixes: [path] }), signal: AbortSignal.timeout(10_000) });
+  if (!response.ok && response.status !== 404) throw new EvidenceStorageError("No se pudo retirar el archivo incompleto.");
 };
 
 const chunkPath = (sessionId, index, mime) => {
@@ -150,6 +243,20 @@ const hasValidSignature = (bytes, mime) => {
   return false;
 };
 
+const verifyTusObject = async ({ path, mime, expectedSize }) => {
+  const info = await readTusObjectInfo(path);
+  if (info.size !== expectedSize || info.mime !== mime) {
+    throw new EvidenceStorageError("El archivo final no coincide con su tamaño o tipo declarado.", 415);
+  }
+  const prefix = await readTusObjectPrefix(path);
+  const signatureBytes = mime === "text/plain" || mime === "text/csv"
+    ? prefix.subarray(0, Math.max(0, prefix.length - 4)) : prefix;
+  if (prefix.length === 0 || !hasValidSignature(signatureBytes, mime)) {
+    throw new EvidenceStorageError("El contenido no coincide con el tipo de archivo.", 415);
+  }
+  return info;
+};
+
 const upload = async ({ entityType, entityId, mime, bytes }) => {
   if (!Buffer.isBuffer(bytes)) {
     throw new EvidenceStorageError("El cuerpo debe ser un archivo binario.", 400);
@@ -240,5 +347,6 @@ const signedDownloadUrl = async (file) => {
   return new URL(`/storage/v1${data.signedURL}`, root).toString();
 };
 
-module.exports = { MAX_BYTES, CHUNK_BYTES, MIME_EXTENSIONS, EvidenceStorageError, upload, uploadChunk,
-  downloadChunk, chunkPath, remove, removeChunks, signedDownloadUrl, downloadBytes };
+module.exports = { MAX_BYTES, MAX_LARGE_UPLOAD_BYTES, CHUNK_BYTES, TUS_CHUNK_BYTES, MIME_EXTENSIONS,
+  EvidenceStorageError, pathFor, createTusUploadToken, verifyTusObject, removeObjectPath,
+  upload, uploadChunk, downloadChunk, chunkPath, remove, removeChunks, signedDownloadUrl, downloadBytes };

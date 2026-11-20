@@ -24,4 +24,4 @@ La matriz del Panel de Portafolio resume los niveles de probabilidad e impacto r
 
 ## Límite de carga de archivos
 
-La carga desplegada admite actualmente archivos de hasta 3 MB por archivo. No se anuncia un límite de 200 MB: alcanzarlo requiere una ruta de carga directa y reanudable compatible con Storage, control de permisos, límites del proveedor y pruebas de extremo a extremo. Cambiar solo la validación visual o el límite HTTP no sería suficiente.
+La configuración desplegada conserva el límite de 3 MiB por archivo. La vía opcional TUS de hasta 200 MiB está preparada en una rama, pero no se anuncia como disponible hasta verificar límites globales y del bucket, CORS, plan, permisos y aceptación de extremo a extremo en Supabase. Al activarse, los archivos mayores a 3 MiB quedan fuera del procesamiento de IA y del espacio sin conexión.

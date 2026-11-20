@@ -6,6 +6,13 @@ const CSV = Buffer.from("Control,Estado\nAcceso,Aprobado\n");
 const FILE = { bucket: "vera-evidence", path: "risk/RSK-1/11111111-1111-1111-1111-111111111111.csv",
   mime: "text/csv", size: CSV.length };
 
+test("las rutas de evidencias conservan el espacio privado de archivos de IA", () => {
+  const path = storage.pathFor("ai", "conversation-1", "text/plain",
+    "11111111-1111-1111-1111-111111111111");
+  assert.equal(path, "ai/conversation-1/11111111-1111-1111-1111-111111111111.txt");
+  assert.throws(() => storage.pathFor("unexpected", "record-1", "text/plain"), { status: 400 });
+});
+
 test("Almacén privado: CSV UTF-8 válido se sube y descarga; la ruta queda acotada al bucket", async (t) => {
   const previous = { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SECRET_KEY };
   const originalFetch = global.fetch;

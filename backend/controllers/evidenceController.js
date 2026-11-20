@@ -35,10 +35,14 @@ const listEvidence = async (req, res) => {
   try {
     const coverage = await evidenceIndexCoverage.getMany(fileIds);
     res.json({ evidence: items.map((item) => item.file ? { ...item,
-      contentIndex: coverage.get(item.id) || { status: "unknown" } } : item) });
+      contentIndex: item.file.size > evidenceStorage.MAX_BYTES
+        ? { status: "too-large", chunks: 0, truncated: false }
+        : coverage.get(item.id) || { status: "unknown" } } : item) });
   } catch {
     res.json({ evidence: items.map((item) => item.file ? { ...item,
-      contentIndex: { status: "unknown", unavailable: true } } : item),
+      contentIndex: item.file.size > evidenceStorage.MAX_BYTES
+        ? { status: "too-large", chunks: 0, truncated: false }
+        : { status: "unknown", unavailable: true } } : item),
     indexCoverageUnavailable: true });
   }
 };

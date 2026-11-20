@@ -45,5 +45,13 @@ test("an interrupted resumable transfer remains retryable", async () => {
   const result = await uploadEvidenceBatch(files.slice(0, 1), { title: "Respaldo" }, async () => {
     const error = new Error("Conexión interrumpida"); error.resumable = true; throw error;
   });
-  assert.equal(result[0].status, "error");
+  assert.equal(result[0].status, "resumable");
+});
+
+test("a resumable transfer stopped by the user is marked paused", async () => {
+  const controller = new AbortController();
+  const result = await uploadEvidenceBatch(files.slice(0, 1), { title: "Respaldo" }, async () => {
+    const error = new DOMException("Carga pausada.", "AbortError"); error.resumable = true; throw error;
+  }, { signal: controller.signal });
+  assert.equal(result[0].status, "paused");
 });

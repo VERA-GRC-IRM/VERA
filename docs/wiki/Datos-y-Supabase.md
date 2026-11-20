@@ -15,7 +15,7 @@ VERA tiene seis modos de almacén. La plantilla [`.env.example`](https://github.
 
 Las [migraciones versionadas](https://github.com/VERA-GRC-IRM/VERA/tree/main/supabase/migrations) definen esquema y políticas de acceso. La guía de [activación de Supabase](https://github.com/VERA-GRC-IRM/VERA/blob/main/docs/supabase-planning.md) documenta orden, conciliación con datos existentes y verificaciones. La décima migración crea el bucket privado de evidencia; la undécima agrega lecturas de notificaciones.
 
-Los archivos admitidos por la ruta de carga son PDF, PNG, JPEG, WebP y TXT de hasta 3 MB. El backend comprueba acceso a la entidad antes de cargar y antes de entregar una URL temporal de descarga. Metadatos en `memory` pueden perderse al reiniciar aunque el objeto permanezca en Storage; por eso la configuración de ambos lados debe verificarse junta.
+El despliegue mantiene el flujo actual de hasta 3 MiB por archivo (PDF, Office, CSV, TXT e imágenes admitidas). Hay una ruta TUS opcional preparada para hasta 200 MiB, apagada por defecto y pendiente de comprobar el límite global del proyecto, el límite de 200 MiB del bucket `vera-evidence`, CORS, plan y una carga real. El backend comprueba acceso a la entidad antes de emitir autorización y antes de confirmar metadatos. IA y uso sin conexión siguen limitados a 3 MiB. Metadatos en `memory` pueden perderse al reiniciar aunque el objeto permanezca en Storage; por eso la configuración de ambos lados debe verificarse junta.
 
 ## Qué prueba la persistencia real
 

@@ -6,7 +6,9 @@ import useAutomaticRefresh from "../hooks/useAutomaticRefresh";
 import ShareLinkButton from "../components/ShareLinkButton";
 import { BookmarkButton, SaveViewButton } from "../components/WorkspaceActions";
 import EvidenceAssistantDialog from "../components/EvidenceAssistantDialog";
-import { createEvidence, getEvidence, getEvidenceDownloadUrl, uploadEvidenceFile } from "../services/evidenceService";
+import { createEvidence, evidenceUploadMaxBytes, evidenceUploadMaxLabel, getEvidence, getEvidenceDownloadUrl,
+  largeEvidenceUploadsEnabled,
+  STANDARD_EVIDENCE_MAX_BYTES, uploadEvidenceFile } from "../services/evidenceService";
 import { evidenceFileKey, uploadEvidenceBatch } from "../services/evidenceBatchUpload";
 import { getRisks } from "../services/riskService";
 import { getControls } from "../services/controlService";
@@ -20,6 +22,8 @@ const ENTITY_LABELS = { RISK: "Riesgo", CONTROL: "Control", AUDIT: "Auditoría" 
 const TYPE_LABELS = { DOCUMENT: "Documento", SCREENSHOT: "Captura", REPORT: "Informe", OTHER: "Otro" };
 const safeLink = (value) => /^https:\/\//i.test(value);
 const formatDate = (value) => new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
+const formatFileSize = (bytes) => bytes >= 1024 * 1024
+  ? `${(bytes / (1024 * 1024)).toFixed(1)} MiB` : `${Math.max(1, Math.ceil(bytes / 1024))} KiB`;
 const labelForEntity = (entity) => `${entity.id} · ${entity.title}`;
 const versionsEnabled = import.meta.env.VITE_VERA_EVIDENCE_VERSIONS_ENABLED === "true";
 const indexLabel = (index, mime) => {
@@ -30,7 +34,8 @@ const indexLabel = (index, mime) => {
   if (index?.status === "pending" && mime?.startsWith("image/")) return "Extracción con IA disponible al solicitarla";
   return {
     "no-text": "Sin texto legible", pending: "Lectura pendiente",
-    unsupported: "Extracción no disponible", unknown: "Cobertura no registrada"
+    unsupported: "Extracción no disponible", unknown: "Cobertura no registrada",
+    "too-large": "Guardado. Los archivos mayores a 3 MiB no se procesan con IA ni se guardan para uso sin conexión."
   }[index?.status] ||
     "Cobertura no registrada";
 };
@@ -106,7 +111,7 @@ function Evidencias() {
       if (!["pdf", "xls", "xlsx", "doc", "docx", "png", "jpg", "jpeg", "webp", "csv", "txt"].includes(extension)) {
         setError("Selecciona PDF, Excel, Word, CSV, TXT o una imagen compatible."); return false;
       }
-      if (file.size > 3 * 1024 * 1024) { setError(`${file.name} supera el límite de 3 MB.`); return false; }
+      if (file.size > evidenceUploadMaxBytes) { setError(`${file.name} supera el límite de ${evidenceUploadMaxLabel}.`); return false; }
       if (keys.has(evidenceFileKey(file))) { setError("Hay archivos repetidos en el lote."); return false; }
       keys.add(evidenceFileKey(file));
     }
@@ -150,7 +155,7 @@ function Evidencias() {
   };
   const revise = async (item, file) => {
     if (!file) return;
-    if (file.size === 0 || file.size > 3 * 1024 * 1024) { setError("El archivo debe tener entre 1 byte y 3 MB."); return; }
+    if (file.size === 0 || file.size > evidenceUploadMaxBytes) { setError(`El archivo debe tener entre 1 byte y ${evidenceUploadMaxLabel}.`); return; }
     setRevisingId(item.id); setError("");
     try {
       await uploadEvidenceFile({ title: item.title, description: item.description,
@@ -165,7 +170,7 @@ function Evidencias() {
     <header className="dashboard-header"><div><span className="eyebrow">EXPEDIENTE DIGITAL</span><h1>Evidencias</h1><p>Organiza archivos y referencias de respaldo vinculados con riesgos, controles o auditorías.</p></div>{canCreate && (<button className="primary-action" onClick={openCreate}><Plus size={18} /> Registrar evidencia</button>)}</header>
     {message && <p className="evidence-feedback success">{message}</p>}{error && !modal && <p className="evidence-feedback error">{error}</p>}
     <div className="evidence-summary"><article><strong>{currentVersions.length}</strong><span>referencias registradas</span></article>{counts.map(({ entityType, count }) => <article key={entityType}><strong>{count}</strong><span>vinculadas a {ENTITY_LABELS[entityType].toLowerCase()}s</span></article>)}</div>
-    <div className="evidence-notice"><FileCheck2 size={19} /><p><b>Expediente privado.</b> Puedes registrar una referencia externa o cargar hasta 10 archivos PDF, DOCX, imagen, TXT, Excel o CSV de 3 MB cada uno. {import.meta.env.VITE_VERA_RESUMABLE_UPLOADS_ENABLED === "true" && "Si se interrumpe una carga, vuelve a seleccionar el mismo archivo y entidad para continuar desde las partes confirmadas. "}La consulta con IA lee texto de PDF, DOCX, TXT y CSV. Para imágenes, puedes iniciar la extracción con IA de forma explícita; los PDF escaneados aún requieren OCR de páginas. Los archivos requieren Supabase Storage configurado en el backend.</p></div>
+    <div className="evidence-notice"><FileCheck2 size={19} /><p><b>Expediente privado.</b> Puedes registrar una referencia externa o cargar hasta 10 archivos PDF, DOCX, imagen, TXT, Excel o CSV de {evidenceUploadMaxLabel} cada uno. {import.meta.env.VITE_VERA_RESUMABLE_UPLOADS_ENABLED === "true" && "Si se interrumpe una carga, vuelve a seleccionar el mismo archivo y entidad para continuar desde las partes confirmadas. "}{largeEvidenceUploadsEnabled && "Los archivos mayores a 3 MiB se guardan, pero no se procesan con IA ni se incluyen en el espacio sin conexión. "}La lectura con IA admite archivos de hasta 3 MiB; los PDF escaneados requieren OCR de páginas. Los archivos requieren Supabase Storage configurado en el backend.</p></div>
     {form.entityType === "AUDIT" && !canAttachToAudit && (
       <small>
         Tu cuenta puede consultar esta auditoría, pero no tiene
@@ -181,11 +186,11 @@ function Evidencias() {
           <div className="evidence-card-tags"><span className="evidence-type">{TYPE_LABELS[item.evidenceType]}</span><span className="evidence-entity-type">{ENTITY_LABELS[item.entityType]} · {item.entityId}</span></div>
           <h2>{item.title}</h2><p>{item.description}</p>
           <div className="evidence-meta"><span><b>Relacionada con:</b> {item.entityTitle}</span><span><b>Registró:</b> {item.author.name}</span><span>{formatDate(item.createdAt)}</span></div>
-          <div className="evidence-reference"><b>{item.file ? `Archivo · versión ${item.versionNumber || 1}:` : "Referencia:"}</b> {item.file ? <button type="button" className="secondary-action" onClick={() => download(item)}>Descargar archivo ({Math.ceil(item.file.size / 1024)} KB)</button> : safeLink(item.reference) ? <a href={item.reference} target="_blank" rel="noreferrer">Abrir referencia <ExternalLink size={13} /></a> : <span>{item.reference}</span>}</div>
+          <div className="evidence-reference"><b>{item.file ? `Archivo · versión ${item.versionNumber || 1}:` : "Referencia:"}</b> {item.file ? <button type="button" className="secondary-action" onClick={() => download(item)}>Descargar archivo ({formatFileSize(item.file.size)})</button> : safeLink(item.reference) ? <a href={item.reference} target="_blank" rel="noreferrer">Abrir referencia <ExternalLink size={13} /></a> : <span>{item.reference}</span>}</div>
           {versionsEnabled && item.file && canCreate && (item.entityType !== "AUDIT" || canAttachToAudit) && <label className="evidence-revision-upload">{revisingId === item.id ? "Guardando versión…" : "Subir nueva versión"}<input type="file" accept=".pdf,.xls,.xlsx,.doc,.docx,.png,.jpg,.jpeg,.webp,.csv,.txt" disabled={Boolean(revisingId)} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; revise(item, file); }} /></label>}
           {item.file && item.versionNumber > 1 && <details className="evidence-version-history"><summary>Versiones anteriores</summary><ol>{items.filter((candidate) => candidate.id === (item.versionRootId || item.id) || candidate.versionRootId === item.versionRootId).filter((candidate) => candidate.id !== item.id).sort((a, b) => (b.versionNumber || 1) - (a.versionNumber || 1)).map((candidate) => <li key={candidate.id}>Versión {candidate.versionNumber || 1} · {formatDate(candidate.createdAt)} · <button type="button" className="secondary-action" onClick={() => download(candidate)}>Descargar</button></li>)}</ol></details>}
           {item.file && <small className="evidence-index-coverage">{indexLabel(item.contentIndex, item.file.mime)}</small>}
-          {item.file && ["application/pdf", "text/plain", "text/csv", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/png", "image/jpeg", "image/webp"].includes(item.file.mime) && <button type="button" className="secondary-action evidence-ai-open" onClick={() => setAssistantEvidence(item)}><FileText size={15} aria-hidden="true" /> Consultar contenido con IA</button>}
+          {item.file && item.file.size <= STANDARD_EVIDENCE_MAX_BYTES && ["application/pdf", "text/plain", "text/csv", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/png", "image/jpeg", "image/webp"].includes(item.file.mime) && <button type="button" className="secondary-action evidence-ai-open" onClick={() => setAssistantEvidence(item)}><FileText size={15} aria-hidden="true" /> Consultar contenido con IA</button>}
           <ShareLinkButton path={`/evidencias#evidence-${encodeURIComponent(item.id)}`} />
           <BookmarkButton userId={currentUser?.roleTour ? null : currentUser?.id} path={`/evidencias#evidence-${encodeURIComponent(item.id)}`} label={`Evidencia ${item.id}`} />
         </div>
@@ -197,7 +202,7 @@ function Evidencias() {
         onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={(event) => { event.preventDefault(); setDragging(false); if (!saving) chooseFiles(event.dataTransfer.files); }}>
-        Archivos privados (PDF, Excel, Word, CSV o imágenes; hasta 10 de 3 MB cada uno)
+        Archivos privados (PDF, Excel, Word, CSV o imágenes; hasta 10 de {evidenceUploadMaxLabel} cada uno)
         <input
           type="file"
           multiple
@@ -207,11 +212,11 @@ function Evidencias() {
             if (!chooseFiles(event.target.files)) event.target.value = "";
           }}
         />
-        <small>{files.length ? `${files.length} archivo${files.length === 1 ? "" : "s"} seleccionado${files.length === 1 ? "" : "s"}` : "También puedes arrastrar varios archivos aquí."}</small>
+        <small>{files.length ? `${files.length} archivo${files.length === 1 ? "" : "s"} seleccionado${files.length === 1 ? "" : "s"}` : `También puedes arrastrar varios archivos aquí. Las cargas mayores a 3 MiB requieren conexión y no están disponibles para IA ni trabajo sin conexión.`}</small>
       </label> {!files.length && <label className="full-width">Enlace HTTPS o identificador externo<input required minLength="3" maxLength="500" value={form.reference} onChange={(event) => setForm({ ...form, reference: event.target.value })} placeholder="https://drive.google.com/... o archivo-expediente-042" /></label>}</div>
       {files.length > 0 && <ul className="evidence-batch-list" aria-label="Estado de archivos seleccionados">{files.map((selected) => {
         const result = batchResults.find((item) => item.key === evidenceFileKey(selected));
-        return <li key={evidenceFileKey(selected)}><span>{selected.name} · {Math.ceil(selected.size / 1024)} KB</span><small>{result?.status === "saved" ? "Guardado" : result?.status === "uncertain" ? "Estado incierto: comprueba la lista" : result?.status === "error" ? `Error: ${result.message}` : "Pendiente"}</small></li>;
+        return <li key={evidenceFileKey(selected)}><span>{selected.name} · {formatFileSize(selected.size)}</span><small>{result?.status === "saved" ? "Guardado" : result?.status === "paused" ? "Pausado; pulsa cargar para continuar o vuelve a seleccionar el mismo archivo" : result?.status === "resumable" ? `Interrumpido; reintentable: ${result.message}` : result?.status === "uncertain" ? "Estado incierto: comprueba la lista" : result?.status === "error" ? `Error: ${result.message}` : "Pendiente"}</small></li>;
       })}</ul>}
       {saving && files.length > 0 && <div className="evidence-upload-status" role="status"><span>{uploadProgress === 100 ? "Archivo enviado; guardando registro…" : `Archivo ${uploadPosition ? uploadPosition.index + 1 : 1} de ${files.length} · ${uploadProgress ?? 0}%`}</span><progress value={uploadProgress ?? 0} max="100" aria-label="Progreso de carga" /></div>}
       <div className="modal-actions"><button type="button" className="secondary-action" onClick={saving && files.length ? () => uploadController.current?.abort() : closeModal} disabled={saving && !files.length}>{saving && files.length ? "Detener lote" : "Cancelar"}</button><button type="submit" className="primary-action" disabled={saving || batchResults.some((result) => result.status === "uncertain") || (form.entityType === "AUDIT" && !canAttachToAudit)}>{saving ? "Guardando..." : files.length ? batchResults.some((result) => result.status === "error") ? "Reintentar archivos fallidos" : `Cargar ${files.length} archivo${files.length === 1 ? "" : "s"}` : "Guardar referencia"}</button></div></form></div>)}

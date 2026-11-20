@@ -17,12 +17,18 @@ test("HU-16: carga archivo privado, vincula metadatos y firma descarga autorizad
   const before = { url: process.env.SUPABASE_URL, secret: process.env.SUPABASE_SECRET_KEY,
     versions: process.env.VERA_EVIDENCE_VERSIONS_ENABLED,
     resumable: process.env.VERA_RESUMABLE_UPLOADS_ENABLED,
+    largeResumable: process.env.VERA_LARGE_EVIDENCE_UPLOADS_ENABLED,
+    resumableStore: process.env.VERA_RESUMABLE_STORE,
+    evidenceStore: process.env.VERA_EVIDENCE_COMMENT_STORE,
     cronSecret: process.env.CRON_SECRET };
   context.after(() => {
     global.fetch = originalFetch;
     for (const [name, value] of [["SUPABASE_URL", before.url], ["SUPABASE_SECRET_KEY", before.secret],
       ["VERA_EVIDENCE_VERSIONS_ENABLED", before.versions],
       ["VERA_RESUMABLE_UPLOADS_ENABLED", before.resumable],
+      ["VERA_LARGE_EVIDENCE_UPLOADS_ENABLED", before.largeResumable],
+      ["VERA_RESUMABLE_STORE", before.resumableStore],
+      ["VERA_EVIDENCE_COMMENT_STORE", before.evidenceStore],
       ["CRON_SECRET", before.cronSecret]]) {
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
@@ -33,6 +39,7 @@ test("HU-16: carga archivo privado, vincula metadatos y firma descarga autorizad
 
   let uploaded = 0;
   const chunks = new Map();
+  const tusObjects = new Map();
   global.fetch = async (input, options) => {
     const url = new URL(input);
     if (url.hostname !== "supabase.example") return originalFetch(input, options);
@@ -50,8 +57,25 @@ test("HU-16: carga archivo privado, vincula metadatos y firma descarga autorizad
     if (url.pathname === "/storage/v1/object/vera-evidence" && options.method === "DELETE") {
       for (const prefix of JSON.parse(options.body).prefixes) {
         chunks.delete(`/storage/v1/object/vera-evidence/${prefix}`);
+        tusObjects.delete(prefix);
       }
       return Response.json({});
+    }
+    if (url.pathname.startsWith("/storage/v1/object/upload/sign/vera-evidence/") && options.method === "POST") {
+      assert.equal(options.headers["x-upsert"], "false");
+      return Response.json({ url: `${url.pathname.slice("/storage/v1".length)}?token=test-tus-signature` });
+    }
+    if (url.pathname.startsWith("/storage/v1/object/authenticated/vera-evidence/")) {
+      const objectPath = url.pathname.slice("/storage/v1/object/authenticated/vera-evidence/".length);
+      const stored = tusObjects.get(objectPath);
+      if (!stored) return Response.json({ message: "Not found" }, { status: 404 });
+      if (options.method === "HEAD") return new Response(null, { headers: {
+        "Content-Type": stored.mime, "Content-Length": String(stored.bytes.length)
+      } });
+      const prefix = stored.bytes.subarray(0, 64 * 1024);
+      return new Response(prefix, { status: 206, headers: {
+        "Content-Type": stored.mime, "Content-Length": String(prefix.length)
+      } });
     }
     if (url.pathname.startsWith("/storage/v1/object/vera-evidence/") && options.method === "POST") {
       uploaded += 1;
@@ -236,4 +260,109 @@ test("HU-16: carga archivo privado, vincula metadatos y firma descarga autorizad
   assert.equal(cleanup.status, 200);
   assert.equal((await cleanup.json()).removed, 1);
   assert.equal(await repository.findById(staleSession.id), null);
+
+  const directBody = (overrides = {}) => ({ ...Object.fromEntries(query),
+    mime: "application/pdf", size: 3 * 1024 * 1024 + 1, ...overrides });
+  const disabledDirect = await fetch(`${base}/api/evidence/uploads/direct`, {
+    method: "POST", headers: auth(5, { "Content-Type": "application/json" }),
+    body: JSON.stringify(directBody())
+  });
+  assert.equal(disabledDirect.status, 503);
+
+  process.env.VERA_LARGE_EVIDENCE_UPLOADS_ENABLED = "true";
+  process.env.VERA_RESUMABLE_STORE = "supabase";
+  process.env.VERA_EVIDENCE_COMMENT_STORE = "supabase";
+  const directStart = await fetch(`${base}/api/evidence/uploads/direct`, {
+    method: "POST", headers: auth(5, { "Content-Type": "application/json" }),
+    body: JSON.stringify(directBody())
+  });
+  assert.equal(directStart.status, 201);
+  const directSession = await directStart.json();
+  assert.equal(directSession.uploadMode, "tus");
+  assert.equal(directSession.chunkSize, 6 * 1024 * 1024);
+  assert.equal(directSession.size, 3 * 1024 * 1024 + 1);
+  assert.match(directSession.endpoint, /^https:\/\/supabase\.example\/storage\/v1\/upload\/resumable$/);
+  assert.equal(directSession.token, "test-tus-signature");
+  assert.match(directSession.objectPath, /^risk\/.+\/[0-9a-f-]{36}\.pdf$/i);
+  assert.equal((await fetch(`${base}/api/evidence/uploads/${directSession.id}`, {
+    headers: auth(4)
+  })).status, 404);
+  const tooLargeDirect = await fetch(`${base}/api/evidence/uploads/direct`, {
+    method: "POST", headers: auth(5, { "Content-Type": "application/json" }),
+    body: JSON.stringify(directBody({ size: 200 * 1024 * 1024 + 1 }))
+  });
+  assert.equal(tooLargeDirect.status, 413);
+  const maxBoundaryResponse = await fetch(`${base}/api/evidence/uploads/direct`, {
+    method: "POST", headers: auth(5, { "Content-Type": "application/json" }),
+    body: JSON.stringify(directBody({ size: 200 * 1024 * 1024 }))
+  });
+  assert.equal(maxBoundaryResponse.status, 201);
+  const maxBoundary = await maxBoundaryResponse.json();
+  assert.equal(maxBoundary.size, 200 * 1024 * 1024);
+  tusObjects.set(maxBoundary.objectPath, { bytes: Buffer.from("pending"), mime: "application/pdf" });
+  const maxBoundaryStored = await repository.findById(maxBoundary.id);
+  await repository.mutate(maxBoundary.id, { expiresAt: new Date(Date.now() - 1000).toISOString() },
+    maxBoundaryStored.storageVersion);
+
+  const authorizeDirect = await fetch(`${base}/api/evidence/uploads/${directSession.id}/direct-authorize`, {
+    method: "POST", headers: auth(5)
+  });
+  assert.equal(authorizeDirect.status, 200);
+  assert.equal((await authorizeDirect.json()).token, "test-tus-signature");
+  assert.equal((await fetch(`${base}/api/evidence/uploads/${directSession.id}/direct-authorize`, {
+    method: "POST", headers: auth(4)
+  })).status, 404);
+
+  const validLargePdf = Buffer.alloc(directSession.size, 65);
+  Buffer.from("%PDF-").copy(validLargePdf);
+  tusObjects.set(directSession.objectPath, { bytes: validLargePdf, mime: "application/pdf" });
+  const directFinish = await fetch(`${base}/api/evidence/uploads/${directSession.id}/direct-finish`, {
+    method: "POST", headers: auth(5)
+  });
+  assert.equal(directFinish.status, 200);
+  const directResult = await directFinish.json();
+  assert.equal(directResult.evidence.file.size, directSession.size);
+  assert.equal(directResult.evidence.file.path, directSession.objectPath);
+  assert.equal(directResult.contentIndex.status, "too-large");
+  const directList = await fetch(`${base}/api/evidence`, { headers: auth(5) });
+  const directListed = (await directList.json()).evidence.find((item) => item.id === directResult.evidence.id);
+  assert.equal(directListed.contentIndex.status, "too-large");
+  const directRepeat = await fetch(`${base}/api/evidence/uploads/${directSession.id}/direct-finish`, {
+    method: "POST", headers: auth(5)
+  });
+  assert.equal((await directRepeat.json()).evidence.id, directResult.evidence.id);
+
+  const invalidDirectResponse = await fetch(`${base}/api/evidence/uploads/direct`, {
+    method: "POST", headers: auth(5, { "Content-Type": "application/json" }),
+    body: JSON.stringify(directBody())
+  });
+  assert.equal(invalidDirectResponse.status, 201);
+  const invalidDirect = await invalidDirectResponse.json();
+  tusObjects.set(invalidDirect.objectPath, { bytes: Buffer.alloc(invalidDirect.size, 65), mime: "application/pdf" });
+  const invalidDirectFinish = await fetch(`${base}/api/evidence/uploads/${invalidDirect.id}/direct-finish`, {
+    method: "POST", headers: auth(5)
+  });
+  assert.equal(invalidDirectFinish.status, 415);
+  assert.equal(tusObjects.has(invalidDirect.objectPath), false);
+  assert.equal(await repository.findById(invalidDirect.id), null);
+
+  const expiredDirectResponse = await fetch(`${base}/api/evidence/uploads/direct`, {
+    method: "POST", headers: auth(5, { "Content-Type": "application/json" }),
+    body: JSON.stringify(directBody({ size: 200 * 1024 * 1024 }))
+  });
+  assert.equal(expiredDirectResponse.status, 201);
+  const expiredDirect = await expiredDirectResponse.json();
+  tusObjects.set(expiredDirect.objectPath, { bytes: Buffer.from("pending"), mime: "application/pdf" });
+  const expiredStored = await repository.findById(expiredDirect.id);
+  await repository.mutate(expiredDirect.id, { expiresAt: new Date(Date.now() - 1000).toISOString() },
+    expiredStored.storageVersion);
+  const directCleanup = await fetch(`${base}/api/evidence/uploads/cleanup`, {
+    headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` }
+  });
+  assert.equal(directCleanup.status, 200);
+  assert.equal((await directCleanup.json()).removed, 2);
+  assert.equal(tusObjects.has(expiredDirect.objectPath), false);
+  assert.equal(tusObjects.has(maxBoundary.objectPath), false);
+  assert.equal(await repository.findById(expiredDirect.id), null);
+  assert.equal(await repository.findById(maxBoundary.id), null);
 });
