@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Activity, ArrowLeft, ArrowRight, Bot, CheckCircle2, ClipboardCheck, Download, FileImage, FileSpreadsheet, FileText, Flag, GitBranch, LockKeyhole, Pencil, Play, Plus, RefreshCw, Save, ShieldAlert, Target, Upload, X } from "lucide-react";
+import { Activity, ArrowLeft, ArrowRight, Bot, CheckCircle2, ClipboardCheck, Download, FileImage, FileSpreadsheet, FileText, Flag, LockKeyhole, Pencil, Play, Plus, RefreshCw, Save, ShieldAlert, Target, Upload, X } from "lucide-react";
 import { uploadEvidenceFile, getEvidenceDownloadUrl } from "../services/evidenceService";
 import Sidebar from "../components/Sidebar";
 import AssistantDrawer from "../components/AssistantDrawer";
@@ -703,8 +703,7 @@ function AuditoriasActivas() {
 
                     <nav className="governance-tabs" aria-label="Secciones del expediente">
                       {[
-                        ["summary", "Resumen", Target],
-                        ["map", "Mapa del expediente", GitBranch],
+                        ["summary", "Expediente", Target],
                         ["risks", "Riesgos", ShieldAlert],
                         ["controls", "Controles", ClipboardCheck],
                         ["findings", "Hallazgos", Flag],
@@ -729,7 +728,7 @@ function AuditoriasActivas() {
                         <button type="button" className="secondary-action" onClick={() => navigate(`/auditorias-activas/${encodeURIComponent(selectedAudit.id)}`)}>Ver reporte y descargar CSV o PDF</button>
                       </section>}
                       {currentContextError && <p role="alert">No se pudieron cargar las relaciones: {currentContextError}</p>}
-                      {activeTab !== "summary" && activeTab !== "activity" && !currentContext && !currentContextError && <p role="status">Cargando relaciones del expediente...</p>}
+                      {activeTab !== "activity" && !currentContext && !currentContextError && <p role="status">Cargando expediente...</p>}
                       {activeTab === "summary" && (
                         <>
                           <h3>Resumen de auditoría</h3>
@@ -742,10 +741,10 @@ function AuditoriasActivas() {
                           </div>
                         </>
                       )}
-                      {activeTab === "map" && currentContext && (
+                      {activeTab === "summary" && currentContext && (
                         <section className="audit-context-map" aria-label="Mapa del expediente">
-                          <h3>Mapa del expediente</h3>
-                          <p>Relaciones registradas y visibles para tu cuenta. Cada cifra abre su sección del expediente.</p>
+                          <h3>Relaciones del expediente</h3>
+                          <p>Abre una sección para revisar sus registros vinculados.</p>
                           <div className="audit-context-metrics">
                             {[["risks", "Riesgos"], ["controls", "Controles"], ["findings", "Hallazgos"], ["evidence", "Evidencias"]].map(([key, label]) => (
                               <button key={key} type="button" onClick={() => setActiveTab(key)}>

@@ -431,8 +431,8 @@ function OfflineWorkspace() {
       <section className="dashboard-content offline-workspace">
         <header className="dashboard-header"><div>
           <span className="eyebrow">TRABAJO SIN CONEXIÓN</span>
-          <h1>Espacio local</h1>
-          <p>Prepara una copia privada para consultar trabajo autorizado cuando este dispositivo pierda la conexión.</p>
+          <h1>Sin conexión</h1>
+          <p>Consulta copias vigentes y prepara borradores en este dispositivo.</p>
         </div></header>
 
         {user.roleTour ? <p role="status">El recorrido de otro rol es solo de lectura en línea. Vuelve a tu cuenta para crear un espacio local.</p>
@@ -441,7 +441,7 @@ function OfflineWorkspace() {
             {error && <p className="planning-message error" role="alert">{error}</p>}
             {open ? <>
               <h2>Espacio desbloqueado</h2>
-              <p>Elige qué secciones autorizadas quieres guardar en este dispositivo. La copia caduca a las 24 horas y nunca confirma cambios en el servidor.</p>
+              <p>Elige qué guardar. Las copias caducan en 24 horas; los borradores no se envían hasta recuperar conexión.</p>
               <section className="offline-readiness" aria-labelledby="offline-readiness-title">
                 <div className="offline-readiness-heading">
                   <h3 id="offline-readiness-title">Estado de este dispositivo</h3>
@@ -454,12 +454,12 @@ function OfflineWorkspace() {
                   <p><strong>{reviewDrafts}</strong><span>Trabajos que requieren revisión</span></p>
                 </div>
                 <p className="offline-readiness-hint">{readySections.length
-                  ? "Estas copias se pueden consultar sin red hasta 24 horas después de guardarlas. Los pendientes aún no están en el servidor."
+                  ? "Disponible sin red durante 24 horas. Los borradores siguen solo en este dispositivo."
                   : "Guarda al menos una sección con conexión antes de trabajar sin red."}</p>
                 {drafts.length > 0 && <a className="offline-queue-link" href="#offline-work-queue">Ver trabajo local guardado</a>}
                 {readySections.length > 0 && <p className="offline-readiness-hint">Copia más reciente: {new Date(Math.max(
                   ...readySections.map((item) => Date.parse(item.savedAt))
-                )).toLocaleString("es-MX")}. Consulta la fecha individual de cada sección antes de usarla.</p>}
+                )).toLocaleString("es-MX")}. Revisa la fecha antes de usar cada copia.</p>}
                 <div className="offline-storage-status">
                   <strong>Conservación en este navegador</strong>
                   <p>{!storageStatus ? "Consultando almacenamiento…" : storageStatus.available
@@ -468,10 +468,10 @@ function OfflineWorkspace() {
                   {storageStatus?.available && !storageStatus.persistent && navigator.storage?.persist &&
                     <button type="button" className="secondary-action" onClick={requestStoragePersistence}>Solicitar conservación al navegador</button>}
                   {storageMessage && <p role="status">{storageMessage}</p>}
-                  <p>El espacio indicado incluye datos y archivos de este sitio; es una estimación, no una reserva. Si borras los datos del navegador, perderás la copia local.</p>
+                  <p>El uso es estimado. Si borras los datos del navegador, perderás la copia local.</p>
                   <button type="button" className="secondary-action" disabled={busy} onClick={downloadBackup}>Descargar copia cifrada</button>
                   {backupMessage && <p role="status">{backupMessage}</p>}
-                  <p>El archivo se guarda en tu dispositivo, nunca en el servidor. Quien tenga el archivo y la frase podrá leerlo; consérvalos por separado.</p>
+                  <p>La copia queda en tu dispositivo. Guarda el archivo y la frase por separado.</p>
                   {(savedSections.length - readySections.length > 0 || completedDrafts > 0) && <div className="offline-cleanup">
                     <p>Hay {savedSections.length - readySections.length} secciones caducadas y {completedDrafts} borradores ya enviados que puedes retirar de este dispositivo. Los trabajos pendientes y con conflicto se conservarán.</p>
                     <button type="button" className="secondary-action" disabled={busy} onClick={cleanCompletedLocalData}>
@@ -484,7 +484,7 @@ function OfflineWorkspace() {
               </section>
               <section className="offline-local-search" aria-labelledby="offline-local-search-title">
                 <h3 id="offline-local-search-title">Buscar en copias vigentes</h3>
-                <p>La búsqueda ocurre solo en este dispositivo y no consulta al servidor. Incluye únicamente las secciones guardadas y vigentes.</p>
+                <p>Busca solo en las secciones guardadas y vigentes de este dispositivo.</p>
                 <div className="offline-local-search-fields">
                   <label>Buscar registro<input type="search" value={searchTerm} maxLength={120}
                     onChange={(event) => setSearchTerm(event.target.value)} placeholder="Nombre, folio, área o estado" /></label>
@@ -506,7 +506,7 @@ function OfflineWorkspace() {
               <fieldset className="offline-snapshot-options">
                 <legend>Secciones para consultar sin conexión</legend>
                 <div className="offline-preparation-packs" role="group" aria-label="Selección rápida de secciones">
-                  <p>Elige un conjunto o selecciona cada sección. Nada se descarga hasta que pulses «Actualizar secciones elegidas»; el servidor comprobará tus permisos en cada una.</p>
+                  <p>Elige secciones. VERA comprobará tus permisos al guardarlas.</p>
                   <div>{PREPARATION_PACKS.map((pack) => <button key={pack.id} type="button"
                     className="secondary-action" disabled={busy}
                     onClick={() => setSelected(pack.sections)}>{pack.label}</button>)}
