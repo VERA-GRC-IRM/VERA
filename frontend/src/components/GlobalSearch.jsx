@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { searchRecords } from "../services/universalSearchService";
-import ShareLinkButton from "./ShareLinkButton";
-import { shareableLocation } from "../utils/shareableLocation";
+import ThemeControl from "./ThemeControl";
 import "./GlobalSearch.css";
 
 function normalize(value) {
@@ -129,7 +128,6 @@ function GlobalSearch({ groups, previewRoles, onNavigate, onPreviewRole, onRevea
     });
   };
 
-  const sharePath = shareableLocation(location);
   return <>
     <header className="global-shell-header">
       <button type="button" className="global-search-trigger" ref={triggerRef} onClick={openSearch}
@@ -138,9 +136,7 @@ function GlobalSearch({ groups, previewRoles, onNavigate, onPreviewRole, onRevea
         <span>Buscar en VERA</span>
         <kbd>Ctrl K</kbd>
       </button>
-      <div className="global-shell-share" key={sharePath}>
-        <ShareLinkButton path={sharePath} label="Copiar esta vista" />
-      </div>
+      <ThemeControl compact />
     </header>
     <dialog ref={dialogRef} className="global-search-dialog" aria-label="Buscar en VERA" onClose={onClose}>
       <div className="global-search-input-row">

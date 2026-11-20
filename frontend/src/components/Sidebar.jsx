@@ -18,19 +18,16 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldAlert,
-  SunMoon,
   UserCog,
-  UserRoundPen,
   ListTodo,
   X
 } from "lucide-react";
-import { ROLE_LABELS, ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "../constants/roles";
+import { PLANNING_VIEW_ROLES, ROLE_LABELS, USER_VIEW_ROLES } from "../constants/roles";
 import { managedAuth } from "../services/managedAuth";
 import { clearRoleTourSession, startRoleTour } from "../services/roleTour";
 import { lockOfflineVault } from "../services/offlineVault";
 import { disablePush } from "../services/pushService";
 import { recordVisit } from "../services/personalWorkspace";
-import ThemeControl from "./ThemeControl";
 import GlobalSearch from "./GlobalSearch";
 import { cancelViewChange, requestViewChange } from "../hooks/useUnsavedChanges";
 import { prefetchNavigation } from "../routeLoaders";
@@ -47,11 +44,6 @@ const RECENT_LABELS = {
   "/controles": "Controles", "/evidencias": "Evidencias", "/notificaciones": "Pendientes",
   "/asistente": "Asistente de IA", "/sin-conexion": "Sin conexión", "/trabajos": "Centro de trabajos"
 };
-const OFFLINE_SECTIONS_BY_VIEW = {
-  dashboard: "dashboard", planificacion: "planning", "auditorias-activas": "activeAudits",
-  riesgos: "risks", controles: "controls", notificaciones: "notifications", evidencias: "evidence"
-};
-
 function Sidebar({ active }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -110,11 +102,7 @@ function Sidebar({ active }) {
     catch (error) { cancelViewChange(); setTourError(error.message); setTourLoading(false); }
   };
 
-  const revealAppearance = () => {
-    setCollapsed(false);
-    if (isMobile) setMobileOpen(true);
-    requestAnimationFrame(() => sidebarRef.current?.querySelector(".theme-control select")?.focus());
-  };
+  const revealAppearance = () => document.querySelector(".global-shell-header .theme-control select")?.focus();
 
   const logout = async () => {
     if (!requestViewChange()) return;
@@ -132,32 +120,30 @@ function Sidebar({ active }) {
 
   const canSeeUsers = USER_VIEW_ROLES.includes(user?.role);
   const canSeeAuditLog = user?.role === "SUPER_ADMIN";
-  const canSeeRoleRequests = ROLE_REQUEST_ROLES.includes(user?.role);
   const items = [
     { id: "dashboard", label: "Panel de Portafolio", Icon: LayoutDashboard, path: "/dashboard" },
     { id: "business-context", label: "Mapa del negocio", Icon: Network, path: "/mapa-negocio" },
-    { id: "planificacion", label: "Planificación", Icon: ClipboardList, path: "/planificacion" },
+    ...(PLANNING_VIEW_ROLES.includes(user?.role) ? [{ id: "planificacion", label: "Planificación", Icon: ClipboardList, path: "/planificacion" }] : []),
     { id: "trimestres", label: "Trimestres", Icon: CalendarRange, path: "/trimestres" },
-    { id: "auditorias-activas", label: "Auditorías activas y riesgos", Icon: Activity, path: "/auditorias-activas" },
+    { id: "auditorias-activas", label: "Auditorías activas", Icon: Activity, path: "/auditorias-activas" },
     { id: "riesgos", label: "Registro de riesgos", Icon: ShieldAlert, path: "/riesgos" },
     { id: "biblioteca-riesgos", label: "Biblioteca de riesgos", Icon: BookOpen, path: "/biblioteca-riesgos" },
     { id: "controles", label: "Mapa de controles", Icon: ClipboardCheck, path: "/controles" },
     { id: "notificaciones", label: "Pendientes", Icon: BellRing, path: "/notificaciones" },
-    { id: "actividad", label: "Actividad reciente", Icon: Activity, path: "/actividad" },
+    { id: "actividad", label: "Bitácora", Icon: Activity, path: "/actividad" },
     ...(import.meta.env.VITE_VERA_JOBS_ENABLED === "true" && !user?.roleTour
       ? [{ id: "trabajos", label: "Centro de trabajos", Icon: ListTodo, path: "/trabajos" }] : []),
     { id: "asistente", label: "Asistente de IA", Icon: Bot, path: "/asistente" },
     ...(canSeeAuditLog ? [{ id: "calidad-ia", label: "Calidad de IA", Icon: ChartNoAxesCombined, path: "/calidad-ia" }] : []),
     { id: "evidencias", label: "Evidencias", Icon: Files, path: "/evidencias" },
     ...(!user?.roleTour ? [{ id: "offline", label: "Sin conexión", Icon: HardDriveDownload, path: "/sin-conexion" }] : []),
-    ...(canSeeRoleRequests ? [{ id: "mi-rol", label: "Mi rol y solicitudes", Icon: UserRoundPen, path: "/mi-rol" }] : []),
     ...(canSeeUsers ? [{ id: "usuarios", label: "Usuarios", Icon: UserCog, path: "/usuarios" }] : []),
   ];
   const groups = [
     { label: "Portafolio y auditorías", ids: ["dashboard", "business-context", "planificacion", "trimestres", "auditorias-activas"] },
     { label: "Seguimiento", ids: ["notificaciones", "actividad", "trabajos"] },
     { label: "Asistencia", ids: ["asistente", "calidad-ia"] },
-    { label: "Cuenta y administración", ids: ["offline", "mi-rol", "usuarios"] }
+    { label: "Cuenta y administración", ids: ["offline", "usuarios"] }
   ].map((group) => ({ ...group, items: group.ids.map((id) => items.find((item) => item.id === id)).filter(Boolean) }));
   const previewRoles = user?.role === "SUPER_ADMIN" ? PREVIEW_ROLES.map((role) => ({ role, label: ROLE_LABELS[role] })) : [];
   const goTo = (path) => {
@@ -206,14 +192,6 @@ function Sidebar({ active }) {
         </div>
         <div className="sidebar-navigation">
 
-          {!user?.roleTour && OFFLINE_SECTIONS_BY_VIEW[active] && <button type="button"
-            className="nav-prepare-action"
-            onClick={() => goTo(`/sin-conexion?seccion=${OFFLINE_SECTIONS_BY_VIEW[active]}`)}
-            title="Preparar esta vista sin conexión" aria-label="Preparar esta vista sin conexión">
-            <HardDriveDownload size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
-            <span>Preparar esta vista sin conexión</span>
-          </button>}
-
           <nav aria-label="Módulos principales">
             {groups.map((group) => group.items.length > 0 && <section className="nav-group" key={group.label}
               aria-label={group.label}>
@@ -243,9 +221,6 @@ function Sidebar({ active }) {
         </div>
 
         <div className="sidebar-bottom">
-          <div className="appearance-expanded"><ThemeControl /></div>
-          <button type="button" className="appearance-rail-button" onClick={revealAppearance}
-            aria-label="Apariencia" title="Apariencia"><SunMoon size={20} aria-hidden="true" /></button>
           <div className="user-info" title={collapsed && !isMobile ? `${user?.name} · ${ROLE_LABELS[user?.role] || user?.role}` : undefined}>
             <div className="avatar">{user?.name?.charAt(0)}</div>
 

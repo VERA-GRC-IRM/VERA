@@ -8,8 +8,9 @@ La [guía de integraciones Microsoft](microsoft-integrations.md) reúne Excel, P
 
 | Función | Disponible ahora | Alcance y límite |
 | --- | --- | --- |
+| [Navegación y actividad reciente](navigation-and-activity.md) | Selector de apariencia en barra superior, panel con pestañas accesibles y Bitácora de siete días | La ventana de siete días solo limita la vista; el historial formal no se elimina. |
 | [Búsqueda de registros](universal-search.md) | Barra superior y resultados autorizados | Expedientes, evidencias, mapa del negocio, personas visibles, conversaciones propias y texto de evidencias ya indexadas en lotes. |
-| [Enlaces de trabajo](shareable-links.md) | Botón de la barra superior en todas las pantallas autenticadas; propuestas, auditorías activas, registros y vistas filtradas | El enlace no concede permisos; los filtros escritos quedan visibles en la URL. |
+| [Enlaces de trabajo](shareable-links.md) | Acciones de enlace en registros y vistas compatibles | El enlace no concede permisos; los filtros escritos quedan visibles en la URL. |
 | [Tu espacio](personal-workspace.md) | Favoritos, vistas guardadas y secciones recientes; sincronización entre dispositivos preparada | La sincronización requiere migración y banderas aún no activadas en producción. |
 | [Actualización de vistas](automatic-refresh.md) | Consulta periódica de seis vistas y aviso de cambios al editar riesgos o controles | Hasta 40 segundos en vistas y 15 segundos en formularios; señal en vivo y presencia preparadas, pendientes de activación. |
 | [Carga de evidencias](evidence-upload.md) | Hasta 10 archivos de 3 MB, progreso y resultado individual; reintento solo tras rechazo confirmado | Reanudación y versiones preparadas, pendientes de migración y aceptación. |

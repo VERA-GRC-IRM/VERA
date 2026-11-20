@@ -21,7 +21,8 @@ const createControl = async (req, res) => {
 };
 
 const updateControl = async (req, res) => {
-  try { return res.json({ control: withResult(await updateCoreForUser(req.user, "CONTROL", req.params.id, req.body)) }); }
+  try { return res.json({ control: withResult(await updateCoreForUser(req.user, "CONTROL",
+    req.params.id, req.body, { expectedStorageVersion: req.body?.expectedStorageVersion })) }); }
   catch (error) {
     if ([400, 403, 404, 409].includes(error.status)) return res.status(error.status).json({ message: error.message });
     throw error;
