@@ -17,7 +17,7 @@ El workflow integral es manual y semanal. Solo quien tiene escritura puede pulsa
 | Capa | Enlace | Alcance |
 | --- | --- | --- |
 | Backend, lint, build y dependencias | [Quality gates](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/quality.yml) | Pruebas de Node con cobertura, sintaxis, ESLint, compilación y `npm audit`. |
-| Navegadores y accesibilidad | [UI E2E manual](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/e2e.yml) | Matriz conservada, [diferida como gate](https://github.com/VERA-GRC-IRM/VERA/issues/300); no incluida en el PASS integral vigente. |
+| Navegadores y accesibilidad | [Smoke UI Chromium en PR](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/ui-smoke.yml), [matriz E2E manual](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/e2e.yml) | El smoke revisa teclado y axe WCAG 2.1 A/AA únicamente en el Panel de Portafolio; la matriz amplia sigue [diferida como gate](https://github.com/VERA-GRC-IRM/VERA/issues/300) y fuera del PASS integral. |
 | Análisis estático | [CodeQL](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/codeql.yml) | JavaScript/TypeScript; no sustituye una revisión completa de seguridad. |
 | Vista unificada | [Informe integral de calidad](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/classroom-quality.yml) | Reúne fases, tiempos y evidencia en una ejecución para inspección. |
 | IA sintética | [AI continuous evaluation](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/ai-evaluation.yml) | Casos reproducibles, sin Azure real y sin costo por llamada. |

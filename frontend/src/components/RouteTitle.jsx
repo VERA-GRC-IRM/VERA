@@ -13,14 +13,13 @@ const TITLES = {
   "/mapa-negocio": "Mapa de negocio",
   "/controles": "Mapa de controles",
   "/notificaciones": "Pendientes",
-  "/actividad": "Actividad reciente",
+  "/actividad": "Bitácora",
   "/asistente": "Preguntar a VERA",
   "/calidad-ia": "Calidad de IA",
   "/evidencias": "Evidencias",
   "/sin-conexion": "Sin conexión",
   "/sin-conexion/informe": "Informe sin conexión",
   "/usuarios": "Usuarios",
-  "/mi-rol": "Mi rol",
   "/trabajos": "Trabajos"
 };
 

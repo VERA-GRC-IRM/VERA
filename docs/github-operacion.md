@@ -6,7 +6,7 @@ Esta guía complementa las HU de Azure DevOps. GitHub conserva código, cambios 
 
 1. Partir de `main` y abrir un PR por resultado revisable. Enlazar la HU cuando exista.
 2. Completar la plantilla de PR con decisiones, pruebas realmente ejecutadas, entorno, commit, duración y riesgos.
-3. Esperar los checks obligatorios: `Quality gates (Node.js 22)`, `Analyze JavaScript and TypeScript`, `Reviewable PR description` y `Migrations, private access and synthetic restore`. La [matriz E2E de navegadores](testing/browser-e2e-debt.md) está diferida y puede ejecutarse manualmente; su ausencia no demuestra compatibilidad.
+3. Esperar los checks obligatorios: `Quality gates (Node.js 22)`, `Analyze JavaScript and TypeScript`, `Reviewable PR description` y `Migrations, private access and synthetic restore`. El [smoke Chromium de UI/accesibilidad](https://github.com/VERA-GRC-IRM/VERA/actions/workflows/ui-smoke.yml) aporta una señal adicional en cambios de frontend, pero no es requerido por el ruleset. La [matriz E2E amplia](testing/browser-e2e-debt.md) sigue diferida y manual; ninguna de las dos señales acredita compatibilidad total.
 4. Resolver conversaciones y revisar personalmente el diff, el alcance de los datos y la evidencia. El autor puede fusionar su propio PR cuando pasan los checks. Solicita una segunda revisión si el cambio afecta datos, permisos, migraciones o despliegues.
 5. Integrar y observar el despliegue correspondiente. GitHub elimina automáticamente la rama integrada; las ramas históricas se revisan antes de borrarlas.
 

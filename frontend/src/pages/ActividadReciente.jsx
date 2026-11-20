@@ -5,6 +5,7 @@ import Sidebar from "../components/Sidebar";
 import { getAuditLog, getRecentAuditActivity } from "../services/auditService";
 import { ROLE_LABELS } from "../constants/roles";
 import { displayAuditId } from "../utils/auditId";
+import { isActivityWithinWindow } from "../utils/activityWindow";
 import "./Dashboard.css";
 import "./ActividadReciente.css";
 import "./Usuarios.css";
@@ -77,11 +78,16 @@ function ActividadReciente() {
   const [auditError, setAuditError] = useState("");
   const [action, setAction] = useState("");
   const [actor, setActor] = useState("");
+  const [activityAction, setActivityAction] = useState("");
+  const [activityActor, setActivityActor] = useState("");
+  const [recentCutoff, setRecentCutoff] = useState(0);
 
   const load = async () => {
     setLoading(true);
     try {
-      setActivities(await getRecentAuditActivity());
+      const result = await getRecentAuditActivity();
+      setRecentCutoff(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      setActivities(result);
       setError("");
     } catch (loadError) {
       setError(loadError.message);
@@ -95,6 +101,7 @@ function ActividadReciente() {
     getRecentAuditActivity()
       .then((entries) => {
         if (cancelled) return;
+        setRecentCutoff(Date.now() - 7 * 24 * 60 * 60 * 1000);
         setActivities(entries);
         setError("");
       })
@@ -134,6 +141,9 @@ function ActividadReciente() {
       ? `/auditorias-activas/${auditId}`
       : `/auditorias-activas/${auditId}`);
   };
+  const visibleActivities = activities.filter((entry) => isActivityWithinWindow(entry.date, recentCutoff)
+    && (!activityAction || entry.action === activityAction)
+    && (!activityActor || (entry.actor?.username || "").toLocaleLowerCase("es-MX").includes(activityActor.trim().toLocaleLowerCase("es-MX"))));
 
   return (
     <div className="dashboard-layout">
@@ -143,8 +153,8 @@ function ActividadReciente() {
           <header className="dashboard-header">
             <div>
               <span className="eyebrow">SEGUIMIENTO DE AUDITORÍAS</span>
-              <h1>Actividad reciente</h1>
-              <p>Eventos recientes de los expedientes de auditoría visibles para tu cuenta.</p>
+              <h1>Bitácora</h1>
+              <p>Eventos recientes de auditorías visibles para tu cuenta.</p>
             </div>
             <button type="button" className="recent-activity-refresh" onClick={load} disabled={loading}>
               <RefreshCw size={16} aria-hidden="true" />
@@ -188,16 +198,23 @@ function ActividadReciente() {
           )}
 
           {error && <p className="recent-activity-error" role="alert">{error}</p>}
-          {loading && <p className="recent-activity-state" role="status">Cargando actividad…</p>}
-          {!loading && !error && activities.length === 0 && (
+          <section className="recent-activity-filters" aria-label="Filtros de bitácora">
+            <label>Buscar persona<input type="search" value={activityActor} onChange={(event) => setActivityActor(event.target.value)} placeholder="Nombre de usuario" /></label>
+            <label>Tipo de evento<select value={activityAction} onChange={(event) => setActivityAction(event.target.value)}>
+              <option value="">Todos</option>{Object.entries(ACTION_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select></label>
+            <small>Vista de actividad de los últimos 7 días · el historial formal se conserva.</small>
+          </section>
+          {loading && <p className="recent-activity-state" role="status">Cargando bitácora…</p>}
+          {!loading && !error && visibleActivities.length === 0 && (
             <div className="recent-activity-empty">
               <Inbox size={22} aria-hidden="true" />
-              <p>No hay actividad reciente en tus auditorías.</p>
+              <p>{activities.length ? "No hay eventos que coincidan con los filtros." : "No hay actividad en auditorías visibles durante los últimos 7 días."}</p>
             </div>
           )}
-          {!loading && activities.length > 0 && (
+          {!loading && visibleActivities.length > 0 && (
             <ol className="recent-activity-list">
-              {activities.map((entry) => (
+              {visibleActivities.map((entry) => (
                 <li key={entry.id}>
                   <article className="recent-activity-card">
                     <div className="recent-activity-card-icon"><Clock3 size={19} aria-hidden="true" /></div>

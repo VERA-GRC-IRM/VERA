@@ -11,7 +11,6 @@ import { routeLoaders } from "./routeLoaders";
 const Login = lazy(routeLoaders.login);
 const Dashboard = lazy(routeLoaders.dashboard);
 const Usuarios = lazy(routeLoaders.usuarios);
-const MiRol = lazy(routeLoaders.miRol);
 const Registro = lazy(routeLoaders.registro);
 const BuscarAuditorias = lazy(routeLoaders.buscarAuditorias);
 const Trabajos = lazy(routeLoaders.trabajos);
@@ -48,7 +47,7 @@ import WorkspaceSync from "./components/WorkspaceSync";
 import RouteLoading from "./components/RouteLoading";
 import RouteTitle from "./components/RouteTitle";
 import GuidedTour from "./components/GuidedTour";
-import { ROLE_REQUEST_ROLES, USER_VIEW_ROLES } from "./constants/roles";
+import { PLANNING_VIEW_ROLES, USER_VIEW_ROLES } from "./constants/roles";
 
 
 function App() {
@@ -92,7 +91,7 @@ function App() {
           <Route path="/confianza" element={<PublicTrust />} />
           <Route path="/tecnologia" element={<PublicTechnology />} />
           <Route path="/privacidad" element={<PrivacyNotice />} />
-          <Route path="/mi-rol" element={<ProtectedRoute allowedRoles={ROLE_REQUEST_ROLES}><MiRol /></ProtectedRoute>} />
+          <Route path="/mi-rol" element={<Navigate to="/dashboard" replace />} />
 
           <Route
             path="/usuarios"
@@ -107,7 +106,7 @@ function App() {
           <Route
             path="/planificacion"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={PLANNING_VIEW_ROLES}>
                 <Planificacion />
               </ProtectedRoute>
             }

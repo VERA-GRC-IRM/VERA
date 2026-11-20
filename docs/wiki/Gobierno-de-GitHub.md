@@ -22,7 +22,7 @@ La [regla de `main`](https://github.com/VERA-GRC-IRM/VERA/rules/25312937) exige 
 | Descripción revisable | Alcance, evidencia, verificación y riesgos del PR | La evidencia debe seguir siendo verificable por quien revisa. |
 | Supabase local | Migraciones, tablas privadas, persistencia y bitácora sintéticas tras reinicio, restauración lógica | Base desechable; no acredita copia ni persistencia de Production. |
 
-La matriz UI E2E de Chrome, Edge, Firefox, móvil/tableta y accesibilidad automatizada está [diferida](https://github.com/VERA-GRC-IRM/VERA/issues/300): su workflow sigue disponible manualmente, pero no es un check obligatorio ni se cuenta como aprobado en el informe integral.
+La matriz UI E2E amplia de Chrome, Edge, Firefox, móvil/tableta y accesibilidad automatizada está [diferida](https://github.com/VERA-GRC-IRM/VERA/issues/300): su workflow sigue disponible manualmente, pero no es un check obligatorio ni se cuenta como aprobado en el informe integral. Por separado, un smoke Chromium en PR comprueba teclado y axe WCAG 2.1 A/AA solo en el Panel de Portafolio; tampoco sustituye la matriz ni la revisión manual.
 
 La [plantilla de PR](https://github.com/VERA-GRC-IRM/VERA/blob/main/.github/pull_request_template.md) y el [validador](https://github.com/VERA-GRC-IRM/VERA/blob/main/.github/scripts/check_pr_description.py) dan el mismo formato a cambios humanos y asistidos por IA. El workflow lee el script de `main`, no del código propuesto; los PR cerrados omiten el job al editar su descripción. El PR [#103](https://github.com/VERA-GRC-IRM/VERA/pull/103) registra la corrección y sus tiempos.
 

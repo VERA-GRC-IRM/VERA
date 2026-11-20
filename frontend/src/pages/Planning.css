@@ -32,6 +32,15 @@
   color: light-dark(#49606d, var(--vera-text-muted));
 }
 
+.primary-action:hover:not(:disabled) { filter: brightness(1.08); }
+.secondary-action:hover:not(:disabled) { border-color: var(--vera-accent); background: var(--vera-accent-soft); color: var(--vera-text-strong); }
+.primary-action:focus-visible, .secondary-action:focus-visible,
+.governance-continue:focus-visible, .governance-tabs button:focus-visible {
+  outline: 3px solid var(--vera-focus);
+  outline-offset: 2px;
+}
+.primary-action:disabled, .secondary-action:disabled { cursor: not-allowed; opacity: .58; }
+
 .planning-summary {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

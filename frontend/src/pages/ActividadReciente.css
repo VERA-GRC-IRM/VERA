@@ -30,6 +30,24 @@
   background: light-dark(#edf6f7, var(--vera-success-soft));
 }
 
+.recent-activity-filters {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 14px;
+  border: 1px solid light-dark(#e3e8ec, var(--vera-border));
+  border-radius: 10px;
+  background: light-dark(#ffffff, var(--vera-surface));
+}
+.recent-activity-filters label { display: grid; gap: 5px; color: var(--vera-text-muted); font-size: 12px; font-weight: 650; }
+.recent-activity-filters input, .recent-activity-filters select {
+  min-height: 40px; min-width: 190px; padding: 7px 10px; border: 1px solid var(--vera-border);
+  border-radius: 7px; background: var(--vera-surface); color: var(--vera-text);
+}
+.recent-activity-filters small { margin-left: auto; color: var(--vera-text-muted); }
+
 .recent-activity-list {
   display: grid;
   gap: 12px;
@@ -127,6 +145,9 @@
     gap: 10px;
     padding: 14px;
   }
+  .recent-activity-filters { align-items: stretch; flex-direction: column; }
+  .recent-activity-filters input, .recent-activity-filters select { width: 100%; }
+  .recent-activity-filters small { margin-left: 0; }
 
   .recent-activity-card-icon {
     width: 36px;
