@@ -1,0 +1,12 @@
+form label:has(:required)::before {
+  content: "* ";
+  color: var(--vera-danger);
+  font-weight: 800;
+}
+
+.proposal-form-grid:has(:required)::before {
+  content: "* Campos obligatorios";
+  grid-column: 1 / -1;
+  color: var(--vera-text-muted);
+  font-size: 12px;
+}

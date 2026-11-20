@@ -104,7 +104,7 @@ function Notificaciones() {
   const decisionCount = notifications.filter((item) => ["PROPOSAL_REVIEW", "PROPOSAL_TRACK", "PROPOSAL_DECIDED", "PLAN_VALIDATION_REQUESTED"].includes(item.type)).length;
 
   return <div className="dashboard-layout"><Sidebar active="notificaciones" /><main className="dashboard-main"><section className="dashboard-content notifications-page">
-    <header className="dashboard-header"><div><span className="eyebrow">CENTRO DE ACCIÓN</span><h1>Pendientes</h1><p>Decisiones y seguimientos que requieren atención según tu rol.</p></div><button className="secondary-action" onClick={load} disabled={loading}><RefreshCw size={16} />Actualizar</button></header>
+    <header className="dashboard-header"><div><span className="eyebrow">CENTRO DE ACCIÓN</span><h1>Pendientes</h1><p>Decisiones y tareas asignadas a tu cuenta.</p></div><button className="secondary-action" onClick={load} disabled={loading}><RefreshCw size={16} />Actualizar</button></header>
     <div className="notification-desktop-option"><div><strong>Avisos de escritorio</strong><span>Opcionales y sin detalles privados. Funcionan mientras VERA está abierta en este navegador.</span></div><button type="button" className="secondary-action" onClick={toggleDesktopAlerts} disabled={!desktopAlertsAvailable() || !currentUser?.id} aria-pressed={desktopAlerts}>{desktopAlerts ? "Desactivar avisos" : "Activar avisos"}</button></div>
     {import.meta.env.VITE_VERA_PUSH_ENABLED === "true" && !currentUser?.roleTour &&
       <div className="notification-desktop-option"><div><strong>Avisos con VERA cerrada</strong>
