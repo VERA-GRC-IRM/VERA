@@ -34,7 +34,7 @@ function AssistantQuickAccess() {
   if (location.pathname === "/asistente") return null;
   return <>
     <button className="assistant-quick-access" type="button" onClick={() => { setInitialQuestion(""); setOpen(true); }}
-      aria-label="Abrir asistente de IA" aria-keyshortcuts="Control+Alt+K Meta+Alt+K"
+      aria-keyshortcuts="Control+Alt+K Meta+Alt+K"
       title="Abrir asistente · Ctrl+Alt+K"><img src="/vera-logo.svg" alt="" /><span>Preguntar a VERA</span></button>
     {open && <Suspense fallback={null}><AssistantDrawer initialQuestion={initialQuestion} onClose={close} /></Suspense>}
   </>;
