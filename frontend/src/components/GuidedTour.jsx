@@ -318,7 +318,6 @@ function GuidedTour() {
           type="button"
           className="guided-tour-launcher"
           onClick={startTour}
-          aria-label="Iniciar recorrido guiado de VERA"
         >
           <GraduationCap size={19} aria-hidden="true" />
           <span>Guía de VERA</span>
