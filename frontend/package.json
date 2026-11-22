@@ -15,11 +15,11 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
-    "lucide-react": "^1.73.0",
+    "lucide-react": "^1.76.0",
     "microsoft-cognitiveservices-speech-sdk": "^1.53.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-router-dom": "^7.18.5"
+    "react-router-dom": "^7.18.6"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
