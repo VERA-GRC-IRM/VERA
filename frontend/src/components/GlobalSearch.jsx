@@ -131,10 +131,10 @@ function GlobalSearch({ groups, previewRoles, onNavigate, onPreviewRole, onRevea
   return <>
     <header className="global-shell-header">
       <button type="button" className="global-search-trigger" ref={triggerRef} onClick={openSearch}
-        aria-label="Buscar secciones, acciones y registros" aria-keyshortcuts="Control+K Meta+K">
+        aria-keyshortcuts="Control+K Meta+K">
         <Search size={19} aria-hidden="true" />
         <span>Buscar en VERA</span>
-        <kbd>Ctrl K</kbd>
+        <kbd aria-hidden="true">Ctrl K</kbd>
       </button>
       <ThemeControl compact />
     </header>
