@@ -14,7 +14,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.118.0",
+    "@supabase/supabase-js": "^2.119.2",
     "lucide-react": "^1.76.0",
     "microsoft-cognitiveservices-speech-sdk": "^1.53.0",
     "react": "^19.3.1",
